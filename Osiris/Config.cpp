@@ -511,6 +511,7 @@ static void from_json(const json& j, PurchaseList& pl)
 static void from_json(const json& j, PreserveKillfeed& o)
 {
     read(j, "Enabled", o.enabled);
+    read(j, "Only Headshots", o.onlyHeadshots);
 }
 
 static void from_json(const json& j, Config::Misc& m)
@@ -553,6 +554,7 @@ static void from_json(const json& j, Config::Misc& m)
     read(j, "Ban color", m.banColor);
     read<value_t::object>(j, "Ban text", m.banText);
     read(j, "Fast plant", m.fastPlant);
+    read(j, "Fast Stop", m.fastStop);
     read<value_t::object>(j, "Bomb timer", m.bombTimer);
     read(j, "Quick reload", m.quickReload);
     read(j, "Prepare revolver", m.prepareRevolver);
@@ -883,6 +885,7 @@ static void to_json(json& j, const PurchaseList& o, const PurchaseList& dummy = 
 static void to_json(json& j, const PreserveKillfeed& o, const PreserveKillfeed& dummy = {})
 {
     WRITE("Enabled", enabled);
+    WRITE("Only Headshots", onlyHeadshots);
 }
 
 static void to_json(json& j, const Config::Misc& o)
@@ -929,6 +932,7 @@ static void to_json(json& j, const Config::Misc& o)
     WRITE("Ban color", banColor);
     WRITE("Ban text", banText);
     WRITE("Fast plant", fastPlant);
+    WRITE("Fast Stop", fastStop);
     WRITE("Bomb timer", bombTimer);
     WRITE("Quick reload", quickReload);
     WRITE("Prepare revolver", prepareRevolver);
