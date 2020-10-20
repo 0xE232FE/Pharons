@@ -1,8 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <Windows.h>
-#include <d3d9types.h>
 
 #include "Pad.h"
 #include "Vector.h"
