@@ -83,6 +83,31 @@ void GUI::updateColors() const noexcept
     }
 }
 
+#include "InputUtil.h"
+
+static void hotkey2(KeyBind& key) noexcept
+{
+    ImGui::Text("[ %s ]", key.toString());
+
+    if (!ImGui::IsItemHovered())
+        return;
+
+    ImGui::SetTooltip("Press any key to change keybind");
+    key.setToPressedKey();
+}
+
+void GUI::handleToggle() noexcept
+{
+    if (config->misc.menuKey.isPressed()) {
+        open = !open;
+        if (!open)
+            interfaces->inputSystem->resetInputState();
+#ifndef _WIN32
+        ImGui::GetIO().MouseDrawCursor = gui->open;
+#endif
+    }
+}
+
 void GUI::hotkey(int& key) noexcept
 {
     key ? ImGui::Text("[ %s ]", interfaces->inputSystem->virtualKeyToString(key)) : ImGui::TextUnformatted("[ key ]");
@@ -93,7 +118,7 @@ void GUI::hotkey(int& key) noexcept
     ImGui::SetTooltip("Press any key to change keybind");
     ImGuiIO& io = ImGui::GetIO();
     for (int i = 0; i < IM_ARRAYSIZE(io.KeysDown); i++)
-        if (ImGui::IsKeyPressed(i) && i != config->misc.menuKey)
+        if (ImGui::IsKeyPressed(i))// && i != config->misc.menuKey)
 #ifdef _WIN32
             key = i != VK_ESCAPE ? i : 0;
 #else
@@ -101,7 +126,7 @@ void GUI::hotkey(int& key) noexcept
 #endif
 
     for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++)
-        if (ImGui::IsMouseDown(i) && i + (i > 1 ? 2 : 1) != config->misc.menuKey)
+        if (ImGui::IsMouseDown(i))// && i + (i > 1 ? 2 : 1) != config->misc.menuKey)
             key = i + (i > 1 ? 2 : 1);
 }
 
@@ -235,13 +260,13 @@ void GUI::renderAimbotWindow(bool contentOnly) noexcept
     ImGui::Separator();
     ImGui::Columns(2, nullptr, false);
     ImGui::SetColumnOffset(1, 220.0f);
-    ImGui::Checkbox("On key", &config->aimbot[currentWeapon].onKey);
+    ImGui::Checkbox("On key", &config->aimbotOnKey);
     ImGui::SameLine();
-    hotkey(config->aimbot[currentWeapon].key);
+    hotkey(config->aimbotKey);
     ImGui::SameLine();
     ImGui::PushID(2);
     ImGui::PushItemWidth(70.0f);
-    ImGui::Combo("", &config->aimbot[currentWeapon].keyMode, "Hold\0Toggle\0");
+    ImGui::Combo("", &config->aimbotKeyMode, "Hold\0Toggle\0");
     ImGui::PopItemWidth();
     ImGui::PopID();
     ImGui::Checkbox("Aimlock", &config->aimbot[currentWeapon].aimlock);
@@ -918,7 +943,7 @@ void GUI::renderVisualsWindow(bool contentOnly) noexcept
     }
     ImGui::Columns(2, nullptr, false);
     ImGui::SetColumnOffset(1, 280.0f);
-    constexpr auto playerModels = "Default\0Special Agent Ava | FBI\0Operator | FBI SWAT\0Markus Delrow | FBI HRT\0Michael Syfers | FBI Sniper\0B Squadron Officer | SAS\0Seal Team 6 Soldier | NSWC SEAL\0Buckshot | NSWC SEAL\0Lt. Commander Ricksaw | NSWC SEAL\0Third Commando Company | KSK\0'Two Times' McCoy | USAF TACP\0Dragomir | Sabre\0Rezan The Ready | Sabre\0'The Doctor' Romanov | Sabre\0Maximus | Sabre\0Blackwolf | Sabre\0The Elite Mr. Muhlik | Elite Crew\0Ground Rebel | Elite Crew\0Osiris | Elite Crew\0Prof. Shahmat | Elite Crew\0Enforcer | Phoenix\0Slingshot | Phoenix\0Soldier | Phoenix\0Pirate\0Pirate Variant A\0Pirate Variant B\0Pirate Variant C\0Pirate Variant D\0Anarchist\0Anarchist Variant A\0Anarchist Variant B\0Anarchist Variant C\0Anarchist Variant D\0Balkan Variant A\0Balkan Variant B\0Balkan Variant C\0Balkan Variant D\0Balkan Variant E\0Jumpsuit Variant A\0Jumpsuit Variant B\0Jumpsuit Variant C\0";
+    constexpr auto playerModels = "Default\0Special Agent Ava | FBI\0Operator | FBI SWAT\0Markus Delrow | FBI HRT\0Michael Syfers | FBI Sniper\0B Squadron Officer | SAS\0Seal Team 6 Soldier | NSWC SEAL\0Buckshot | NSWC SEAL\0Lt. Commander Ricksaw | NSWC SEAL\0Third Commando Company | KSK\0'Two Times' McCoy | USAF TACP\0Dragomir | Sabre\0Rezan The Ready | Sabre\0'The Doctor' Romanov | Sabre\0Maximus | Sabre\0Blackwolf | Sabre\0The Elite Mr. Muhlik | Elite Crew\0Ground Rebel | Elite Crew\0Osiris | Elite Crew\0Prof. Shahmat | Elite Crew\0Enforcer | Phoenix\0Slingshot | Phoenix\0Soldier | Phoenix\0Pirate\0Pirate Variant A\0Pirate Variant B\0Pirate Variant C\0Pirate Variant D\0Anarchist\0Anarchist Variant A\0Anarchist Variant B\0Anarchist Variant C\0Anarchist Variant D\0Balkan Variant A\0Balkan Variant B\0Balkan Variant C\0Balkan Variant D\0Balkan Variant E\0Jumpsuit Variant A\0Jumpsuit Variant B\0Jumpsuit Variant C\0Street Soldier | Phoenix\0'Blueberries' Buckshot | NSWC SEAL\0'Two Times' McCoy | TACP Cavalry\0Rezan the Redshirt | Sabre\0Dragomir | Sabre Footsoldier\0Cmdr. Mae 'Dead Cold' Jamison | SWAT\0 1st Lieutenant Farlow | SWAT\0John 'Van Healen' Kask | SWAT\0Bio-Haz Specialist | SWAT\0Sergeant Bombson | SWAT\0Chem-Haz Specialist | SWAT\0Sir Bloody Miami Darryl | The Professionals\0Sir Bloody Silent Darryl | The Professionals\0Sir Bloody Skullhead Darryl | The Professionals\0Sir Bloody Darryl Royale | The Professionals\0Sir Bloody Loudmouth Darryl | The Professionals\0Safecracker Voltzmann | The Professionals\0Little Kev | The Professionals\0Number K | The Professionals\0Getaway Sally | The Professionals\0";
     ImGui::Combo("T Player Model", &config->visuals.playerModelT, playerModels);
     ImGui::Combo("CT Player Model", &config->visuals.playerModelCT, playerModels);
     ImGui::Checkbox("Disable post-processing", &config->visuals.disablePostProcessing);
@@ -1218,8 +1243,7 @@ void GUI::renderMiscWindow(bool contentOnly) noexcept
     ImGui::SetColumnOffset(1, 230.0f);
     ImGui::TextUnformatted("Menu key");
     ImGui::SameLine();
-    hotkey(config->misc.menuKey);
-
+    hotkey2(config->misc.menuKey);
     ImGui::Checkbox("Anti AFK kick", &config->misc.antiAfkKick);
     ImGui::Checkbox("Auto strafe", &config->misc.autoStrafe);
     ImGui::Checkbox("Bunny hop", &config->misc.bunnyHop);
@@ -1382,8 +1406,11 @@ void GUI::renderConfigWindow(bool contentOnly) noexcept
     if (!contentOnly) {
         if (!window.config)
             return;
-        ImGui::SetNextWindowSize({ 290.0f, 0.0f });
-        ImGui::Begin("Config", &window.config, windowFlags);
+        ImGui::SetNextWindowSize({ 320.0f, 0.0f });
+        if (!ImGui::Begin("Config", &window.config, windowFlags)) {
+            ImGui::End();
+            return;
+        }
     }
 
     ImGui::Columns(2, nullptr, false);
@@ -1394,16 +1421,21 @@ void GUI::renderConfigWindow(bool contentOnly) noexcept
 
     ImGui::PushItemWidth(160.0f);
 
-    if (ImGui::Button("Reload configs", { 160.0f, 25.0f }))
-        config->listConfigs();
-
     auto& configItems = config->getConfigs();
     static int currentConfig = -1;
 
+    static std::string buffer;
+
+    timeToNextConfigRefresh -= ImGui::GetIO().DeltaTime;
+    if (timeToNextConfigRefresh <= 0.0f) {
+        config->listConfigs();
+        if (const auto it = std::find(configItems.begin(), configItems.end(), buffer); it != configItems.end())
+            currentConfig = std::distance(configItems.begin(), it);
+        timeToNextConfigRefresh = 0.1f;
+    }
+
     if (static_cast<std::size_t>(currentConfig) >= configItems.size())
         currentConfig = -1;
-
-    static std::string buffer;
 
     if (ImGui::ListBox("", &currentConfig, [](void* data, int idx, const char** out_text) {
         auto& vector = *static_cast<std::vector<std::string>*>(data);
@@ -1421,6 +1453,9 @@ void GUI::renderConfigWindow(bool contentOnly) noexcept
         ImGui::NextColumn();
 
         ImGui::PushItemWidth(100.0f);
+
+        if (ImGui::Button("Open config directory"))
+            config->openConfigDir();
 
         if (ImGui::Button("Create config", { 100.0f, 25.0f }))
             config->add(buffer.c_str());
@@ -1464,8 +1499,11 @@ void GUI::renderConfigWindow(bool contentOnly) noexcept
                 config->save(currentConfig);
             if (ImGui::Button("Delete selected", { 100.0f, 25.0f })) {
                 config->remove(currentConfig);
-                currentConfig = -1;
-                buffer.clear();
+
+                if (static_cast<std::size_t>(currentConfig) < configItems.size())
+                    buffer = configItems[currentConfig];
+                else
+                    buffer.clear();
             }
         }
         ImGui::Columns(1);
