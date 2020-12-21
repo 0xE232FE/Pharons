@@ -1,3 +1,4 @@
+﻿#include <array>
 #include <cwctype>
 #include <fstream>
 #include <functional>
@@ -47,6 +48,15 @@ GUI::GUI() noexcept
         cfg.OversampleV = 3;
 
         fonts.tahoma = io.Fonts->AddFontFromFileTTF((path / "tahoma.ttf").string().c_str(), 15.0f, &cfg, Helpers::getFontGlyphRanges());
+
+        cfg.MergeMode = true;
+        static constexpr ImWchar symbol[]{
+            0x2605, 0x2605, // ★
+            0
+        };
+        io.Fonts->AddFontFromFileTTF((path / "seguisym.ttf").string().c_str(), 15.0f, &cfg, symbol);
+        cfg.MergeMode = false;
+
         fonts.segoeui = io.Fonts->AddFontFromFileTTF((path / "segoeui.ttf").string().c_str(), 15.0f, &cfg, Helpers::getFontGlyphRanges());
     }
 #endif
@@ -1032,8 +1042,6 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
         }
     }
 
-    SkinChanger::initializeKits();
-
     static auto itemIndex = 0;
 
     ImGui::PushItemWidth(110.0f);
@@ -1056,13 +1064,15 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
         selected_entry.stat_trak = (std::max)(selected_entry.stat_trak, -1);
         ImGui::SliderFloat("Wear", &selected_entry.wear, FLT_MIN, 1.f, "%.10f", ImGuiSliderFlags_Logarithmic);
 
-        static std::string filter;
-        ImGui::PushID("Search");
-        ImGui::InputTextWithHint("", "Search", &filter);
-        ImGui::PopID();
+        const auto& kits = itemIndex == 1 ? SkinChanger::getGloveKits() : SkinChanger::getSkinKits();
 
-        if (ImGui::ListBoxHeader("Paint Kit")) {
-            const auto& kits = itemIndex == 1 ? SkinChanger::getGloveKits() : SkinChanger::getSkinKits();
+        if (ImGui::BeginCombo("Paint Kit", kits[selected_entry.paint_kit_vector_index].name.c_str())) {
+            ImGui::PushID("Search");
+            ImGui::SetNextItemWidth(-1.0f);
+            static std::array<std::string, game_data::weapon_names.size()> filters;
+            auto& filter = filters[itemIndex];
+            ImGui::InputTextWithHint("", "Search", &filter);
+            ImGui::PopID();
 
             std::wstring filterWide(filter.length(), L'\0');
             const auto newLen = mbstowcs(filterWide.data(), filter.c_str(), filter.length());
@@ -1070,21 +1080,29 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
                 filterWide.resize(newLen);
             std::transform(filterWide.begin(), filterWide.end(), filterWide.begin(), [](wchar_t w) { return std::towupper(w); });
 
-            for (std::size_t i = 0; i < kits.size(); ++i) {
-                if (filter.empty() || wcsstr(kits[i].nameUpperCase.c_str(), filterWide.c_str())) {
-                    ImGui::PushID(i);
-                    if (ImGui::Selectable(kits[i].name.c_str(), i == selected_entry.paint_kit_vector_index))
-                        selected_entry.paint_kit_vector_index = i;
-                    ImGui::PopID();
+            if (ImGui::BeginChild("##scrollarea", { 0, 6 * ImGui::GetTextLineHeightWithSpacing() })) {
+                for (std::size_t i = 0; i < kits.size(); ++i) {
+                    if (filter.empty() || wcsstr(kits[i].nameUpperCase.c_str(), filterWide.c_str())) {
+                        ImGui::PushID(i);
+                        const auto selected = i == selected_entry.paint_kit_vector_index;
+                        if (ImGui::Selectable(kits[i].name.c_str(), selected)) {
+                            selected_entry.paint_kit_vector_index = i;
+                            ImGui::CloseCurrentPopup();
+                        }
+                        if (selected)
+                            ImGui::SetItemDefaultFocus();
+                        ImGui::PopID();
+                    }
                 }
+                ImGui::EndChild();
             }
-            ImGui::ListBoxFooter();
+            ImGui::EndCombo();
         }
 
         ImGui::Combo("Quality", &selected_entry.entity_quality_vector_index, [](void* data, int idx, const char** out_text) {
-            *out_text = game_data::quality_names[idx].name;
+            *out_text = SkinChanger::getQualities()[idx].name.c_str(); // safe within this lamba
             return true;
-            }, nullptr, game_data::quality_names.size(), 5);
+            }, nullptr, SkinChanger::getQualities().size(), 5);
 
         if (itemIndex == 0) {
             ImGui::Combo("Knife", &selected_entry.definition_override_vector_index, [](void* data, int idx, const char** out_text) {
@@ -1133,13 +1151,14 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
 
         auto& selected_sticker = selected_entry.stickers[selectedStickerSlot];
 
-        static std::string filter;
-        ImGui::PushID("Search");
-        ImGui::InputTextWithHint("", "Search", &filter);
-        ImGui::PopID();
-
-        if (ImGui::ListBoxHeader("Sticker")) {
-            const auto& kits = SkinChanger::getStickerKits();
+        const auto& kits = SkinChanger::getStickerKits();
+        if (ImGui::BeginCombo("Sticker", kits[selected_sticker.kit_vector_index].name.c_str())) {
+            ImGui::PushID("Search");
+            ImGui::SetNextItemWidth(-1.0f);
+            static std::array<std::string, game_data::weapon_names.size()> filters;
+            auto& filter = filters[itemIndex];
+            ImGui::InputTextWithHint("", "Search", &filter);
+            ImGui::PopID();
 
             std::wstring filterWide(filter.length(), L'\0');
             const auto newLen = mbstowcs(filterWide.data(), filter.c_str(), filter.length());
@@ -1147,15 +1166,23 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
                 filterWide.resize(newLen);
             std::transform(filterWide.begin(), filterWide.end(), filterWide.begin(), [](wchar_t w) { return std::towupper(w); });
 
-            for (std::size_t i = 0; i < kits.size(); ++i) {
-                if (filter.empty() || wcsstr(kits[i].nameUpperCase.c_str(), filterWide.c_str())) {
-                    ImGui::PushID(i);
-                    if (ImGui::Selectable(kits[i].name.c_str(), i == selected_sticker.kit_vector_index))
-                        selected_sticker.kit_vector_index = i;
-                    ImGui::PopID();
+            if (ImGui::BeginChild("##scrollarea", { 0, 6 * ImGui::GetTextLineHeightWithSpacing() })) {
+                for (std::size_t i = 0; i < kits.size(); ++i) {
+                    if (filter.empty() || wcsstr(kits[i].nameUpperCase.c_str(), filterWide.c_str())) {
+                        ImGui::PushID(i);
+                        const auto selected = i == selected_sticker.kit_vector_index;
+                        if (ImGui::Selectable(kits[i].name.c_str(), selected)) {
+                            selected_sticker.kit_vector_index = i;
+                            ImGui::CloseCurrentPopup();
+                        }
+                        if (selected)
+                            ImGui::SetItemDefaultFocus();
+                        ImGui::PopID();
+                    }
                 }
+                ImGui::EndChild();
             }
-            ImGui::ListBoxFooter();
+            ImGui::EndCombo();
         }
 
         ImGui::SliderFloat("Wear", &selected_sticker.wear, FLT_MIN, 1.0f, "%.10f", ImGuiSliderFlags_Logarithmic);
