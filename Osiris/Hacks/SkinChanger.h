@@ -17,7 +17,10 @@ namespace SkinChanger
     void updateStatTrak(GameEvent& event) noexcept;
 
     struct PaintKit {
-        PaintKit(int id, const std::string& name, const std::wstring& nameUpperCase) noexcept : id(id), name(name), nameUpperCase(nameUpperCase) { }
+        PaintKit(int id, const std::string& name) noexcept;
+        PaintKit(int id, std::string&& name) noexcept;
+        PaintKit(int id, std::wstring&& name) noexcept;
+
         int id;
         std::string name;
         std::wstring nameUpperCase;
@@ -28,10 +31,16 @@ namespace SkinChanger
         }
     };
 
+    struct Quality {
+        Quality(int index, const char* name) : index{ index }, name{ name } {}
+        int index = 0;
+        std::string name;
+    };
+
     const std::vector<PaintKit>& getSkinKits() noexcept;
     const std::vector<PaintKit>& getGloveKits() noexcept;
     const std::vector<PaintKit>& getStickerKits() noexcept;
-    const std::vector<game_data::quality_name>& getQualities() noexcept;
+    const std::vector<Quality>& getQualities() noexcept;
 }
 
 

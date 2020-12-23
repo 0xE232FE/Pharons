@@ -1067,19 +1067,17 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
         const auto& kits = itemIndex == 1 ? SkinChanger::getGloveKits() : SkinChanger::getSkinKits();
 
         if (ImGui::BeginCombo("Paint Kit", kits[selected_entry.paint_kit_vector_index].name.c_str())) {
+            ImGui::PushID("Paint Kit");
             ImGui::PushID("Search");
             ImGui::SetNextItemWidth(-1.0f);
             static std::array<std::string, game_data::weapon_names.size()> filters;
             auto& filter = filters[itemIndex];
             ImGui::InputTextWithHint("", "Search", &filter);
+            if (ImGui::IsItemHovered() || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)))
+                ImGui::SetKeyboardFocusHere(-1);
             ImGui::PopID();
 
-            std::wstring filterWide(filter.length(), L'\0');
-            const auto newLen = mbstowcs(filterWide.data(), filter.c_str(), filter.length());
-            if (newLen != static_cast<std::size_t>(-1))
-                filterWide.resize(newLen);
-            std::transform(filterWide.begin(), filterWide.end(), filterWide.begin(), [](wchar_t w) { return std::towupper(w); });
-
+            const std::wstring filterWide = Helpers::toUpper(Helpers::toWideString(filter));
             if (ImGui::BeginChild("##scrollarea", { 0, 6 * ImGui::GetTextLineHeightWithSpacing() })) {
                 for (std::size_t i = 0; i < kits.size(); ++i) {
                     if (filter.empty() || wcsstr(kits[i].nameUpperCase.c_str(), filterWide.c_str())) {
@@ -1089,13 +1087,14 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
                             selected_entry.paint_kit_vector_index = i;
                             ImGui::CloseCurrentPopup();
                         }
-                        if (selected)
-                            ImGui::SetItemDefaultFocus();
+                        if (selected && ImGui::IsWindowAppearing())
+                            ImGui::SetScrollHereY();
                         ImGui::PopID();
                     }
                 }
                 ImGui::EndChild();
             }
+            ImGui::PopID();
             ImGui::EndCombo();
         }
 
@@ -1153,19 +1152,17 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
 
         const auto& kits = SkinChanger::getStickerKits();
         if (ImGui::BeginCombo("Sticker", kits[selected_sticker.kit_vector_index].name.c_str())) {
+            ImGui::PushID("Sticker");
             ImGui::PushID("Search");
             ImGui::SetNextItemWidth(-1.0f);
             static std::array<std::string, game_data::weapon_names.size()> filters;
             auto& filter = filters[itemIndex];
             ImGui::InputTextWithHint("", "Search", &filter);
+            if (ImGui::IsItemHovered() || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)))
+                ImGui::SetKeyboardFocusHere(-1);
             ImGui::PopID();
 
-            std::wstring filterWide(filter.length(), L'\0');
-            const auto newLen = mbstowcs(filterWide.data(), filter.c_str(), filter.length());
-            if (newLen != static_cast<std::size_t>(-1))
-                filterWide.resize(newLen);
-            std::transform(filterWide.begin(), filterWide.end(), filterWide.begin(), [](wchar_t w) { return std::towupper(w); });
-
+            const std::wstring filterWide = Helpers::toUpper(Helpers::toWideString(filter));
             if (ImGui::BeginChild("##scrollarea", { 0, 6 * ImGui::GetTextLineHeightWithSpacing() })) {
                 for (std::size_t i = 0; i < kits.size(); ++i) {
                     if (filter.empty() || wcsstr(kits[i].nameUpperCase.c_str(), filterWide.c_str())) {
@@ -1175,13 +1172,14 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
                             selected_sticker.kit_vector_index = i;
                             ImGui::CloseCurrentPopup();
                         }
-                        if (selected)
-                            ImGui::SetItemDefaultFocus();
+                        if (selected && ImGui::IsWindowAppearing())
+                            ImGui::SetScrollHereY();
                         ImGui::PopID();
                     }
                 }
                 ImGui::EndChild();
             }
+            ImGui::PopID();
             ImGui::EndCombo();
         }
 
