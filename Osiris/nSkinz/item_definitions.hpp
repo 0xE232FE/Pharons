@@ -104,13 +104,6 @@ enum ItemDefinitionIndex : int
     GLOVE_HYDRA = 5035
 };
 
-#include "../SDK/WeaponId.h"
-
-constexpr auto is_knife(WeaponId id)
-{
-    return (id >= WeaponId::Bayonet && id < WeaponId::GloveStuddedBloodhound) || id == WeaponId::KnifeT || id == WeaponId::Knife;
-}
-
 //extern const std::map<size_t, weapon_info> k_weapon_info;
 namespace game_data
 {
@@ -136,8 +129,6 @@ namespace game_data
         int definition_index = 0;
         const char* name = nullptr;
     };
-
-    const weapon_info* get_weapon_info(int defindex);
 
     constexpr auto weapon_names = std::to_array<weapon_name>({
         {WEAPON_KNIFE, "Knife"},

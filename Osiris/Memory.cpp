@@ -8,6 +8,87 @@ static constexpr auto relativeToAbsolute(uintptr_t address) noexcept
     return (T)(address + 4 + *reinterpret_cast<std::int32_t*>(address));
 }
 
+static std::pair<void*, std::size_t> getModuleInformation(const char* name) noexcept
+{
+#ifdef _WIN32
+    if (HMODULE handle = GetModuleHandleA(name)) {
+        if (MODULEINFO moduleInfo; GetModuleInformation(GetCurrentProcess(), handle, &moduleInfo, sizeof(moduleInfo)))
+            return std::make_pair(moduleInfo.lpBaseOfDll, moduleInfo.SizeOfImage);
+    }
+    return {};
+#elif __linux__
+    struct ModuleInfo {
+        const char* name;
+        void* base = nullptr;
+        std::size_t size = 0;
+    } moduleInfo;
+
+    moduleInfo.name = name;
+
+    dl_iterate_phdr([](struct dl_phdr_info* info, std::size_t, void* data) {
+        const auto moduleInfo = reinterpret_cast<ModuleInfo*>(data);
+        if (std::string_view{ info->dlpi_name }.ends_with(moduleInfo->name)) {
+            moduleInfo->base = (void*)(info->dlpi_addr + info->dlpi_phdr[0].p_vaddr);
+            moduleInfo->size = info->dlpi_phdr[0].p_memsz;
+            return 1;
+        }
+        return 0;
+        }, &moduleInfo);
+
+    return std::make_pair(moduleInfo.base, moduleInfo.size);
+#endif
+}
+
+[[nodiscard]] static auto generateBadCharTable(std::string_view pattern) noexcept
+{
+    assert(!pattern.empty());
+
+    std::array<std::size_t, (std::numeric_limits<std::uint8_t>::max)() + 1> table;
+
+    auto lastWildcard = pattern.rfind('?');
+    if (lastWildcard == std::string_view::npos)
+        lastWildcard = 0;
+
+    const auto defaultShift = (std::max)(std::size_t(1), pattern.length() - 1 - lastWildcard);
+    table.fill(defaultShift);
+
+    for (auto i = lastWildcard; i < pattern.length() - 1; ++i)
+        table[static_cast<std::uint8_t>(pattern[i])] = pattern.length() - 1 - i;
+
+    return table;
+}
+
+static std::uintptr_t findPattern(const char* moduleName, std::string_view pattern) noexcept
+{
+    static auto id = 0;
+    ++id;
+
+    const auto [moduleBase, moduleSize] = getModuleInformation(moduleName);
+
+    if (moduleBase && moduleSize) {
+        const auto lastIdx = pattern.length() - 1;
+        const auto badCharTable = generateBadCharTable(pattern);
+
+        auto start = static_cast<const char*>(moduleBase);
+        const auto end = start + moduleSize - pattern.length();
+
+        while (start <= end) {
+            int i = lastIdx;
+            while (i >= 0 && (pattern[i] == '?' || start[i] == pattern[i]))
+                --i;
+
+            if (i < 0)
+                return reinterpret_cast<std::uintptr_t>(start);
+
+            start += badCharTable[static_cast<std::uint8_t>(start[lastIdx])];
+        }
+    }
+#ifdef _WIN32
+    MessageBoxA(NULL, ("Failed to find pattern #" + std::to_string(id) + '!').c_str(), "Osiris", MB_OK | MB_ICONWARNING);
+#endif
+    return 0;
+}
+
 Memory::Memory() noexcept
 {
 #ifdef _WIN32
@@ -64,6 +145,7 @@ Memory::Memory() noexcept
     demoFileEndReached = findPattern(CLIENT_DLL, "\x8B\xC8\x85\xC9\x74\x1F\x80\x79\x10");
     plantedC4s = *reinterpret_cast<decltype(plantedC4s)*>(findPattern(CLIENT_DLL, "\x7E\x2C\x8B\x15") + 4);
     gameRules = *reinterpret_cast<Entity***>(findPattern(CLIENT_DLL, "\x8B\xEC\x8B\x0D????\x85\xC9\x74\x07") + 4);
+    setOrAddAttributeValueByNameFunction = relativeToAbsolute<decltype(setOrAddAttributeValueByNameFunction)>(findPattern(CLIENT_DLL, "\xE8????\x8B\x8D????\x85\xC9\x74\x10") + 1);
 
     localPlayer.init(*reinterpret_cast<Entity***>(findPattern(CLIENT_DLL, "\xA1????\x89\x45\xBC\x85\xC0") + 1));
 #else
@@ -118,7 +200,8 @@ Memory::Memory() noexcept
     setAbsOrigin = relativeToAbsolute<decltype(setAbsOrigin)>(findPattern(CLIENT_DLL, "\xE8????\x49\x8B\x07\x31\xF6") + 1);
     plantedC4s = relativeToAbsolute<decltype(plantedC4s)>(findPattern(CLIENT_DLL, "\x48\x8D\x3D????\x49\x8B\x0C\x24") + 3);
     gameRules = *relativeToAbsolute<Entity***>(findPattern(CLIENT_DLL, "\x48\x8B\x1D????\x48\x8B\x3B\x48\x85\xFF\x74\x06") + 3);
-    
+    setOrAddAttributeValueByNameFunction = reinterpret_cast<decltype(setOrAddAttributeValueByNameFunction)>(findPattern(CLIENT_DLL, "\x55\x48\x89\xE5\x41\x57\x41\x56\x41\x55\x49\x89\xFD\x41\x54\x53\x48\x89\xF3\x48\x83\xEC\x38"));
+
     localPlayer.init(relativeToAbsolute<Entity**>(findPattern(CLIENT_DLL, "\x83\xFF\xFF\x48\x8B\x05") + 6));
 #endif
 }
