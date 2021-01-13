@@ -131,28 +131,6 @@ void GUI::handleToggle() noexcept
     }
 }
 
-[[deprecated]] void GUI::hotkey(int& key) noexcept
-{
-    key ? ImGui::Text("[ %s ]", interfaces->inputSystem->virtualKeyToString(key)) : ImGui::TextUnformatted("[ key ]");
-
-    if (!ImGui::IsItemHovered())
-        return;
-
-    ImGui::SetTooltip("Press any key to change keybind");
-    ImGuiIO& io = ImGui::GetIO();
-    for (int i = 0; i < IM_ARRAYSIZE(io.KeysDown); i++)
-        if (ImGui::IsKeyPressed(i))// && i != config->misc.menuKey)
-#ifdef _WIN32
-            key = i != VK_ESCAPE ? i : 0;
-#else
-            key = i;
-#endif
-
-    for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++)
-        if (ImGui::IsMouseDown(i))// && i + (i > 1 ? 2 : 1) != config->misc.menuKey)
-            key = i + (i > 1 ? 2 : 1);
-}
-
 static void menuBarItem(const char* name, bool& enabled) noexcept
 {
     if (ImGui::MenuItem(name)) {
@@ -439,11 +417,7 @@ void GUI::renderTriggerbotWindow(bool contentOnly) noexcept
     ImGui::SameLine();
     ImGui::Checkbox("Enabled", &config->triggerbot[currentWeapon].enabled);
     ImGui::Separator();
-    ImGui::Checkbox("On key", &config->triggerbotOnKey);
-    ImGui::SameLine();
-    ImGui::PushID("Triggerbot Key");
-    hotkey2("", config->triggerbotKey);
-    ImGui::PopID();
+    hotkey2("Hold Key", config->triggerbotHoldKey);
     ImGui::Checkbox("Friendly fire", &config->triggerbot[currentWeapon].friendlyFire);
     ImGui::Checkbox("Scoped only", &config->triggerbot[currentWeapon].scopedOnly);
     ImGui::Checkbox("Ignore flash", &config->triggerbot[currentWeapon].ignoreFlash);
@@ -1071,9 +1045,9 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
 
     ImGui::PushItemWidth(110.0f);
     ImGui::Combo("##1", &itemIndex, [](void* data, int idx, const char** out_text) {
-        *out_text = game_data::weapon_names[idx].name;
+        *out_text = SkinChanger::weapon_names[idx].name;
         return true;
-        }, nullptr, game_data::weapon_names.size(), 5);
+        }, nullptr, SkinChanger::weapon_names.size(), 5);
     ImGui::PopItemWidth();
 
     auto& selected_entry = config->skinChanger[itemIndex];
@@ -1093,6 +1067,18 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
         return rarityColors[static_cast<std::size_t>(rarity) < rarityColors.size() ? rarity : 0];
     };
 
+    constexpr auto passesFilter = [](const std::wstring& str, std::wstring filter) {
+        constexpr auto delimiter = L" ";
+        wchar_t* _;
+        wchar_t* token = std::wcstok(filter.data(), delimiter, &_);
+        while (token) {
+            if (!std::wcsstr(str.c_str(), token))
+                return false;
+            token = std::wcstok(nullptr, delimiter, &_);
+        }
+        return true;
+    };
+
     {
         ImGui::SameLine();
         ImGui::Checkbox("Enabled", &selected_entry.enabled);
@@ -1109,7 +1095,7 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
             ImGui::PushID("Paint Kit");
             ImGui::PushID("Search");
             ImGui::SetNextItemWidth(-1.0f);
-            static std::array<std::string, game_data::weapon_names.size()> filters;
+            static std::array<std::string, SkinChanger::weapon_names.size()> filters;
             auto& filter = filters[itemIndex];
             ImGui::InputTextWithHint("", "Search", &filter);
             if (ImGui::IsItemHovered() || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)))
@@ -1119,7 +1105,7 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
             const std::wstring filterWide = Helpers::toUpper(Helpers::toWideString(filter));
             if (ImGui::BeginChild("##scrollarea", { 0, 6 * ImGui::GetTextLineHeightWithSpacing() })) {
                 for (std::size_t i = 0; i < kits.size(); ++i) {
-                    if (filter.empty() || wcsstr(kits[i].nameUpperCase.c_str(), filterWide.c_str())) {
+                    if (filter.empty() || passesFilter(kits[i].nameUpperCase, filterWide)) {
                         ImGui::PushID(i);
                         const auto selected = i == selected_entry.paint_kit_vector_index;
                         if (ImGui::SelectableWithBullet(kits[i].name.c_str(), rarityColor(kits[i].rarity), selected)) {
@@ -1194,7 +1180,7 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
             ImGui::PushID("Sticker");
             ImGui::PushID("Search");
             ImGui::SetNextItemWidth(-1.0f);
-            static std::array<std::string, game_data::weapon_names.size()> filters;
+            static std::array<std::string, SkinChanger::weapon_names.size()> filters;
             auto& filter = filters[itemIndex];
             ImGui::InputTextWithHint("", "Search", &filter);
             if (ImGui::IsItemHovered() || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)))
@@ -1204,7 +1190,7 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
             const std::wstring filterWide = Helpers::toUpper(Helpers::toWideString(filter));
             if (ImGui::BeginChild("##scrollarea", { 0, 6 * ImGui::GetTextLineHeightWithSpacing() })) {
                 for (std::size_t i = 0; i < kits.size(); ++i) {
-                    if (filter.empty() || wcsstr(kits[i].nameUpperCase.c_str(), filterWide.c_str())) {
+                    if (filter.empty() || passesFilter(kits[i].nameUpperCase, filterWide)) {
                         ImGui::PushID(i);
                         const auto selected = i == selected_sticker.kit_vector_index;
                         if (ImGui::SelectableWithBullet(kits[i].name.c_str(), rarityColor(kits[i].rarity), selected)) {
@@ -1318,7 +1304,7 @@ void GUI::renderMiscWindow(bool contentOnly) noexcept
     ImGui::PopID();
     ImGui::Checkbox("Slowwalk", &config->misc.slowwalk);
     ImGui::SameLine();
-    ImGui::PushID("Edge Jump Key");
+    ImGui::PushID("Slowwalk Key");
     hotkey2("", config->misc.slowwalkKey);
     ImGui::PopID();
     ImGuiCustom::colorPicker("Noscope crosshair", config->misc.noscopeCrosshair);

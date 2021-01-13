@@ -14,6 +14,7 @@ class ItemSystem;
 class KeyValues;
 class MoveHelper;
 class MoveData;
+class PlantedC4;
 class PlayerResource;
 class ViewRender;
 class WeaponSystem;
@@ -43,7 +44,7 @@ public:
     Input* input;
     GlobalVars* globalVars;
     GlowObjectManager* glowObjectManager;
-    UtlVector<Entity*>* plantedC4s;
+    UtlVector<PlantedC4*>* plantedC4s;
 
     bool* disablePostProcessing;
 
@@ -63,6 +64,7 @@ public:
     int* dispatchSound;
     uintptr_t traceToExit;
     ViewRender* viewRender;
+    void* viewRenderBeams;
     uintptr_t drawScreenEffectMaterial;
     uint8_t* fakePrime;
     std::add_pointer_t<void __CDECL(const char* msg, ...)> debugMsg;
