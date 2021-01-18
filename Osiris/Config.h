@@ -94,13 +94,6 @@ public:
         float pitchAngle{ 0.0f };
     } antiAim;
 
-    struct Glow : ColorA {
-        bool enabled{ false };
-        bool healthBased{ false };
-        int style{ 0 };
-    };
-    std::array<Glow, 21> glow;
-
     struct Chams {
         struct Material : ColorA {
             bool enabled = false;
@@ -117,7 +110,7 @@ public:
     std::unordered_map<std::string, Chams> chams;
 
     struct StreamProofESP {
-        KeyBind toggleKey = KeyBind::NONE;
+        KeyBindToggle toggleKey = KeyBind::NONE;
         KeyBind holdKey = KeyBind::NONE;
 
         std::unordered_map<std::string, Player> allies;
@@ -171,6 +164,7 @@ public:
         float hitMarkerTime{ 0.6f };
         int playerModelT{ 0 };
         int playerModelCT{ 0 };
+        BulletTracers bulletTracers;
 
         struct ColorCorrection {
             bool enabled = false;

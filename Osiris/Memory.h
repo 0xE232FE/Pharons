@@ -17,6 +17,7 @@ class MoveData;
 class PlantedC4;
 class PlayerResource;
 class ViewRender;
+class ViewRenderBeams;
 class WeaponSystem;
 template <typename T>
 class UtlVector;
@@ -51,7 +52,6 @@ public:
     std::add_pointer_t<void __FASTCALL(const char*)> loadSky;
     std::add_pointer_t<void __FASTCALL(const char*, const char*)> setClanTag;
     uintptr_t cameraThink;
-    std::add_pointer_t<bool __STDCALL(const char*)> acceptMatch;
     std::add_pointer_t<bool __CDECL(Vector, Vector, short)> lineGoesThroughSmoke;
     int(__THISCALL* getSequenceActivity)(void*, int);
     bool(__THISCALL* isOtherEnemy)(Entity*, Entity*);
@@ -64,7 +64,7 @@ public:
     int* dispatchSound;
     uintptr_t traceToExit;
     ViewRender* viewRender;
-    void* viewRenderBeams;
+    ViewRenderBeams* viewRenderBeams;
     uintptr_t drawScreenEffectMaterial;
     uint8_t* fakePrime;
     std::add_pointer_t<void __CDECL(const char* msg, ...)> debugMsg;
@@ -114,10 +114,20 @@ public:
     {
         setOrAddAttributeValueByName(attributeList, attribute, *reinterpret_cast<float*>(&value) /* hack, but CSGO does that */);
     }
+
+    void acceptMatch() const noexcept
+    {
+#ifdef _WIN32
+        return reinterpret_cast<void(__stdcall*)(const char*)>(acceptMatchFunction)("");
+#else
+        return reinterpret_cast<void(*)(void*, const char*)>(acceptMatchFunction)(nullptr, "");
+#endif
+    }
 private:
     void(__THISCALL* setOrAddAttributeValueByNameFunction)(std::uintptr_t, const char* attribute);
 
     std::uintptr_t submitReportFunction;
+    std::uintptr_t acceptMatchFunction;
 };
 
 inline std::unique_ptr<const Memory> memory;
