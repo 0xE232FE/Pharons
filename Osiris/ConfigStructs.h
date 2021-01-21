@@ -1,20 +1,31 @@
 #pragma once
 
 #include <array>
+#include <sstream>
 #include <string>
 
 #include "nlohmann/json.hpp"
 #include "InputUtil.h"
 
 #pragma pack(push, 1)
-struct ColorA {
+struct Color4 {
     std::array<float, 4> color{ 1.0f, 1.0f, 1.0f, 1.0f };
+    float rainbowSpeed = 0.6f;
+    bool rainbow = false;
+};
+
+struct Color3 {
+    std::array<float, 3> color{ 1.0f, 1.0f, 1.0f };
     float rainbowSpeed = 0.6f;
     bool rainbow = false;
 };
 #pragma pack(pop)
 
-struct ColorToggle : ColorA {
+struct ColorToggle3 : public Color3 {
+    bool enabled = false;
+};
+
+struct ColorToggle : Color4 {
     bool enabled = false;
 };
 
@@ -141,12 +152,12 @@ struct PreserveKillfeed {
 
 struct OffscreenEnemies {
     bool enabled = false;
-    ColorA color{ 1.0f, 0.26f, 0.21f, 1.0f };
+    Color4 color{ 1.0f, 0.26f, 0.21f, 1.0f };
 };
 
 struct BulletTracers {
     bool enabled = false;
-    ColorA color{ 0.0f, 0.75f, 1.0f, 1.0f };
+    Color4 color{ 0.0f, 0.75f, 1.0f, 1.0f };
 };
 
 using json = nlohmann::basic_json<std::map, std::vector, std::string, bool, std::int64_t, std::uint64_t, float>;
@@ -165,9 +176,14 @@ static void to_json(json& j, const T& o, const T& dummy)
         j = o;
 }
 
-static void to_json(json& j, const ColorA& o, const ColorA& dummy = {})
+static void to_json(json& j, const Color4& o, const Color4& dummy = {})
 {
-    WRITE("Color", color);
+    if (o.color != dummy.color) {
+        std::ostringstream s;
+        s << '#' << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(o.color[0] * 255) << static_cast<int>(o.color[1] * 255) << static_cast<int>(o.color[2] * 255);
+        j["Color"] = s.str();
+        j["Alpha"] = o.color[3];
+    }
     WRITE("Rainbow", rainbow);
     WRITE("Rainbow Speed", rainbowSpeed);
 }
@@ -279,9 +295,29 @@ static void read(const json& j, const char* key, std::unordered_map<std::string,
     }
 }
 
-static void from_json(const json& j, ColorA& c)
+static void from_json(const json& j, Color4& c)
 {
-    read(j, "Color", c.color);
+    if (j.contains("Color")) {
+        const auto& val = j["Color"];
+        // old format -> [1.0f, 0.0f, 0.0f, 1.0f]
+        // new format -> #ff0000 + alpha as float
+        if (val.type() == value_t::array && val.size() == c.color.size()) {
+            for (std::size_t i = 0; i < val.size(); ++i) {
+                if (!val[i].empty())
+                    val[i].get_to(c.color[i]);
+            }
+        } else if (val.type() == value_t::string) {
+            const auto str = val.get<std::string>();
+            if (str.length() == 7 && str[0] == '#') {
+                const auto color = std::strtol(str.c_str() + 1, nullptr, 16);
+                c.color[0] = ((color >> 16) & 0xFF) / 255.0f;
+                c.color[1] = ((color >> 8) & 0xFF) / 255.0f;
+                c.color[2] = (color & 0xFF) / 255.0f;
+            }
+            read(j, "Alpha", c.color[3]);
+        }
+    }
+    
     read(j, "Rainbow", c.rainbow);
     read(j, "Rainbow Speed", c.rainbowSpeed);
 }
