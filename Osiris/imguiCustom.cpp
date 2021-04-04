@@ -135,7 +135,21 @@ void ImGui::progressBarFullWidth(float fraction, float height) noexcept
     fraction = ImSaturate(fraction);
     RenderFrame(bb.Min, bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
     bb.Expand(ImVec2(-style.FrameBorderSize, -style.FrameBorderSize));
-    RenderRectFilledRangeH(window->DrawList, bb, GetColorU32(ImGuiCol_PlotHistogram), 0.0f, fraction, style.FrameRounding);
+
+    if (fraction == 0.0f)
+        return;
+
+    const ImVec2 p0{ ImLerp(bb.Min.x, bb.Max.x, 0.0f), bb.Min.y };
+    const ImVec2 p1{ ImLerp(bb.Min.x, bb.Max.x, fraction), bb.Max.y };
+
+    const float x0 = ImMax(p0.x, bb.Min.x);
+    const float x1 = ImMin(p1.x, bb.Max.x);
+
+    window->DrawList->PathLineTo({ x0, p1.y });
+    window->DrawList->PathLineTo({ x0, p0.y });
+    window->DrawList->PathLineTo({ x1, p0.y });
+    window->DrawList->PathLineTo({ x1, p1.y });
+    window->DrawList->PathFillConvex(GetColorU32(ImGuiCol_PlotHistogram));
 }
 
 void ImGui::textUnformattedCentered(const char* text) noexcept
@@ -162,7 +176,7 @@ bool ImGui::SelectableWithBullet(const char* label, ImU32 bulletColor, bool sele
     ItemSize(size, 0.0f);
 
     // Fill horizontal space
-    // We don't support (size < 0.0f) in Selectable() because the ItemSpacing extension would make explicitely right-aligned sizes not visibly match other widgets.
+    // We don't support (size < 0.0f) in Selectable() because the ItemSpacing extension would make explicitly right-aligned sizes not visibly match other widgets.
     const bool span_all_columns = (flags & ImGuiSelectableFlags_SpanAllColumns) != 0;
     const float min_x = span_all_columns ? window->ParentWorkRect.Min.x : pos.x;
     const float max_x = span_all_columns ? window->ParentWorkRect.Max.x : window->WorkRect.Max.x;
@@ -204,7 +218,7 @@ bool ImGui::SelectableWithBullet(const char* label, ImU32 bulletColor, bool sele
         window->DC.ItemFlags |= ImGuiItemFlags_Disabled | ImGuiItemFlags_NoNavDefaultFocus;
         item_add = ItemAdd(bb, id);
         window->DC.ItemFlags = backup_item_flags;
-    } else
+    }     else
     {
         item_add = ItemAdd(bb, id);
     }
@@ -246,8 +260,8 @@ bool ImGui::SelectableWithBullet(const char* label, ImU32 bulletColor, bool sele
     {
         if (!g.NavDisableMouseHover && g.NavWindow == window && g.NavLayer == window->DC.NavLayerCurrent)
         {
+            SetNavID(id, window->DC.NavLayerCurrent, window->DC.NavFocusScopeIdCurrent, ImRect(bb.Min - window->Pos, bb.Max - window->Pos));
             g.NavDisableHighlight = true;
-            SetNavID(id, window->DC.NavLayerCurrent, window->DC.NavFocusScopeIdCurrent);
         }
     }
     if (pressed)
@@ -289,4 +303,27 @@ bool ImGui::SelectableWithBullet(const char* label, ImU32 bulletColor, bool sele
 
     IMGUI_TEST_ENGINE_ITEM_INFO(id, label, window->DC.ItemFlags);
     return pressed;
+}
+
+void ImGui::hotkey(const char* label, KeyBind& key, float samelineOffset, const ImVec2& size) noexcept
+{
+    const auto id = GetID(label);
+    PushID(label);
+
+    TextUnformatted(label);
+    SameLine(samelineOffset);
+
+    if (GetActiveID() == id) {
+        PushStyleColor(ImGuiCol_Button, ImGui::GetColorU32(ImGuiCol_ButtonActive));
+        Button("...", size);
+        PopStyleColor();
+
+        GetCurrentContext()->ActiveIdAllowOverlap = true;
+        if ((!IsItemHovered() && GetIO().MouseClicked[0]) || key.setToPressedKey())
+            ClearActiveID();
+    } else if (Button(key.toString(), size)) {
+        SetActiveID(id, GetCurrentWindow());
+    }
+
+    PopID();
 }

@@ -2,6 +2,10 @@
 #include <numeric>
 #include <sstream>
 
+#include "../imgui/imgui.h"
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "../imgui/imgui_internal.h"
+
 #include "../Config.h"
 #include "../Interfaces.h"
 #include "../Memory.h"
@@ -11,6 +15,7 @@
 #include "Misc.h"
 
 #include "../SDK/Client.h"
+#include "../SDK/ClientMode.h"
 #include "../SDK/ConVar.h"
 #include "../SDK/Entity.h"
 #include "../SDK/FrameStage.h"
@@ -30,17 +35,11 @@
 #include "../Helpers.h"
 #include "../GameData.h"
 
-#include "../imgui/imgui.h"
-#define IMGUI_DEFINE_MATH_OPERATORS
-#include "../imgui/imgui_internal.h"
-
 #include "../imguiCustom.h"
-
-static bool edgejumpActive;
 
 void Misc::edgejump(UserCmd* cmd) noexcept
 {
-    if (!config->misc.edgejump || !edgejumpActive)
+    if (!config->misc.edgejump || !config->misc.edgejumpkey.isDown())
         return;
 
     if (!localPlayer || !localPlayer->isAlive())
@@ -53,11 +52,9 @@ void Misc::edgejump(UserCmd* cmd) noexcept
         cmd->buttons |= UserCmd::IN_JUMP;
 }
 
-static bool slowwalkActive;
-
 void Misc::slowwalk(UserCmd* cmd) noexcept
 {
-    if (!config->misc.slowwalk || !slowwalkActive)
+    if (!config->misc.slowwalk || !config->misc.slowwalkKey.isDown())
         return;
 
     if (!localPlayer || !localPlayer->isAlive())
@@ -133,45 +130,53 @@ void Misc::spectatorList() noexcept
     if (!config->misc.spectatorList.enabled)
         return;
 
-    if (!localPlayer || !localPlayer->isAlive())
+    GameData::Lock lock;
+
+    const auto& observers = GameData::observers();
+
+    if (std::ranges::none_of(observers, [](const auto& obs) { return obs.targetIsLocalPlayer; }) && !gui->isOpen())
         return;
 
-    interfaces->surface->setTextFont(Surface::font);
-
-    if (config->misc.spectatorList.rainbow)
-        interfaces->surface->setTextColor(rainbowColor(config->misc.spectatorList.rainbowSpeed));
-    else
-        interfaces->surface->setTextColor(config->misc.spectatorList.color);
-
-    const auto [width, height] = interfaces->surface->getScreenSize();
-
-    auto textPositionY = static_cast<int>(0.5f * height);
-
-    for (int i = 1; i <= interfaces->engine->getMaxClients(); ++i) {
-        const auto entity = interfaces->entityList->getEntity(i);
-        if (!entity || entity->isDormant() || entity->isAlive() || entity->getObserverTarget() != localPlayer.get())
-            continue;
-
-        PlayerInfo playerInfo;
-
-        if (!interfaces->engine->getPlayerInfo(i, playerInfo))
-            continue;
-
-#ifdef _WIN32
-        if (wchar_t name[128]; MultiByteToWideChar(CP_UTF8, 0, playerInfo.name, -1, name, 128)) {
-            const auto [textWidth, textHeight] = interfaces->surface->getTextSize(Surface::font, name);
-            interfaces->surface->setTextPosition(width - textWidth - 5, textPositionY);
-            textPositionY -= textHeight;
-            interfaces->surface->printText(name);
-        }
-#endif
+    if (config->misc.spectatorList.pos != ImVec2{}) {
+        ImGui::SetNextWindowPos(config->misc.spectatorList.pos);
+        config->misc.spectatorList.pos = {};
     }
+
+    if (config->misc.spectatorList.size != ImVec2{}) {
+        ImGui::SetNextWindowSize(ImClamp(config->misc.spectatorList.size, {}, ImGui::GetIO().DisplaySize));
+        config->misc.spectatorList.size = {};
+    }
+
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse;
+    if (!gui->isOpen())
+        windowFlags |= ImGuiWindowFlags_NoInputs;
+    if (config->misc.spectatorList.noTitleBar)
+        windowFlags |= ImGuiWindowFlags_NoTitleBar;
+
+    if (!gui->isOpen())
+        ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::GetColorU32(ImGuiCol_TitleBgActive));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowTitleAlign, { 0.5f, 0.5f });
+    ImGui::Begin("Spectator list", nullptr, windowFlags);
+    ImGui::PopStyleVar();
+
+    if (!gui->isOpen())
+        ImGui::PopStyleColor();
+
+    for (const auto& observer : observers) {
+        if (!observer.targetIsLocalPlayer)
+            continue;
+
+        if (const auto it = std::ranges::find(GameData::players(), observer.playerHandle, &PlayerData::handle); it != GameData::players().cend()) {
+            ImGui::TextWrapped("%s", it->name.c_str());
+        }
+    }
+
+    ImGui::End();
 }
 
-static void drawCrosshair(ImDrawList* drawList, const ImVec2& pos, ImU32 color, float thickness) noexcept
+static void drawCrosshair(ImDrawList* drawList, const ImVec2& pos, ImU32 color) noexcept
 {
-    drawList->Flags &= ~ImDrawListFlags_AntiAliasedLines;
-
     // dot
     drawList->AddRectFilled(pos - ImVec2{ 1, 1 }, pos + ImVec2{ 2, 2 }, color & IM_COL32_A_MASK);
     drawList->AddRectFilled(pos, pos + ImVec2{ 1, 1 }, color);
@@ -191,8 +196,6 @@ static void drawCrosshair(ImDrawList* drawList, const ImVec2& pos, ImU32 color, 
     // bottom (right with swapped x/y offsets)
     drawList->AddRectFilled(ImVec2{ pos.x - 1, pos.y + 4 }, ImVec2{ pos.x + 2, pos.y + 12 }, color & IM_COL32_A_MASK);
     drawList->AddRectFilled(ImVec2{ pos.x, pos.y + 5 }, ImVec2{ pos.x + 1, pos.y + 11 }, color);
-
-    drawList->Flags |= ImDrawListFlags_AntiAliasedLines;
 }
 
 void Misc::noscopeCrosshair(ImDrawList* drawList) noexcept
@@ -200,14 +203,15 @@ void Misc::noscopeCrosshair(ImDrawList* drawList) noexcept
     if (!config->misc.noscopeCrosshair.enabled)
         return;
 
-    GameData::Lock lock;
-    const auto& local = GameData::local();
+    {
+        GameData::Lock lock;
+        //if (const auto& local = GameData::local(); !local.exists || !local.alive || !local.noScope)
+        if (const auto& local = GameData::local(); !local.exists || !local.alive)
+            return;
+    }
 
-    if (!local.exists || !local.alive)
-        return;
-    
-    if (local.usesSniperRifel || local.isScoped)
-        drawCrosshair(drawList, ImGui::GetIO().DisplaySize / 2, Helpers::calculateColor(config->misc.noscopeCrosshair), config->misc.noscopeCrosshair.thickness);
+    drawCrosshair(drawList, ImGui::GetIO().DisplaySize / 2, Helpers::calculateColor(config->misc.noscopeCrosshair));
+
 }
 
 
@@ -241,42 +245,27 @@ void Misc::recoilCrosshair(ImDrawList* drawList) noexcept
         return;
 
     if (ImVec2 pos; worldToScreen(localPlayerData.aimPunch, pos))
-        drawCrosshair(drawList, pos, Helpers::calculateColor(config->misc.recoilCrosshair), config->misc.recoilCrosshair.thickness);
+        drawCrosshair(drawList, pos, Helpers::calculateColor(config->misc.recoilCrosshair));
 }
 
 void Misc::watermark() noexcept
 {
-    if (config->misc.watermark.enabled) {
-        interfaces->surface->setTextFont(Surface::font);
+    if (!config->misc.watermark.enabled)
+        return;
 
-        if (config->misc.watermark.rainbow)
-            interfaces->surface->setTextColor(rainbowColor(config->misc.watermark.rainbowSpeed));
-        else
-            interfaces->surface->setTextColor(config->misc.watermark.color);
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize;
+    if (!gui->isOpen())
+        windowFlags |= ImGuiWindowFlags_NoInputs;
 
-        interfaces->surface->setTextPosition(5, 0);
-        interfaces->surface->printText(L"Osiris");
+    ImGui::SetNextWindowBgAlpha(0.3f);
+    ImGui::Begin("Watermark", nullptr, windowFlags);
 
-        static auto frameRate = 1.0f;
-        frameRate = 0.9f * frameRate + 0.1f * memory->globalVars->absoluteFrameTime;
-        const auto [screenWidth, screenHeight] = interfaces->surface->getScreenSize();
-        std::wstring fps{ std::to_wstring(static_cast<int>(1 / frameRate)) + L" fps" };
-        const auto [fpsWidth, fpsHeight] = interfaces->surface->getTextSize(Surface::font, fps.c_str());
-        interfaces->surface->setTextPosition(screenWidth - fpsWidth - 5, 0);
-        interfaces->surface->printText(fps.c_str());
+    static auto frameRate = 1.0f;
+    frameRate = 0.9f * frameRate + 0.1f * memory->globalVars->absoluteFrameTime;
 
-        float latency = 0.0f;
-        if (auto networkChannel = interfaces->engine->getNetworkChannel(); networkChannel && networkChannel->getLatency(0) > 0.0f)
-            latency = networkChannel->getLatency(0);
-
-        std::wstring ping{ L"PING: " + std::to_wstring(static_cast<int>(latency * 1000)) + L" ms" };
-        const auto pingWidth = interfaces->surface->getTextSize(Surface::font, ping.c_str()).first;
-        interfaces->surface->setTextPosition(screenWidth - pingWidth - 5, fpsHeight);
-        interfaces->surface->printText(ping.c_str());
-    }
+    ImGui::Text("Osiris | %d fps | %d ms", frameRate != 0.0f ? static_cast<int>(1 / frameRate) : 0, GameData::getNetOutgoingLatency());
+    ImGui::End();
 }
-
-static bool prepareRevolverActive;
 
 void Misc::prepareRevolver(UserCmd* cmd) noexcept
 {
@@ -284,7 +273,7 @@ void Misc::prepareRevolver(UserCmd* cmd) noexcept
     constexpr float revolverPrepareTime{ 0.234375f };
 
     static float readyTime;
-    if (config->misc.prepareRevolver && localPlayer && prepareRevolverActive) {
+    if (config->misc.prepareRevolver && localPlayer && (config->misc.prepareRevolverKey == KeyBind::NONE || config->misc.prepareRevolverKey.isDown())) {
         const auto activeWeapon = localPlayer->getActiveWeapon();
         if (activeWeapon && activeWeapon->itemDefinitionIndex2() == WeaponId::Revolver) {
             if (!readyTime) readyTime = memory->globalVars->serverTime() + revolverPrepareTime;
@@ -642,11 +631,9 @@ void Misc::autoPistol(UserCmd* cmd) noexcept
     }
 }
 
-static bool chokePacketsActive;
-
 void Misc::chokePackets(bool& sendPacket) noexcept
 {
-    if (chokePacketsActive)
+    if (config->misc.chokedPacketsKey == KeyBind::NONE || config->misc.chokedPacketsKey.isDown())
         sendPacket = interfaces->engine->getNetworkChannel()->chokedPackets >= config->misc.chokedPackets;
 }
 
@@ -821,9 +808,9 @@ void Misc::purchaseList(GameEvent* event) noexcept
 
                 if (const auto player = GameData::playerByHandle(handle)) {
                     if (config->misc.purchaseList.showPrices)
-                        ImGui::TextWrapped("%s $%d: %s", player->name, purchases.totalCost, s.c_str());
+                        ImGui::TextWrapped("%s $%d: %s", player->name.c_str(), purchases.totalCost, s.c_str());
                     else
-                        ImGui::TextWrapped("%s: %s", player->name, s.c_str());
+                        ImGui::TextWrapped("%s: %s", player->name.c_str(), s.c_str());
                 }
             }
         } else if (config->misc.purchaseList.mode == PurchaseList::Summary) {
@@ -966,15 +953,30 @@ void Misc::preserveKillfeed(bool roundStart) noexcept
     }
 }
 
+void Misc::voteRevealer(GameEvent& event) noexcept
+{
+    if (!config->misc.revealVotes)
+        return;
+
+    const auto entity = interfaces->entityList->getEntity(event.getInt("entityid"));
+    if (!entity || !entity->isPlayer())
+        return;
+    
+    const auto votedYes = event.getInt("vote_option") == 0;
+    const auto isLocal = localPlayer && entity == localPlayer.get();
+    const char color = votedYes ? '\x06' : '\x07';
+
+    memory->clientMode->getHudChat()->printf(0, " \x0C\u2022Osiris\u2022 %c%s\x01 voted %c%s\x01", isLocal ? '\x01' : color, isLocal ? "You" : entity->getPlayerName().c_str(), color, votedYes ? "Yes" : "No");
+}
+
 void Misc::drawOffscreenEnemies(ImDrawList* drawList) noexcept
 {
     if (!config->misc.offscreenEnemies.enabled)
         return;
 
-    GameData::Lock lock;
-
     const auto yaw = degreesToRadians(interfaces->engine->getViewAngles().y);
 
+    GameData::Lock lock;
     for (auto& player : GameData::players()) {
         if (player.dormant || !player.alive || !player.enemy || player.inViewFrustum)
             continue;
@@ -987,10 +989,38 @@ void Misc::drawOffscreenEnemies(ImDrawList* drawList) noexcept
             x /= len;
             y /= len;
         }
+
+        constexpr auto avatarRadius = 13.0f;
+        constexpr auto triangleSize = 10.0f;
+
         const auto pos = ImGui::GetIO().DisplaySize / 2 + ImVec2{ x, y } * 200;
+        const auto trianglePos = pos + ImVec2{ x, y } * (avatarRadius + 3);
+
+        const auto white = Helpers::calculateColor(255, 255, 255, 255);
         const auto color = Helpers::calculateColor(config->misc.offscreenEnemies.color);
-        drawList->AddCircleFilled(pos, 11.0f, color & IM_COL32_A_MASK, 40);
-        drawList->AddCircleFilled(pos, 10.0f, color, 40);
+
+        const ImVec2 trianglePoints[]{
+            trianglePos + ImVec2{  0.4f * y, -0.4f * x } * triangleSize,
+            trianglePos + ImVec2{  1.0f * x,  1.0f * y } * triangleSize,
+            trianglePos + ImVec2{ -0.4f * y,  0.4f * x } * triangleSize
+        };
+        drawList->AddConvexPolyFilled(trianglePoints, 3, color);
+
+        drawList->AddCircleFilled(pos, avatarRadius + 1, white & IM_COL32_A_MASK, 40);
+
+        const auto texture = player.getAvatarTexture();
+
+        const bool pushTextureId = drawList->_TextureIdStack.empty() || texture != drawList->_TextureIdStack.back();
+        if (pushTextureId)
+            drawList->PushTextureID(texture);
+
+        const int vertStartIdx = drawList->VtxBuffer.Size;
+        drawList->AddCircleFilled(pos, avatarRadius, white, 40);
+        const int vertEndIdx = drawList->VtxBuffer.Size;
+        ImGui::ShadeVertsLinearUV(drawList, vertStartIdx, vertEndIdx, pos - ImVec2{ avatarRadius, avatarRadius }, pos + ImVec2{ avatarRadius, avatarRadius }, { 0, 0 }, { 1, 1 }, true);
+
+        if (pushTextureId)
+            drawList->PopTextureID();
     }
 }
 
@@ -1002,7 +1032,10 @@ void Misc::autoAccept(const char* soundEntry) noexcept
     if (std::strcmp(soundEntry, "UIPanorama.popup_accept_match_beep"))
         return;
 
-    memory->acceptMatch();
+    if (const auto idx = memory->registeredPanoramaEvents->find(memory->makePanoramaSymbol("MatchAssistedAccept")); idx != -1) {
+        if (const auto eventPtr = memory->registeredPanoramaEvents->memory[idx].value.makeEvent(nullptr))
+            interfaces->panoramaUIEngine->accessUIEngine()->dispatchEvent(eventPtr);
+    }
 
 #ifdef _WIN32
     auto window = FindWindowW(L"Valve001", NULL);
@@ -1014,8 +1047,5 @@ void Misc::autoAccept(const char* soundEntry) noexcept
 
 void Misc::updateInput() noexcept
 {
-    edgejumpActive = config->misc.edgejumpkey.isDown();
-    slowwalkActive = config->misc.slowwalkKey.isDown();
-    prepareRevolverActive = config->misc.prepareRevolverKey == KeyBind::NONE || config->misc.prepareRevolverKey.isDown();
-    chokePacketsActive = config->misc.chokedPacketsKey == KeyBind::NONE || config->misc.chokedPacketsKey.isDown();
+
 }

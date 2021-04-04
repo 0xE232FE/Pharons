@@ -26,9 +26,28 @@
 #include "SDK/InputSystem.h"
 #include "Hacks/Visuals.h"
 #include "Hacks/Glow.h"
+#include "Hacks/AntiAim.h"
+#include "Hacks/Backtrack.h"
 
 constexpr auto windowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
 | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+
+static ImFont* addFontFromVFONT(const std::string& path, float size, const ImWchar* glyphRanges, bool merge) noexcept
+{
+    auto file = Helpers::loadBinaryFile(path);
+    if (!Helpers::decodeVFONT(file))
+        return nullptr;
+
+    ImFontConfig cfg;
+    cfg.FontData = file.data();
+    cfg.FontDataSize = file.size();
+    cfg.FontDataOwnedByAtlas = false;
+    cfg.MergeMode = merge;
+    cfg.GlyphRanges = glyphRanges;
+    cfg.SizePixels = size;
+
+    return ImGui::GetIO().Fonts->AddFont(&cfg);
+}
 
 GUI::GUI() noexcept
 {
@@ -42,15 +61,17 @@ GUI::GUI() noexcept
     io.LogFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
+    ImFontConfig cfg;
+    cfg.SizePixels = 15.0f;
+
 #ifdef _WIN32
     if (PWSTR pathToFonts; SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Fonts, 0, nullptr, &pathToFonts))) {
         const std::filesystem::path path{ pathToFonts };
         CoTaskMemFree(pathToFonts);
 
-        ImFontConfig cfg;
-        cfg.OversampleV = 3;
-
-        fonts.tahoma = io.Fonts->AddFontFromFileTTF((path / "tahoma.ttf").string().c_str(), 15.0f, &cfg, Helpers::getFontGlyphRanges());
+        fonts.normal15px = io.Fonts->AddFontFromFileTTF((path / "tahoma.ttf").string().c_str(), 15.0f, &cfg, Helpers::getFontGlyphRanges());
+        if (!fonts.normal15px)
+            io.Fonts->AddFontDefault(&cfg);
 
         cfg.MergeMode = true;
         static constexpr ImWchar symbol[]{
@@ -59,10 +80,14 @@ GUI::GUI() noexcept
         };
         io.Fonts->AddFontFromFileTTF((path / "seguisym.ttf").string().c_str(), 15.0f, &cfg, symbol);
         cfg.MergeMode = false;
-
-        fonts.segoeui = io.Fonts->AddFontFromFileTTF((path / "segoeui.ttf").string().c_str(), 15.0f, &cfg, Helpers::getFontGlyphRanges());
     }
+#else
+    fonts.normal15px = addFontFromVFONT("csgo/panorama/fonts/notosans-regular.vfont", 15.0f, Helpers::getFontGlyphRanges(), false);
 #endif
+    if (!fonts.normal15px)
+        io.Fonts->AddFontDefault(&cfg);
+    addFontFromVFONT("csgo/panorama/fonts/notosanskr-regular.vfont", 15.0f, io.Fonts->GetGlyphRangesKorean(), true);
+    addFontFromVFONT("csgo/panorama/fonts/notosanssc-regular.vfont", 15.0f, io.Fonts->GetGlyphRangesChineseFull(), true);
 }
 
 void GUI::render() noexcept
@@ -70,9 +95,9 @@ void GUI::render() noexcept
     if (!config->style.menuStyle) {
         renderMenuBar();
         renderAimbotWindow();
-        renderAntiAimWindow();
+        AntiAim::drawGUI(false);
         renderTriggerbotWindow();
-        renderBacktrackWindow();
+        Backtrack::drawGUI(false);
         Glow::drawGUI(false);
         renderChamsWindow();
         renderStreamProofESPWindow();
@@ -146,9 +171,9 @@ void GUI::renderMenuBar() noexcept
 {
     if (ImGui::BeginMainMenuBar()) {
         menuBarItem("Aimbot", window.aimbot);
-        menuBarItem("Anti aim", window.antiAim);
+        AntiAim::menuBarItem();
         menuBarItem("Triggerbot", window.triggerbot);
-        menuBarItem("Backtrack", window.backtrack);
+        Backtrack::menuBarItem();
         Glow::menuBarItem();
         menuBarItem("Chams", window.chams);
         menuBarItem("ESP", window.streamProofESP);
@@ -299,23 +324,6 @@ void GUI::renderAimbotWindow(bool contentOnly) noexcept
         ImGui::End();
 }
 
-void GUI::renderAntiAimWindow(bool contentOnly) noexcept
-{
-    if (!contentOnly) {
-        if (!window.antiAim)
-            return;
-        ImGui::SetNextWindowSize({ 0.0f, 0.0f });
-        ImGui::Begin("Anti aim", &window.antiAim, windowFlags);
-    }
-    ImGui::Checkbox("Enabled", &config->antiAim.enabled);
-    ImGui::Checkbox("##pitch", &config->antiAim.pitch);
-    ImGui::SameLine();
-    ImGui::SliderFloat("Pitch", &config->antiAim.pitchAngle, -89.0f, 89.0f, "%.2f");
-    ImGui::Checkbox("Yaw", &config->antiAim.yaw);
-    if (!contentOnly)
-        ImGui::End();
-}
-
 void GUI::renderTriggerbotWindow(bool contentOnly) noexcept
 {
     if (!contentOnly) {
@@ -437,24 +445,6 @@ void GUI::renderTriggerbotWindow(bool contentOnly) noexcept
         ImGui::End();
 }
 
-void GUI::renderBacktrackWindow(bool contentOnly) noexcept
-{
-    if (!contentOnly) {
-        if (!window.backtrack)
-            return;
-        ImGui::SetNextWindowSize({ 0.0f, 0.0f });
-        ImGui::Begin("Backtrack", &window.backtrack, windowFlags);
-    }
-    ImGui::Checkbox("Enabled", &config->backtrack.enabled);
-    ImGui::Checkbox("Ignore smoke", &config->backtrack.ignoreSmoke);
-    ImGui::Checkbox("Recoil based fov", &config->backtrack.recoilBasedFov);
-    ImGui::PushItemWidth(220.0f);
-    ImGui::SliderInt("Time limit", &config->backtrack.timeLimit, 1, 200, "%d ms");
-    ImGui::PopItemWidth();
-    if (!contentOnly)
-        ImGui::End();
-}
-
 void GUI::renderChamsWindow(bool contentOnly) noexcept
 {
     if (!contentOnly) {
@@ -463,6 +453,11 @@ void GUI::renderChamsWindow(bool contentOnly) noexcept
         ImGui::SetNextWindowSize({ 0.0f, 0.0f });
         ImGui::Begin("Chams", &window.chams, windowFlags);
     }
+
+    hotkey2("Toggle Key", config->chamsToggleKey, 80.0f);
+    hotkey2("Hold Key", config->chamsHoldKey, 80.0f);
+    ImGui::Separator();
+
     static int currentCategory{ 0 };
     ImGui::PushItemWidth(110.0f);
     ImGui::PushID(0);
@@ -546,7 +541,7 @@ void GUI::renderStreamProofESPWindow(bool contentOnly) noexcept
         }
     };
 
-    if (ImGui::ListBoxHeader("##list", { 170.0f, 300.0f })) {
+    if (ImGui::BeginListBox("##list", { 170.0f, 300.0f })) {
         constexpr std::array categories{ "Enemies", "Allies", "Weapons", "Projectiles", "Loot Crates", "Other Entities" };
 
         for (std::size_t i = 0; i < categories.size(); ++i) {
@@ -763,7 +758,7 @@ void GUI::renderStreamProofESPWindow(bool contentOnly) noexcept
             ImGui::Unindent();
             ImGui::PopID();
         }
-        ImGui::ListBoxFooter();
+        ImGui::EndListBox();
     }
 
     ImGui::SameLine();
@@ -907,7 +902,7 @@ void GUI::renderVisualsWindow(bool contentOnly) noexcept
     }
     ImGui::Columns(2, nullptr, false);
     ImGui::SetColumnOffset(1, 280.0f);
-    constexpr auto playerModels = "Default\0Special Agent Ava | FBI\0Operator | FBI SWAT\0Markus Delrow | FBI HRT\0Michael Syfers | FBI Sniper\0B Squadron Officer | SAS\0Seal Team 6 Soldier | NSWC SEAL\0Buckshot | NSWC SEAL\0Lt. Commander Ricksaw | NSWC SEAL\0Third Commando Company | KSK\0'Two Times' McCoy | USAF TACP\0Dragomir | Sabre\0Rezan The Ready | Sabre\0'The Doctor' Romanov | Sabre\0Maximus | Sabre\0Blackwolf | Sabre\0The Elite Mr. Muhlik | Elite Crew\0Ground Rebel | Elite Crew\0Osiris | Elite Crew\0Prof. Shahmat | Elite Crew\0Enforcer | Phoenix\0Slingshot | Phoenix\0Soldier | Phoenix\0Pirate\0Pirate Variant A\0Pirate Variant B\0Pirate Variant C\0Pirate Variant D\0Anarchist\0Anarchist Variant A\0Anarchist Variant B\0Anarchist Variant C\0Anarchist Variant D\0Balkan Variant A\0Balkan Variant B\0Balkan Variant C\0Balkan Variant D\0Balkan Variant E\0Jumpsuit Variant A\0Jumpsuit Variant B\0Jumpsuit Variant C\0Street Soldier | Phoenix\0'Blueberries' Buckshot | NSWC SEAL\0'Two Times' McCoy | TACP Cavalry\0Rezan the Redshirt | Sabre\0Dragomir | Sabre Footsoldier\0Cmdr. Mae 'Dead Cold' Jamison | SWAT\0 1st Lieutenant Farlow | SWAT\0John 'Van Healen' Kask | SWAT\0Bio-Haz Specialist | SWAT\0Sergeant Bombson | SWAT\0Chem-Haz Specialist | SWAT\0Sir Bloody Miami Darryl | The Professionals\0Sir Bloody Silent Darryl | The Professionals\0Sir Bloody Skullhead Darryl | The Professionals\0Sir Bloody Darryl Royale | The Professionals\0Sir Bloody Loudmouth Darryl | The Professionals\0Safecracker Voltzmann | The Professionals\0Little Kev | The Professionals\0Number K | The Professionals\0Getaway Sally | The Professionals\0";
+    constexpr auto playerModels = "Default\0Special Agent Ava | FBI\0Operator | FBI SWAT\0Markus Delrow | FBI HRT\0Michael Syfers | FBI Sniper\0B Squadron Officer | SAS\0Seal Team 6 Soldier | NSWC SEAL\0Buckshot | NSWC SEAL\0Lt. Commander Ricksaw | NSWC SEAL\0Third Commando Company | KSK\0'Two Times' McCoy | USAF TACP\0Dragomir | Sabre\0Rezan The Ready | Sabre\0'The Doctor' Romanov | Sabre\0Maximus | Sabre\0Blackwolf | Sabre\0The Elite Mr. Muhlik | Elite Crew\0Ground Rebel | Elite Crew\0Osiris | Elite Crew\0Prof. Shahmat | Elite Crew\0Enforcer | Phoenix\0Slingshot | Phoenix\0Soldier | Phoenix\0Pirate\0Pirate Variant A\0Pirate Variant B\0Pirate Variant C\0Pirate Variant D\0Anarchist\0Anarchist Variant A\0Anarchist Variant B\0Anarchist Variant C\0Anarchist Variant D\0Balkan Variant A\0Balkan Variant B\0Balkan Variant C\0Balkan Variant D\0Balkan Variant E\0Jumpsuit Variant A\0Jumpsuit Variant B\0Jumpsuit Variant C\0Street Soldier | Phoenix\0'Blueberries' Buckshot | NSWC SEAL\0'Two Times' McCoy | TACP Cavalry\0Rezan the Redshirt | Sabre\0Dragomir | Sabre Footsoldier\0Cmdr. Mae 'Dead Cold' Jamison | SWAT\0001st Lieutenant Farlow | SWAT\0John 'Van Healen' Kask | SWAT\0Bio-Haz Specialist | SWAT\0Sergeant Bombson | SWAT\0Chem-Haz Specialist | SWAT\0Sir Bloody Miami Darryl | The Professionals\0Sir Bloody Silent Darryl | The Professionals\0Sir Bloody Skullhead Darryl | The Professionals\0Sir Bloody Darryl Royale | The Professionals\0Sir Bloody Loudmouth Darryl | The Professionals\0Safecracker Voltzmann | The Professionals\0Little Kev | The Professionals\0Number K | The Professionals\0Getaway Sally | The Professionals\0";
     ImGui::Combo("T Player Model", &config->visuals.playerModelT, playerModels);
     ImGui::Combo("CT Player Model", &config->visuals.playerModelCT, playerModels);
     ImGui::Checkbox("Disable post-processing", &config->visuals.disablePostProcessing);
@@ -966,6 +961,7 @@ void GUI::renderVisualsWindow(bool contentOnly) noexcept
     ImGui::Combo("Hit marker", &config->visuals.hitMarker, "None\0Default (Cross)\0");
     ImGui::SliderFloat("Hit marker time", &config->visuals.hitMarkerTime, 0.1f, 1.5f, "%.2fs");
     ImGuiCustom::colorPicker("Bullet Tracers", config->visuals.bulletTracers.color.color.data(), &config->visuals.bulletTracers.color.color[3], nullptr, nullptr, &config->visuals.bulletTracers.enabled);
+    ImGuiCustom::colorPicker("Molotov Hull", config->visuals.molotovHull);
 
     ImGui::Checkbox("Color correction", &config->visuals.colorCorrection.enabled);
     ImGui::SameLine();
@@ -1073,6 +1069,14 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
                             selected_entry.paint_kit_vector_index = i;
                             ImGui::CloseCurrentPopup();
                         }
+
+                        if (ImGui::IsItemHovered()) {
+                            if (const auto icon = SkinChanger::getItemIconTexture(kits[i].iconPath)) {
+                                ImGui::BeginTooltip();
+                                ImGui::Image(icon, { 200.0f, 150.0f });
+                                ImGui::EndTooltip();
+                            }
+                        }
                         if (selected && ImGui::IsWindowAppearing())
                             ImGui::SetScrollHereY();
                         ImGui::PopID();
@@ -1116,8 +1120,11 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
         static std::size_t selectedStickerSlot = 0;
 
         ImGui::PushItemWidth(-1);
+        ImVec2 size;
+        size.x = 0.0f;
+        size.y = ImGui::GetTextLineHeightWithSpacing() * 5.25f + ImGui::GetStyle().FramePadding.y * 2.0f;
 
-        if (ImGui::ListBoxHeader("", 5)) {
+        if (ImGui::BeginListBox("", size)) {
             for (int i = 0; i < 5; ++i) {
                 ImGui::PushID(i);
 
@@ -1129,7 +1136,7 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
 
                 ImGui::PopID();
             }
-            ImGui::ListBoxFooter();
+            ImGui::EndListBox();
         }
 
         ImGui::PopItemWidth();
@@ -1157,6 +1164,13 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
                         if (ImGui::SelectableWithBullet(kits[i].name.c_str(), rarityColor(kits[i].rarity), selected)) {
                             selected_sticker.kit_vector_index = i;
                             ImGui::CloseCurrentPopup();
+                        }
+                        if (ImGui::IsItemHovered()) {
+                            if (const auto icon = SkinChanger::getItemIconTexture(kits[i].iconPath)) {
+                                ImGui::BeginTooltip();
+                                ImGui::Image(icon, { 200.0f, 150.0f });
+                                ImGui::EndTooltip();
+                            }
                         }
                         if (selected && ImGui::IsWindowAppearing())
                             ImGui::SetScrollHereY();
@@ -1277,8 +1291,22 @@ void GUI::renderMiscWindow(bool contentOnly) noexcept
     ImGui::Checkbox("Reveal ranks", &config->misc.revealRanks);
     ImGui::Checkbox("Reveal money", &config->misc.revealMoney);
     ImGui::Checkbox("Reveal suspect", &config->misc.revealSuspect);
-    ImGuiCustom::colorPicker("Spectator list", config->misc.spectatorList);
-    ImGuiCustom::colorPicker("Watermark", config->misc.watermark);
+    ImGui::Checkbox("Reveal votes", &config->misc.revealVotes);
+
+    ImGui::Checkbox("Spectator list", &config->misc.spectatorList.enabled);
+    ImGui::SameLine();
+
+    ImGui::PushID("Spectator list");
+    if (ImGui::Button("..."))
+        ImGui::OpenPopup("");
+
+    if (ImGui::BeginPopup("")) {
+        ImGui::Checkbox("No Title Bar", &config->misc.spectatorList.noTitleBar);
+        ImGui::EndPopup();
+    }
+    ImGui::PopID();
+
+    ImGui::Checkbox("Watermark", &config->misc.watermark.enabled);
     ImGuiCustom::colorPicker("Offscreen Enemies", config->misc.offscreenEnemies.color, &config->misc.offscreenEnemies.enabled);
     ImGui::Checkbox("Fix animation LOD", &config->misc.fixAnimationLOD);
     ImGui::Checkbox("Fix bone matrix", &config->misc.fixBoneMatrix);
@@ -1492,8 +1520,8 @@ void GUI::renderConfigWindow(bool contentOnly) noexcept
                     case 0: config->reset(); updateColors(); Misc::updateClanTag(true); SkinChanger::scheduleHudUpdate(); break;
                     case 1: config->aimbot = { }; break;
                     case 2: config->triggerbot = { }; break;
-                    case 3: config->backtrack = { }; break;
-                    case 4: config->antiAim = { }; break;
+                    case 3: Backtrack::resetConfig(); break;
+                    case 4: AntiAim::resetConfig(); break;
                     case 5: Glow::resetConfig(); break;
                     case 6: config->chams = { }; break;
                     case 7: config->streamProofESP = { }; break;
@@ -1539,18 +1567,12 @@ void GUI::renderGuiStyle2() noexcept
             renderAimbotWindow(true);
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Anti aim")) {
-            renderAntiAimWindow(true);
-            ImGui::EndTabItem();
-        }
+        AntiAim::tabItem();
         if (ImGui::BeginTabItem("Triggerbot")) {
             renderTriggerbotWindow(true);
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Backtrack")) {
-            renderBacktrackWindow(true);
-            ImGui::EndTabItem();
-        }
+        Backtrack::tabItem();
         Glow::tabItem();
         if (ImGui::BeginTabItem("Chams")) {
             renderChamsWindow(true);

@@ -1,14 +1,21 @@
 #include <fstream>
 
 #ifdef _WIN32
+#include <Windows.h>
+#include <shellapi.h>
 #include <ShlObj.h>
 #endif
 
 #include "nlohmann/json.hpp"
 
+#include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
+
 #include "Config.h"
 #include "Helpers.h"
 #include "SDK/Platform.h"
+#include "Hacks/AntiAim.h"
+#include "Hacks/Backtrack.h"
 #include "Hacks/Glow.h"
 
 #ifdef _WIN32
@@ -250,22 +257,6 @@ static void from_json(const json& j, Config::Triggerbot& t)
     read(j, "Burst Time", t.burstTime);
 }
 
-static void from_json(const json& j, Config::Backtrack& b)
-{
-    read(j, "Enabled", b.enabled);
-    read(j, "Ignore smoke", b.ignoreSmoke);
-    read(j, "Recoil based fov", b.recoilBasedFov);
-    read(j, "Time limit", b.timeLimit);
-}
-
-static void from_json(const json& j, Config::AntiAim& a)
-{
-    read(j, "Enabled", a.enabled);
-    read(j, "Pitch", a.pitch);
-    read(j, "Yaw", a.yaw);
-    read(j, "Pitch angle", a.pitchAngle);
-}
-
 static void from_json(const json& j, Config::Chams::Material& m)
 {
     from_json(j, static_cast<Color4&>(m));
@@ -348,6 +339,7 @@ static void from_json(const json& j, Config::Visuals& v)
     read(j, "Playermodel CT", v.playerModelCT);
     read<value_t::object>(j, "Color correction", v.colorCorrection);
     read<value_t::object>(j, "Bullet Tracers", v.bulletTracers);
+    read<value_t::object>(j, "Molotov Hull", v.molotovHull);
 }
 
 static void from_json(const json& j, sticker_setting& s)
@@ -422,6 +414,19 @@ static void from_json(const json& j, PurchaseList& pl)
     read(j, "Mode", pl.mode);
 }
 
+static void from_json(const json& j, Config::Misc::SpectatorList& sl)
+{
+    read(j, "Enabled", sl.enabled);
+    read(j, "No Title Bar", sl.noTitleBar);
+    read<value_t::object>(j, "Pos", sl.pos);
+    read<value_t::object>(j, "Size", sl.size);
+}
+
+static void from_json(const json& j, Config::Misc::Watermark& o)
+{
+    read(j, "Enabled", o.enabled);
+}
+
 static void from_json(const json& j, PreserveKillfeed& o)
 {
     read(j, "Enabled", o.enabled);
@@ -453,6 +458,7 @@ static void from_json(const json& j, Config::Misc& m)
     read(j, "Reveal ranks", m.revealRanks);
     read(j, "Reveal money", m.revealMoney);
     read(j, "Reveal suspect", m.revealSuspect);
+    read(j, "Reveal votes", m.revealVotes);
     read<value_t::object>(j, "Spectator list", m.spectatorList);
     read<value_t::object>(j, "Watermark", m.watermark);
     read<value_t::object>(j, "Offscreen Enemies", m.offscreenEnemies);
@@ -532,10 +538,12 @@ void Config::load(const char8_t* name, bool incremental) noexcept
     read(j, "Triggerbot", triggerbot);
     read(j, "Triggerbot Key", triggerbotHoldKey);
 
-    read<value_t::object>(j, "Backtrack", backtrack);
-    read<value_t::object>(j, "Anti aim", antiAim);
-    ::Glow::fromJson(j["Glow"]);
+    AntiAim::fromJson(j["Anti aim"]);
+    Backtrack::fromJson(j["Backtrack"]);
+    Glow::fromJson(j["Glow"]);
     read(j, "Chams", chams);
+    read(j["Chams"], "Toggle Key", chamsToggleKey);
+    read(j["Chams"], "Hold Key", chamsHoldKey);
     read<value_t::object>(j, "ESP", streamProofESP);
     read<value_t::object>(j, "Visuals", visuals);
     read(j, "Skin changer", skinChanger);
@@ -704,22 +712,6 @@ static void to_json(json& j, const Config::Triggerbot& o, const Config::Triggerb
     WRITE("Burst Time", burstTime);
 }
 
-static void to_json(json& j, const Config::Backtrack& o, const Config::Backtrack& dummy = {})
-{
-    WRITE("Enabled", enabled);
-    WRITE("Ignore smoke", ignoreSmoke);
-    WRITE("Recoil based fov", recoilBasedFov);
-    WRITE("Time limit", timeLimit);
-}
-
-static void to_json(json& j, const Config::AntiAim& o, const Config::AntiAim& dummy = {})
-{
-    WRITE("Enabled", enabled);
-    WRITE("Pitch", pitch);
-    WRITE("Pitch angle", pitchAngle);
-    WRITE("Yaw", yaw);
-}
-
 static void to_json(json& j, const Config::Chams::Material& o)
 {
     const Config::Chams::Material dummy;
@@ -737,18 +729,6 @@ static void to_json(json& j, const Config::Chams::Material& o)
 static void to_json(json& j, const Config::Chams& o)
 {
     j["Materials"] = o.materials;
-}
-
-static void to_json(json& j, const KeyBind& o, const KeyBind& dummy)
-{
-    if (o != dummy)
-        j = o.toString();
-}
-
-static void to_json(json& j, const KeyBindToggle& o, const KeyBindToggle& dummy)
-{
-    if (o != dummy)
-        j = o.toString();
 }
 
 static void to_json(json& j, const Config::StreamProofESP& o, const Config::StreamProofESP& dummy = {})
@@ -803,6 +783,22 @@ static void to_json(json& j, const PurchaseList& o, const PurchaseList& dummy = 
     WRITE("Mode", mode);
 }
 
+static void to_json(json& j, const Config::Misc::SpectatorList& o, const Config::Misc::SpectatorList& dummy = {})
+{
+    WRITE("Enabled", enabled);
+    WRITE("No Title Bar", noTitleBar);
+
+    if (const auto window = ImGui::FindWindowByName("Spectator list")) {
+        j["Pos"] = window->Pos;
+        j["Size"] = window->SizeFull;
+    }
+}
+
+static void to_json(json& j, const Config::Misc::Watermark& o, const Config::Misc::Watermark& dummy = {})
+{
+    WRITE("Enabled", enabled);
+}
+
 static void to_json(json& j, const PreserveKillfeed& o, const PreserveKillfeed& dummy = {})
 {
     WRITE("Enabled", enabled);
@@ -839,6 +835,7 @@ static void to_json(json& j, const Config::Misc& o)
     WRITE("Reveal ranks", revealRanks);
     WRITE("Reveal money", revealMoney);
     WRITE("Reveal suspect", revealSuspect);
+    WRITE("Reveal votes", revealVotes);
     WRITE("Spectator list", spectatorList);
     WRITE("Watermark", watermark);
     WRITE("Offscreen Enemies", offscreenEnemies);
@@ -931,6 +928,7 @@ static void to_json(json& j, const Config::Visuals& o)
     WRITE("Playermodel CT", playerModelCT);
     WRITE("Color correction", colorCorrection);
     WRITE("Bullet Tracers", bulletTracers);
+    WRITE("Molotov Hull", molotovHull);
 }
 
 static void to_json(json& j, const ImVec4& o)
@@ -1010,10 +1008,12 @@ void Config::save(size_t id) const noexcept
         j["Triggerbot"] = triggerbot;
         to_json(j["Triggerbot Key"], triggerbotHoldKey, KeyBind::NONE);
 
-        j["Backtrack"] = backtrack;
-        j["Anti aim"] = antiAim;
-        j["Glow"] = ::Glow::toJson();
+        j["Backtrack"] = Backtrack::toJson();
+        j["Anti aim"] = AntiAim::toJson();
+        j["Glow"] = Glow::toJson();
         j["Chams"] = chams;
+        to_json(j["Chams"]["Toggle Key"], chamsToggleKey, KeyBind::NONE);
+        to_json(j["Chams"]["Hold Key"], chamsHoldKey, KeyBind::NONE);
         j["ESP"] = streamProofESP;
         j["Sound"] = sound;
         j["Visuals"] = visuals;
@@ -1051,8 +1051,9 @@ void Config::rename(size_t item, const char* newName) noexcept
 void Config::reset() noexcept
 {
     aimbot = { };
+    AntiAim::resetConfig();
     triggerbot = { };
-    backtrack = { };
+    Backtrack::resetConfig();
     Glow::resetConfig();
     chams = { };
     streamProofESP = { };
@@ -1082,7 +1083,11 @@ void Config::createConfigDir() const noexcept
 void Config::openConfigDir() const noexcept
 {
     createConfigDir();
-    int ret = std::system((WIN32_LINUX("start ", "xdg-open ") + path.string()).c_str());
+#ifdef _WIN32
+    ShellExecuteW(nullptr, L"open", path.wstring().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+#else
+    int ret = std::system(("xdg-open " + path.string()).c_str());
+#endif
 }
 
 void Config::scheduleFontLoad(const std::string& name) noexcept
