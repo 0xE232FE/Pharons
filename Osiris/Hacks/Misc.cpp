@@ -205,15 +205,13 @@ void Misc::noscopeCrosshair(ImDrawList* drawList) noexcept
 
     {
         GameData::Lock lock;
-        if (const auto& local = GameData::local(); !local.exists || !local.alive || !local.noScope)
+        //if (const auto& local = GameData::local(); !local.exists || !local.alive || !local.noScope)
+        if (const auto& local = GameData::local(); !local.exists || !local.alive)
             return;
     }
 
-    if (!local.exists || !local.alive)
-        return;
-    
-    if (local.usesSniperRifel || local.isScoped)
-        drawCrosshair(drawList, ImGui::GetIO().DisplaySize / 2, Helpers::calculateColor(config->misc.noscopeCrosshair), config->misc.noscopeCrosshair.thickness);
+    drawCrosshair(drawList, ImGui::GetIO().DisplaySize / 2, Helpers::calculateColor(config->misc.noscopeCrosshair));
+
 }
 
 
