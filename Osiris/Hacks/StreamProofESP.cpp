@@ -88,28 +88,36 @@ static void addLineWithShadow(const ImVec2& p1, const ImVec2& p2, ImU32 col) noe
 }
 
 // convex hull using Graham's scan
-static std::vector<ImVec2> convexHull(std::vector<ImVec2> points) noexcept
+static std::pair<std::array<ImVec2, 8>, std::size_t> convexHull(std::array<ImVec2, 8> points) noexcept
 {
-    if (points.size() < 3)
-        return {};
-
-    std::swap(points[0], *std::min_element(points.begin(), points.end(), [](const auto& a, const auto& b) { return (a.x < b.x || (a.x == b.x && a.y < b.y)); }));
+    std::swap(points[0], *std::min_element(points.begin(), points.end(), [](const auto& a, const auto& b) { return a.y < b.y || (a.y == b.y && a.x < b.x); }));
 
     constexpr auto orientation = [](const ImVec2& a, const ImVec2& b, const ImVec2& c) {
-        return (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+        return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
     };
 
-    std::sort(points.begin() + 1, points.end(), [&](const auto& a, const auto& b) { return orientation(points[0], a, b) > 0.0f; });
+    std::sort(points.begin() + 1, points.end(), [&](const auto& a, const auto& b) {
+        const auto o = orientation(points[0], a, b);
+        return o == 0.0f ? ImLengthSqr(points[0] - a) < ImLengthSqr(points[0] - b) : o < 0.0f;
+    });
 
-    std::vector<ImVec2> hull;
+    std::array<ImVec2, 8> hull;
+    std::size_t count = 0;
 
     for (const auto& p : points) {
-        while (hull.size() >= 2 && orientation(hull[hull.size() - 2], hull[hull.size() - 1], p) < 0.0f)
-            hull.pop_back();
-        hull.push_back(p);
+        while (count >= 2 && orientation(hull[count - 2], hull[count - 1], p) >= 0.0f)
+            --count;
+        hull[count++] = p;
     }
 
-    return hull;
+    return std::make_pair(hull, count);
+}
+
+static void addRectFilled(const ImVec2& p1, const ImVec2& p2, ImU32 col, bool shadow) noexcept
+{
+    if (shadow)
+        drawList->AddRectFilled(p1 + ImVec2{ 1.0f, 1.0f }, p2 + ImVec2{ 1.0f, 1.0f }, col & IM_COL32_A_MASK);
+    drawList->AddRectFilled(p1, p2, col);
 }
 
 static void renderBox(const BoundingBox& bbox, const Box& config) noexcept
@@ -123,44 +131,39 @@ static void renderBox(const BoundingBox& bbox, const Box& config) noexcept
     switch (config.type) {
     case Box::_2d:
         if (config.fill.enabled)
-            drawList->AddRectFilled(bbox.min + ImVec2{ 1.0f, 1.0f }, bbox.max - ImVec2{ 1.0f, 1.0f }, fillColor, config.rounding, ImDrawCornerFlags_All);
+            drawList->AddRectFilled(bbox.min + ImVec2{ 1.0f, 1.0f }, bbox.max - ImVec2{ 1.0f, 1.0f }, fillColor, config.rounding, ImDrawFlags_RoundCornersAll);
         else
-            drawList->AddRect(bbox.min + ImVec2{ 1.0f, 1.0f }, bbox.max + ImVec2{ 1.0f, 1.0f }, color & IM_COL32_A_MASK, config.rounding, ImDrawCornerFlags_All);
-        drawList->AddRect(bbox.min, bbox.max, color, config.rounding, ImDrawCornerFlags_All);
+            drawList->AddRect(bbox.min + ImVec2{ 1.0f, 1.0f }, bbox.max + ImVec2{ 1.0f, 1.0f }, color & IM_COL32_A_MASK, config.rounding, ImDrawFlags_RoundCornersAll);
+        drawList->AddRect(bbox.min, bbox.max, color, config.rounding, ImDrawFlags_RoundCornersAll);
         break;
-    case Box::_2dCorners:
+    case Box::_2dCorners: {
         if (config.fill.enabled) {
-            drawList->AddRectFilled(bbox.min + ImVec2{ 1.0f, 1.0f }, bbox.max - ImVec2{ 1.0f, 1.0f }, fillColor, config.rounding, ImDrawCornerFlags_All);
-
-            drawList->AddLine(bbox.min, { bbox.min.x, IM_FLOOR(bbox.min.y * 0.75f + bbox.max.y * 0.25f) }, color);
-            drawList->AddLine(bbox.min, { IM_FLOOR(bbox.min.x * 0.75f + bbox.max.x * 0.25f), bbox.min.y }, color);
-
-            drawList->AddLine({ bbox.max.x, bbox.min.y }, { IM_FLOOR(bbox.max.x * 0.75f + bbox.min.x * 0.25f), bbox.min.y }, color);
-            drawList->AddLine({ bbox.max.x - 1.0f, bbox.min.y }, { bbox.max.x - 1.0f, IM_FLOOR(bbox.min.y * 0.75f + bbox.max.y * 0.25f) }, color);
-
-            drawList->AddLine({ bbox.min.x, bbox.max.y }, { bbox.min.x, IM_FLOOR(bbox.max.y * 0.75f + bbox.min.y * 0.25f) }, color);
-            drawList->AddLine({ bbox.min.x, bbox.max.y - 1.0f }, { IM_FLOOR(bbox.min.x * 0.75f + bbox.max.x * 0.25f), bbox.max.y - 1.0f }, color);
-
-            drawList->AddLine(bbox.max - ImVec2{ 0.5f, 1.0f }, { IM_FLOOR(bbox.max.x * 0.75f + bbox.min.x * 0.25f), bbox.max.y - 1.0f }, color);
-            drawList->AddLine(bbox.max - ImVec2{ 1.0f, 0.0f }, { bbox.max.x - 1.0f, IM_FLOOR(bbox.max.y * 0.75f + bbox.min.y * 0.25f) }, color);
-        } else {
-            addLineWithShadow(bbox.min, { bbox.min.x, IM_FLOOR(bbox.min.y * 0.75f + bbox.max.y * 0.25f) }, color);
-            addLineWithShadow(bbox.min, { IM_FLOOR(bbox.min.x * 0.75f + bbox.max.x * 0.25f), bbox.min.y }, color);
-
-            addLineWithShadow({ bbox.max.x, bbox.min.y }, { IM_FLOOR(bbox.max.x * 0.75f + bbox.min.x * 0.25f), bbox.min.y }, color);
-            addLineWithShadow({ bbox.max.x - 1.0f, bbox.min.y }, { bbox.max.x - 1.0f, IM_FLOOR(bbox.min.y * 0.75f + bbox.max.y * 0.25f) }, color);
-
-            addLineWithShadow({ bbox.min.x, bbox.max.y }, { bbox.min.x, IM_FLOOR(bbox.max.y * 0.75f + bbox.min.y * 0.25f) }, color);
-            addLineWithShadow({ bbox.min.x, bbox.max.y - 1.0f }, { IM_FLOOR(bbox.min.x * 0.75f + bbox.max.x * 0.25f), bbox.max.y - 1.0f }, color);
-
-            addLineWithShadow(bbox.max - ImVec2{ 0.5f, 1.0f }, { IM_FLOOR(bbox.max.x * 0.75f + bbox.min.x * 0.25f), bbox.max.y - 1.0f }, color);
-            addLineWithShadow(bbox.max - ImVec2{ 1.0f, 0.0f }, { bbox.max.x - 1.0f, IM_FLOOR(bbox.max.y * 0.75f + bbox.min.y * 0.25f) }, color);
+            drawList->AddRectFilled(bbox.min + ImVec2{ 1.0f, 1.0f }, bbox.max - ImVec2{ 1.0f, 1.0f }, fillColor, config.rounding, ImDrawFlags_RoundCornersAll);
         }
+
+        const bool wantsShadow = !config.fill.enabled;
+
+        const auto quarterWidth = IM_FLOOR((bbox.max.x - bbox.min.x) * 0.25f);
+        const auto quarterHeight = IM_FLOOR((bbox.max.y - bbox.min.y) * 0.25f);
+
+        addRectFilled(bbox.min, { bbox.min.x + 1.0f, bbox.min.y + quarterHeight }, color, wantsShadow);
+        addRectFilled(bbox.min, { bbox.min.x + quarterWidth, bbox.min.y + 1.0f }, color, wantsShadow);
+
+        addRectFilled({ bbox.max.x, bbox.min.y }, { bbox.max.x - quarterWidth, bbox.min.y + 1.0f }, color, wantsShadow);
+        addRectFilled({ bbox.max.x - 1.0f, bbox.min.y }, { bbox.max.x, bbox.min.y + quarterHeight }, color, wantsShadow);
+
+        addRectFilled({ bbox.min.x, bbox.max.y }, { bbox.min.x + 1.0f, bbox.max.y - quarterHeight }, color, wantsShadow);
+        addRectFilled({ bbox.min.x, bbox.max.y - 1.0f }, { bbox.min.x + quarterWidth, bbox.max.y }, color, wantsShadow);
+
+        addRectFilled(bbox.max, { bbox.max.x - quarterWidth, bbox.max.y - 1.0f }, color, wantsShadow);
+        addRectFilled(bbox.max, { bbox.max.x - 1.0f, bbox.max.y - quarterHeight }, color, wantsShadow);
         break;
+    }
     case Box::_3d:
         if (config.fill.enabled) {
-            const auto hull = convexHull({ std::begin(bbox.vertices), std::end(bbox.vertices) });
-            drawList->AddConvexPolyFilled(hull.data(), hull.size(), fillColor);
+            auto [hull, count] = convexHull(bbox.vertices);
+            std::reverse(hull.begin(), hull.begin() + count); // make them clockwise for antialiasing
+            drawList->AddConvexPolyFilled(hull.data(), count, fillColor);
         } else {
             for (int i = 0; i < 8; ++i) {
                 for (int j = 1; j <= 4; j <<= 1) {
@@ -179,8 +182,9 @@ static void renderBox(const BoundingBox& bbox, const Box& config) noexcept
         break;
     case Box::_3dCorners:
         if (config.fill.enabled) {
-            const auto hull = convexHull({ std::begin(bbox.vertices), std::end(bbox.vertices) });
-            drawList->AddConvexPolyFilled(hull.data(), hull.size(), fillColor);
+            auto [hull, count] = convexHull(bbox.vertices);
+            std::reverse(hull.begin(), hull.begin() + count); // make them clockwise for antialiasing
+            drawList->AddConvexPolyFilled(hull.data(), count, fillColor);
         } else {
             for (int i = 0; i < 8; ++i) {
                 for (int j = 1; j <= 4; j <<= 1) {
@@ -317,7 +321,7 @@ static void renderPlayerBox(const PlayerData& playerData, const Player& config) 
     FontPush font{ config.font.name, playerData.distanceToLocal };
 
     if (config.name.enabled) {
-        const auto nameSize = renderText(playerData.distanceToLocal, config.textCullDistance, config.name, playerData.name, { (bbox.min.x + bbox.max.x) / 2, bbox.min.y - 5 });
+        const auto nameSize = renderText(playerData.distanceToLocal, config.textCullDistance, config.name, playerData.name.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.min.y - 5 });
         offsetMins.y -= nameSize.y + 5;
     }
 
@@ -449,11 +453,16 @@ static bool renderPlayerEsp(const PlayerData& playerData, const Player& playerCo
         || playerConfig.spottedOnly && !playerData.spotted && !(playerConfig.audibleOnly && playerData.audible)) // if both "Audible Only" and "Spotted Only" are on treat them as audible OR spotted
         return true;
 
+    if (playerData.immune)
+        Helpers::setAlphaFactor(0.5f);
+
     renderPlayerBox(playerData, playerConfig);
     drawPlayerSkeleton(playerConfig.skeleton, playerData.bones);
 
     if (const BoundingBox headBbox{ playerData.headMins, playerData.headMaxs, playerConfig.headBox.scale })
         renderBox(headBbox, playerConfig.headBox);
+
+    Helpers::setAlphaFactor(1.0f);
 
     return true;
 }
