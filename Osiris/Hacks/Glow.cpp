@@ -4,6 +4,7 @@
 
 #include "../Config.h"
 #include "Glow.h"
+#include "../Helpers.h"
 #include "../Interfaces.h"
 #include "../Memory.h"
 #include "../SDK/Entity.h"
@@ -87,14 +88,14 @@ void Glow::render() noexcept
                 glowobject.glowAlpha = glow.color[3];
                 glowobject.glowStyle = glow.style;
                 glowobject.glowAlphaMax = 0.6f;
-                if (glow.healthBased && health)
-                    glowobject.glowColor = { 1.0f - health / 100.0f,  health / 100.0f, 0.0f };
-                else if (glow.rainbow) {
+                if (glow.healthBased && health) {
+                    Helpers::healthColor(std::clamp(health / 100.0f, 0.0f, 1.0f), glowobject.glowColor.x, glowobject.glowColor.y, glowobject.glowColor.z);
+                } else if (glow.rainbow) {
                     const auto [r, g, b] { rainbowColor(glow.rainbowSpeed) };
                     glowobject.glowColor = { r, g, b };
-                }
-                else
+                } else {
                     glowobject.glowColor = { glow.color[0], glow.color[1], glow.color[2] };
+                }
             }
         };
 
