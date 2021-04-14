@@ -99,7 +99,7 @@ static std::pair<std::array<ImVec2, 8>, std::size_t> convexHull(std::array<ImVec
     std::sort(points.begin() + 1, points.end(), [&](const auto& a, const auto& b) {
         const auto o = orientation(points[0], a, b);
         return o == 0.0f ? ImLengthSqr(points[0] - a) < ImLengthSqr(points[0] - b) : o < 0.0f;
-    });
+        });
 
     std::array<ImVec2, 8> hull;
     std::size_t count = 0;
@@ -164,7 +164,8 @@ static void renderBox(const BoundingBox& bbox, const Box& config) noexcept
             auto [hull, count] = convexHull(bbox.vertices);
             std::reverse(hull.begin(), hull.begin() + count); // make them clockwise for antialiasing
             drawList->AddConvexPolyFilled(hull.data(), count, fillColor);
-        } else {
+        }
+        else {
             for (int i = 0; i < 8; ++i) {
                 for (int j = 1; j <= 4; j <<= 1) {
                     if (!(i & j))
@@ -185,7 +186,8 @@ static void renderBox(const BoundingBox& bbox, const Box& config) noexcept
             auto [hull, count] = convexHull(bbox.vertices);
             std::reverse(hull.begin(), hull.begin() + count); // make them clockwise for antialiasing
             drawList->AddConvexPolyFilled(hull.data(), count, fillColor);
-        } else {
+        }
+        else {
             for (int i = 0; i < 8; ++i) {
                 for (int j = 1; j <= 4; j <<= 1) {
                     if (!(i & j)) {
@@ -268,7 +270,7 @@ struct FontPush {
                 if (dist <= 1000.0f)
                     return font.medium;
                 return font.tiny;
-            }(it->second, distance));
+                }(it->second, distance));
         }
         else {
             ImGui::PushFont(nullptr);
@@ -281,25 +283,34 @@ struct FontPush {
     }
 };
 
-static void drawHealthBar(const ImVec2& pos, float height, int health) noexcept
+static void drawHealthBar(const HealthBar& config, const ImVec2& pos, float height, int health) noexcept
 {
+    if (!config.enabled)
+        return;
+
     constexpr float width = 3.0f;
 
     drawList->PushClipRect(pos + ImVec2{ 0.0f, (100 - health) / 100.0f * height }, pos + ImVec2{ width + 1.0f, height + 1.0f });
 
-    const auto green = Helpers::calculateColor(0, 255, 0, 255);
-    const auto yellow = Helpers::calculateColor(255, 255, 0, 255);
-    const auto red = Helpers::calculateColor(255, 0, 0, 255);
+    if (config.type == HealthBar::Gradient) {
+        const auto green = Helpers::calculateColor(0, 255, 0, 255);
+        const auto yellow = Helpers::calculateColor(255, 255, 0, 255);
+        const auto red = Helpers::calculateColor(255, 0, 0, 255);
 
-    ImVec2 min = pos;
-    ImVec2 max = min + ImVec2{ width, height / 2.0f };
+        ImVec2 min = pos;
+        ImVec2 max = min + ImVec2{ width, height / 2.0f };
 
-    drawList->AddRectFilled(min + ImVec2{ 1.0f, 1.0f }, pos + ImVec2{ width + 1.0f, height + 1.0f }, Helpers::calculateColor(0, 0, 0, 255));
+        drawList->AddRectFilled(min + ImVec2{ 1.0f, 1.0f }, pos + ImVec2{ width + 1.0f, height + 1.0f }, Helpers::calculateColor(0, 0, 0, 255));
 
-    drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), green, green, yellow, yellow);
-    min.y += height / 2.0f;
-    max.y += height / 2.0f;
-    drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), yellow, yellow, red, red);
+        drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), green, green, yellow, yellow);
+        min.y += height / 2.0f;
+        max.y += height / 2.0f;
+        drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), yellow, yellow, red, red);
+    }
+    else {
+        drawList->AddRectFilled(pos + ImVec2{ 1.0f, 1.0f }, pos + ImVec2{ width + 1.0f, height + 1.0f }, Helpers::calculateColor(0, 0, 0, 255));
+        drawList->AddRectFilled(pos, pos + ImVec2{ width, height }, Helpers::calculateColor(config));
+    }
 
     drawList->PopClipRect();
 }
@@ -315,8 +326,7 @@ static void renderPlayerBox(const PlayerData& playerData, const Player& config) 
 
     ImVec2 offsetMins{}, offsetMaxs{};
 
-    if (config.healthBar)
-        drawHealthBar(bbox.min - ImVec2{ 5.0f, 0.0f }, (bbox.max.y - bbox.min.y), playerData.health);
+    drawHealthBar(config.healthBar, bbox.min - ImVec2{ 5.0f, 0.0f }, (bbox.max.y - bbox.min.y), playerData.health);
 
     FontPush font{ config.font.name, playerData.distanceToLocal };
 
@@ -401,9 +411,11 @@ static void drawProjectileTrajectory(const Trail& config, const std::vector<std:
             if (config.type == Trail::Line) {
                 points.push_back(pos);
                 shadowPoints.push_back(pos + ImVec2{ 1.0f, 1.0f });
-            } else if (config.type == Trail::Circles) {
+            }
+            else if (config.type == Trail::Circles) {
                 drawList->AddCircle(pos, 3.5f - point.distTo(GameData::local().origin) / 700.0f, color, 12, config.thickness);
-            } else if (config.type == Trail::FilledCircles) {
+            }
+            else if (config.type == Trail::FilledCircles) {
                 drawList->AddCircleFilled(pos, 3.5f - point.distTo(GameData::local().origin) / 700.0f, color);
             }
         }
@@ -479,7 +491,8 @@ static void renderEntityEsp(const BaseData& entityData, const std::unordered_map
 {
     if (const auto cfg = map.find(name); cfg != map.cend() && cfg->second.enabled) {
         renderEntityBox(entityData, name, cfg->second);
-    } else if (const auto cfg = map.find("All"); cfg != map.cend() && cfg->second.enabled) {
+    }
+    else if (const auto cfg = map.find("All"); cfg != map.cend() && cfg->second.enabled) {
         renderEntityBox(entityData, name, cfg->second);
     }
 }
@@ -508,7 +521,8 @@ void StreamProofESP::render() noexcept
     if (config->streamProofESP.toggleKey != KeyBind::NONE) {
         if (!config->streamProofESP.toggleKey.isToggled() && !config->streamProofESP.holdKey.isDown())
             return;
-    } else if (config->streamProofESP.holdKey != KeyBind::NONE && !config->streamProofESP.holdKey.isDown()) {
+    }
+    else if (config->streamProofESP.holdKey != KeyBind::NONE && !config->streamProofESP.holdKey.isDown()) {
         return;
     }
 

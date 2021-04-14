@@ -517,7 +517,8 @@ void Config::load(const char8_t* name, bool incremental) noexcept
         j = json::parse(in, nullptr, false);
         if (j.is_discarded())
             return;
-    } else {
+    }
+    else {
         return;
     }
 
@@ -763,22 +764,6 @@ static void to_json(json& j, const PurchaseList& o, const PurchaseList& dummy = 
     WRITE("Show Prices", showPrices);
     WRITE("No Title Bar", noTitleBar);
     WRITE("Mode", mode);
-}
-
-static void to_json(json& j, const Config::Misc::SpectatorList& o, const Config::Misc::SpectatorList& dummy = {})
-{
-    WRITE("Enabled", enabled);
-    WRITE("No Title Bar", noTitleBar);
-
-    if (const auto window = ImGui::FindWindowByName("Spectator list")) {
-        j["Pos"] = window->Pos;
-        j["Size"] = window->SizeFull;
-    }
-}
-
-static void to_json(json& j, const Config::Misc::Watermark& o, const Config::Misc::Watermark& dummy = {})
-{
-    WRITE("Enabled", enabled);
 }
 
 static void to_json(json& j, const Config::Misc::SpectatorList& o, const Config::Misc::SpectatorList& dummy = {})
