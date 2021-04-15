@@ -281,25 +281,34 @@ struct FontPush {
     }
 };
 
-static void drawHealthBar(const ImVec2& pos, float height, int health) noexcept
+static void drawHealthBar(const HealthBar& config, const ImVec2& pos, float height, int health) noexcept
 {
+    if (!config.enabled)
+        return;
+
     constexpr float width = 3.0f;
 
     drawList->PushClipRect(pos + ImVec2{ 0.0f, (100 - health) / 100.0f * height }, pos + ImVec2{ width + 1.0f, height + 1.0f });
 
-    const auto green = Helpers::calculateColor(0, 255, 0, 255);
-    const auto yellow = Helpers::calculateColor(255, 255, 0, 255);
-    const auto red = Helpers::calculateColor(255, 0, 0, 255);
+    if (config.type == HealthBar::Gradient) {
+        const auto green = Helpers::calculateColor(0, 255, 0, 255);
+        const auto yellow = Helpers::calculateColor(255, 255, 0, 255);
+        const auto red = Helpers::calculateColor(255, 0, 0, 255);
 
-    ImVec2 min = pos;
-    ImVec2 max = min + ImVec2{ width, height / 2.0f };
+        ImVec2 min = pos;
+        ImVec2 max = min + ImVec2{ width, height / 2.0f };
 
-    drawList->AddRectFilled(min + ImVec2{ 1.0f, 1.0f }, pos + ImVec2{ width + 1.0f, height + 1.0f }, Helpers::calculateColor(0, 0, 0, 255));
+        drawList->AddRectFilled(min + ImVec2{ 1.0f, 1.0f }, pos + ImVec2{ width + 1.0f, height + 1.0f }, Helpers::calculateColor(0, 0, 0, 255));
 
-    drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), green, green, yellow, yellow);
-    min.y += height / 2.0f;
-    max.y += height / 2.0f;
-    drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), yellow, yellow, red, red);
+        drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), green, green, yellow, yellow);
+        min.y += height / 2.0f;
+        max.y += height / 2.0f;
+        drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), yellow, yellow, red, red);
+    } else {
+        const auto color = Helpers::calculateColor(config);
+        drawList->AddRectFilled(pos + ImVec2{ 1.0f, 1.0f }, pos + ImVec2{ width + 1.0f, height + 1.0f }, color & IM_COL32_A_MASK);
+        drawList->AddRectFilled(pos, pos + ImVec2{ width, height }, color);
+    }
 
     drawList->PopClipRect();
 }
@@ -315,14 +324,13 @@ static void renderPlayerBox(const PlayerData& playerData, const Player& config) 
 
     ImVec2 offsetMins{}, offsetMaxs{};
 
-    if (config.healthBar)
-        drawHealthBar(bbox.min - ImVec2{ 5.0f, 0.0f }, (bbox.max.y - bbox.min.y), playerData.health);
+    drawHealthBar(config.healthBar, bbox.min - ImVec2{ 5.0f, 0.0f }, (bbox.max.y - bbox.min.y), playerData.health);
 
     FontPush font{ config.font.name, playerData.distanceToLocal };
 
     if (config.name.enabled) {
-        const auto nameSize = renderText(playerData.distanceToLocal, config.textCullDistance, config.name, playerData.name.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.min.y - 5 });
-        offsetMins.y -= nameSize.y + 5;
+        const auto nameSize = renderText(playerData.distanceToLocal, config.textCullDistance, config.name, playerData.name.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.min.y - 2 });
+        offsetMins.y -= nameSize.y + 2;
     }
 
     if (config.flashDuration.enabled && playerData.flashDuration > 0.0f) {
@@ -341,8 +349,8 @@ static void renderPlayerBox(const PlayerData& playerData, const Player& config) 
     }
 
     if (config.weapon.enabled && !playerData.activeWeapon.empty()) {
-        const auto weaponTextSize = renderText(playerData.distanceToLocal, config.textCullDistance, config.weapon, playerData.activeWeapon.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.max.y + 5 }, true, false);
-        offsetMaxs.y += weaponTextSize.y + 5.0f;
+        const auto weaponTextSize = renderText(playerData.distanceToLocal, config.textCullDistance, config.weapon, playerData.activeWeapon.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.max.y + 1 }, true, false);
+        offsetMaxs.y += weaponTextSize.y + 2.0f;
     }
 
     drawSnapline(config.snapline, bbox.min + offsetMins, bbox.max + offsetMaxs);
@@ -362,12 +370,12 @@ static void renderWeaponBox(const WeaponData& weaponData, const Weapon& config) 
     FontPush font{ config.font.name, weaponData.distanceToLocal };
 
     if (config.name.enabled && !weaponData.displayName.empty()) {
-        renderText(weaponData.distanceToLocal, config.textCullDistance, config.name, weaponData.displayName.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.min.y - 5 });
+        renderText(weaponData.distanceToLocal, config.textCullDistance, config.name, weaponData.displayName.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.min.y - 2 });
     }
 
     if (config.ammo.enabled && weaponData.clip != -1) {
         const auto text{ std::to_string(weaponData.clip) + " / " + std::to_string(weaponData.reserveAmmo) };
-        renderText(weaponData.distanceToLocal, config.textCullDistance, config.ammo, text.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.max.y + 5 }, true, false);
+        renderText(weaponData.distanceToLocal, config.textCullDistance, config.ammo, text.c_str(), { (bbox.min.x + bbox.max.x) / 2, bbox.max.y + 1 }, true, false);
     }
 }
 

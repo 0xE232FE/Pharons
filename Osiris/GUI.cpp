@@ -1,8 +1,10 @@
 ﻿#include <array>
-#include <cwctype>
+#include <cwchar>
 #include <fstream>
-#include <functional>
+#include <iterator>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #ifdef _WIN32
 #include <ShlObj.h>
@@ -11,7 +13,6 @@
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
-#include "imgui/imgui_impl_win32.h"
 #include "imgui/imgui_stdlib.h"
 
 #include "imguiCustom.h"
@@ -28,6 +29,7 @@
 #include "Hacks/Glow.h"
 #include "Hacks/AntiAim.h"
 #include "Hacks/Backtrack.h"
+#include "Hacks/Sound.h"
 
 constexpr auto windowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
 | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
@@ -103,7 +105,7 @@ void GUI::render() noexcept
         renderStreamProofESPWindow();
         renderVisualsWindow();
         renderSkinChangerWindow();
-        renderSoundWindow();
+        Sound::drawGUI(false);
         renderStyleWindow();
         renderMiscWindow();
         renderConfigWindow();
@@ -179,7 +181,7 @@ void GUI::renderMenuBar() noexcept
         menuBarItem("ESP", window.streamProofESP);
         menuBarItem("Visuals", window.visuals);
         menuBarItem("Skin changer", window.skinChanger);
-        menuBarItem("Sound", window.sound);
+        Sound::menuBarItem();
         menuBarItem("Style", window.style);
         menuBarItem("Misc", window.misc);
         menuBarItem("Config", window.config);
@@ -844,7 +846,25 @@ void GUI::renderStreamProofESPWindow(bool contentOnly) noexcept
             ImGui::PopID();
         
             ImGui::SameLine(spacing);
-            ImGui::Checkbox("Health Bar", &playerConfig.healthBar);
+            ImGui::Checkbox("Health Bar", &playerConfig.healthBar.enabled);
+            ImGui::SameLine();
+
+            ImGui::PushID("Health Bar");
+
+            if (ImGui::Button("..."))
+                ImGui::OpenPopup("");
+
+            if (ImGui::BeginPopup("")) {
+                ImGui::SetNextItemWidth(95.0f);
+                ImGui::Combo("Type", &playerConfig.healthBar.type, "Gradient\0Solid\0");
+                if (playerConfig.healthBar.type == HealthBar::Solid) {
+                    ImGui::SameLine();
+                    ImGuiCustom::colorPicker("", static_cast<Color4&>(playerConfig.healthBar));
+                }
+                ImGui::EndPopup();
+            }
+
+            ImGui::PopID();
         } else if (currentCategory == 2) {
             auto& weaponConfig = config->streamProofESP.weapons[currentItem];
             ImGuiCustom::colorPicker("Ammo", weaponConfig.ammo);
@@ -960,7 +980,7 @@ void GUI::renderVisualsWindow(bool contentOnly) noexcept
     ImGui::SliderFloat("Hit effect time", &config->visuals.hitEffectTime, 0.1f, 1.5f, "%.2fs");
     ImGui::Combo("Hit marker", &config->visuals.hitMarker, "None\0Default (Cross)\0");
     ImGui::SliderFloat("Hit marker time", &config->visuals.hitMarkerTime, 0.1f, 1.5f, "%.2fs");
-    ImGuiCustom::colorPicker("Bullet Tracers", config->visuals.bulletTracers.color.color.data(), &config->visuals.bulletTracers.color.color[3], nullptr, nullptr, &config->visuals.bulletTracers.enabled);
+    ImGuiCustom::colorPicker("Bullet Tracers", config->visuals.bulletTracers.color.data(), &config->visuals.bulletTracers.color[3], nullptr, nullptr, &config->visuals.bulletTracers.enabled);
     ImGuiCustom::colorPicker("Molotov Hull", config->visuals.molotovHull);
 
     ImGui::Checkbox("Color correction", &config->visuals.colorCorrection.enabled);
@@ -1082,8 +1102,8 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
                         ImGui::PopID();
                     }
                 }
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
             ImGui::PopID();
             ImGui::EndCombo();
         }
@@ -1177,8 +1197,8 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
                         ImGui::PopID();
                     }
                 }
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
             ImGui::PopID();
             ImGui::EndCombo();
         }
@@ -1199,29 +1219,6 @@ void GUI::renderSkinChangerWindow(bool contentOnly) noexcept
         SkinChanger::scheduleHudUpdate();
 
     ImGui::TextUnformatted("nSkinz by namazso");
-
-    if (!contentOnly)
-        ImGui::End();
-}
-
-void GUI::renderSoundWindow(bool contentOnly) noexcept
-{
-    if (!contentOnly) {
-        if (!window.sound)
-            return;
-        ImGui::SetNextWindowSize({ 0.0f, 0.0f });
-        ImGui::Begin("Sound", &window.sound, windowFlags);
-    }
-    ImGui::SliderInt("Chicken volume", &config->sound.chickenVolume, 0, 200, "%d%%");
-
-    static int currentCategory{ 0 };
-    ImGui::PushItemWidth(110.0f);
-    ImGui::Combo("", &currentCategory, "Local player\0Allies\0Enemies\0");
-    ImGui::PopItemWidth();
-    ImGui::SliderInt("Master volume", &config->sound.players[currentCategory].masterVolume, 0, 200, "%d%%");
-    ImGui::SliderInt("Headshot volume", &config->sound.players[currentCategory].headshotVolume, 0, 200, "%d%%");
-    ImGui::SliderInt("Weapon volume", &config->sound.players[currentCategory].weaponVolume, 0, 200, "%d%%");
-    ImGui::SliderInt("Footstep volume", &config->sound.players[currentCategory].footstepVolume, 0, 200, "%d%%");
 
     if (!contentOnly)
         ImGui::End();
@@ -1292,6 +1289,7 @@ void GUI::renderMiscWindow(bool contentOnly) noexcept
     ImGui::Checkbox("Reveal money", &config->misc.revealMoney);
     ImGui::Checkbox("Reveal suspect", &config->misc.revealSuspect);
     ImGui::Checkbox("Reveal votes", &config->misc.revealVotes);
+    ImGui::Checkbox("Deathmatch godmode", &config->misc.deathmatchGod);
 
     ImGui::Checkbox("Spectator list", &config->misc.spectatorList.enabled);
     ImGui::SameLine();
@@ -1307,7 +1305,24 @@ void GUI::renderMiscWindow(bool contentOnly) noexcept
     ImGui::PopID();
 
     ImGui::Checkbox("Watermark", &config->misc.watermark.enabled);
-    ImGuiCustom::colorPicker("Offscreen Enemies", config->misc.offscreenEnemies.color, &config->misc.offscreenEnemies.enabled);
+    ImGuiCustom::colorPicker("Offscreen Enemies", config->misc.offscreenEnemies, &config->misc.offscreenEnemies.enabled);
+    ImGui::SameLine();
+    ImGui::PushID("Offscreen Enemies");
+    if (ImGui::Button("..."))
+        ImGui::OpenPopup("");
+
+    if (ImGui::BeginPopup("")) {
+        ImGui::Checkbox("Health Bar", &config->misc.offscreenEnemies.healthBar.enabled);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(95.0f);
+        ImGui::Combo("Type", &config->misc.offscreenEnemies.healthBar.type, "Gradient\0Solid\0Health-based\0");
+        if (config->misc.offscreenEnemies.healthBar.type == HealthBar::Solid) {
+            ImGui::SameLine();
+            ImGuiCustom::colorPicker("", static_cast<Color4&>(config->misc.offscreenEnemies.healthBar));
+        }
+        ImGui::EndPopup();
+    }
+    ImGui::PopID();
     ImGui::Checkbox("Fix animation LOD", &config->misc.fixAnimationLOD);
     ImGui::Checkbox("Fix bone matrix", &config->misc.fixBoneMatrix);
     ImGui::Checkbox("Fix movement", &config->misc.fixMovement);
@@ -1527,7 +1542,7 @@ void GUI::renderConfigWindow(bool contentOnly) noexcept
                     case 7: config->streamProofESP = { }; break;
                     case 8: config->visuals = { }; break;
                     case 9: config->skinChanger = { }; SkinChanger::scheduleHudUpdate(); break;
-                    case 10: config->sound = { }; break;
+                    case 10: Sound::resetConfig(); break;
                     case 11: config->style = { }; updateColors(); break;
                     case 12: config->misc = { };  Misc::updateClanTag(true); break;
                     }
@@ -1590,10 +1605,7 @@ void GUI::renderGuiStyle2() noexcept
             renderSkinChangerWindow(true);
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Sound")) {
-            renderSoundWindow(true);
-            ImGui::EndTabItem();
-        }
+        Sound::tabItem();
         if (ImGui::BeginTabItem("Style")) {
             renderStyleWindow(true);
             ImGui::EndTabItem();

@@ -475,10 +475,10 @@ void Visuals::bulletTracer(GameEvent& event) noexcept
     beamInfo.haloName = nullptr;
     beamInfo.haloIndex = -1;
 
-    beamInfo.red = 255.0f * config->visuals.bulletTracers.color.color[0];
-    beamInfo.green = 255.0f * config->visuals.bulletTracers.color.color[1];
-    beamInfo.blue = 255.0f * config->visuals.bulletTracers.color.color[2];
-    beamInfo.brightness = 255.0f * config->visuals.bulletTracers.color.color[3];
+    beamInfo.red = 255.0f * config->visuals.bulletTracers.color[0];
+    beamInfo.green = 255.0f * config->visuals.bulletTracers.color[1];
+    beamInfo.blue = 255.0f * config->visuals.bulletTracers.color[2];
+    beamInfo.brightness = 255.0f * config->visuals.bulletTracers.color[3];
 
     beamInfo.type = 0;
     beamInfo.life = 0.0f;
@@ -529,8 +529,8 @@ void Visuals::drawMolotovHull(ImDrawList* drawList) noexcept
         std::array<Vector, 72> points;
         for (std::size_t i = 0; i < points.size(); ++i) {
             constexpr auto flameRadius = 60.0f; // https://github.com/perilouswithadollarsign/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/game/server/cstrike15/Effects/inferno.cpp#L889
-            points[i] = Vector{ flameRadius * std::cos(degreesToRadians(i * (360.0f / points.size()))),
-                                flameRadius * std::sin(degreesToRadians(i * (360.0f / points.size()))),
+            points[i] = Vector{ flameRadius * std::cos(Helpers::deg2rad(i * (360.0f / points.size()))),
+                                flameRadius * std::sin(Helpers::deg2rad(i * (360.0f / points.size()))),
                                 0.0f };
         }
         return points;
@@ -558,6 +558,25 @@ void Visuals::drawMolotovHull(ImDrawList* drawList) noexcept
             std::sort(screenPoints.begin() + 1, screenPoints.begin() + count, [&](const auto& a, const auto& b) { return orientation(screenPoints[0], a, b) > 0.0f; });
             drawList->AddConvexPolyFilled(screenPoints.data(), count, color);
         }
+    }
+}
+
+void Visuals::updateEventListeners(bool forceRemove) noexcept
+{
+    class ImpactEventListener : public GameEventListener {
+    public:
+        void fireGameEvent(GameEvent* event) { bulletTracer(*event); }
+    };
+
+    static ImpactEventListener listener;
+    static bool listenerRegistered = false;
+
+    if (config->visuals.bulletTracers.enabled && !listenerRegistered) {
+        interfaces->gameEventManager->addListener(&listener, "bullet_impact");
+        listenerRegistered = true;
+    } else if ((!config->visuals.bulletTracers.enabled || forceRemove) && listenerRegistered) {
+        interfaces->gameEventManager->removeListener(&listener);
+        listenerRegistered = false;
     }
 }
 

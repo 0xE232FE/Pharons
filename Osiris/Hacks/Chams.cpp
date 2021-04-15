@@ -3,6 +3,7 @@
 
 #include "Chams.h"
 #include "../Config.h"
+#include "../Helpers.h"
 #include "../Hooks.h"
 #include "../Interfaces.h"
 #include "Backtrack.h"
@@ -217,9 +218,7 @@ void Chams::applyChams(const std::array<Config::Chams::Material, 7>& chams, int 
         
         float r, g, b;
         if (cham.healthBased && health) {
-            r = 1.0f - health / 100.0f;
-            g = health / 100.0f;
-            b = 0.0f;
+            Helpers::healthColor(std::clamp(health / 100.0f, 0.0f, 1.0f), r, g, b);
         } else if (cham.rainbow) {
             std::tie(r, g, b) = rainbowColor(cham.rainbowSpeed);
         } else {
@@ -257,9 +256,7 @@ void Chams::applyChams(const std::array<Config::Chams::Material, 7>& chams, int 
 
         float r, g, b;
         if (cham.healthBased && health) {
-            r = 1.0f - health / 100.0f;
-            g = health / 100.0f;
-            b = 0.0f;
+            Helpers::healthColor(std::clamp(health / 100.0f, 0.0f, 1.0f), r, g, b);
         } else if (cham.rainbow) {
             std::tie(r, g, b) = rainbowColor(cham.rainbowSpeed);
         } else {

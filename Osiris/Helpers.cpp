@@ -1,11 +1,14 @@
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <cwctype>
 #include <fstream>
-#include <tuple>
+#include <string_view>
 
 #include "imgui/imgui.h"
 
-#include "Config.h"
 #include "ConfigStructs.h"
 #include "GameData.h"
 #include "Helpers.h"
@@ -51,6 +54,25 @@ void Helpers::setAlphaFactor(float newAlphaFactor) noexcept
 float Helpers::getAlphaFactor() noexcept
 {
     return alphaFactor;
+}
+
+void Helpers::convertHSVtoRGB(float h, float s, float v, float& outR, float& outG, float& outB) noexcept
+{
+    ImGui::ColorConvertHSVtoRGB(h, s, v, outR, outG, outB);
+}
+
+void Helpers::healthColor(float fraction, float& outR, float& outG, float& outB) noexcept
+{
+    constexpr auto greenHue = 1.0f / 3.0f;
+    constexpr auto redHue = 0.0f;
+    convertHSVtoRGB(std::lerp(redHue, greenHue, fraction), 1.0f, 1.0f, outR, outG, outB);
+}
+
+unsigned int Helpers::healthColor(float fraction) noexcept
+{
+    float r, g, b;
+    healthColor(fraction, r, g, b);
+    return calculateColor(static_cast<int>(r * 255.0f), static_cast<int>(g * 255.0f), static_cast<int>(b * 255.0f), 255);
 }
 
 ImWchar* Helpers::getFontGlyphRanges() noexcept

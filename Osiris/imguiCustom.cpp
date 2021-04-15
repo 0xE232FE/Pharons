@@ -3,6 +3,8 @@
 #include "imgui/imgui_internal.h"
 
 #include "imguiCustom.h"
+#include "ConfigStructs.h"
+#include "InputUtil.h"
 
 void ImGuiCustom::colorPicker(const char* name, float color[3], float* alpha, bool* rainbow, float* rainbowSpeed, bool* enable, float* thickness, float* rounding) noexcept
 {
@@ -69,8 +71,8 @@ void ImGuiCustom::colorPicker(const char* name, float color[3], float* alpha, bo
                 }
 
                 ImGui::PopItemWidth();
-                ImGui::EndChild();
             }
+            ImGui::EndChild();
         }
         ImGui::EndPopup();
     }
