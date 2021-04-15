@@ -99,7 +99,7 @@ static std::pair<std::array<ImVec2, 8>, std::size_t> convexHull(std::array<ImVec
     std::sort(points.begin() + 1, points.end(), [&](const auto& a, const auto& b) {
         const auto o = orientation(points[0], a, b);
         return o == 0.0f ? ImLengthSqr(points[0] - a) < ImLengthSqr(points[0] - b) : o < 0.0f;
-        });
+    });
 
     std::array<ImVec2, 8> hull;
     std::size_t count = 0;
@@ -164,8 +164,7 @@ static void renderBox(const BoundingBox& bbox, const Box& config) noexcept
             auto [hull, count] = convexHull(bbox.vertices);
             std::reverse(hull.begin(), hull.begin() + count); // make them clockwise for antialiasing
             drawList->AddConvexPolyFilled(hull.data(), count, fillColor);
-        }
-        else {
+        } else {
             for (int i = 0; i < 8; ++i) {
                 for (int j = 1; j <= 4; j <<= 1) {
                     if (!(i & j))
@@ -186,8 +185,7 @@ static void renderBox(const BoundingBox& bbox, const Box& config) noexcept
             auto [hull, count] = convexHull(bbox.vertices);
             std::reverse(hull.begin(), hull.begin() + count); // make them clockwise for antialiasing
             drawList->AddConvexPolyFilled(hull.data(), count, fillColor);
-        }
-        else {
+        } else {
             for (int i = 0; i < 8; ++i) {
                 for (int j = 1; j <= 4; j <<= 1) {
                     if (!(i & j)) {
@@ -270,7 +268,7 @@ struct FontPush {
                 if (dist <= 1000.0f)
                     return font.medium;
                 return font.tiny;
-                }(it->second, distance));
+            }(it->second, distance));
         }
         else {
             ImGui::PushFont(nullptr);
@@ -306,10 +304,10 @@ static void drawHealthBar(const HealthBar& config, const ImVec2& pos, float heig
         min.y += height / 2.0f;
         max.y += height / 2.0f;
         drawList->AddRectFilledMultiColor(ImFloor(min), ImFloor(max), yellow, yellow, red, red);
-    }
-    else {
-        drawList->AddRectFilled(pos + ImVec2{ 1.0f, 1.0f }, pos + ImVec2{ width + 1.0f, height + 1.0f }, Helpers::calculateColor(0, 0, 0, 255));
-        drawList->AddRectFilled(pos, pos + ImVec2{ width, height }, Helpers::calculateColor(config));
+    } else {
+        const auto color = Helpers::calculateColor(config);
+        drawList->AddRectFilled(pos + ImVec2{ 1.0f, 1.0f }, pos + ImVec2{ width + 1.0f, height + 1.0f }, color & IM_COL32_A_MASK);
+        drawList->AddRectFilled(pos, pos + ImVec2{ width, height }, color);
     }
 
     drawList->PopClipRect();
@@ -411,11 +409,9 @@ static void drawProjectileTrajectory(const Trail& config, const std::vector<std:
             if (config.type == Trail::Line) {
                 points.push_back(pos);
                 shadowPoints.push_back(pos + ImVec2{ 1.0f, 1.0f });
-            }
-            else if (config.type == Trail::Circles) {
+            } else if (config.type == Trail::Circles) {
                 drawList->AddCircle(pos, 3.5f - point.distTo(GameData::local().origin) / 700.0f, color, 12, config.thickness);
-            }
-            else if (config.type == Trail::FilledCircles) {
+            } else if (config.type == Trail::FilledCircles) {
                 drawList->AddCircleFilled(pos, 3.5f - point.distTo(GameData::local().origin) / 700.0f, color);
             }
         }
@@ -491,8 +487,7 @@ static void renderEntityEsp(const BaseData& entityData, const std::unordered_map
 {
     if (const auto cfg = map.find(name); cfg != map.cend() && cfg->second.enabled) {
         renderEntityBox(entityData, name, cfg->second);
-    }
-    else if (const auto cfg = map.find("All"); cfg != map.cend() && cfg->second.enabled) {
+    } else if (const auto cfg = map.find("All"); cfg != map.cend() && cfg->second.enabled) {
         renderEntityBox(entityData, name, cfg->second);
     }
 }
@@ -521,8 +516,7 @@ void StreamProofESP::render() noexcept
     if (config->streamProofESP.toggleKey != KeyBind::NONE) {
         if (!config->streamProofESP.toggleKey.isToggled() && !config->streamProofESP.holdKey.isDown())
             return;
-    }
-    else if (config->streamProofESP.holdKey != KeyBind::NONE && !config->streamProofESP.holdKey.isDown()) {
+    } else if (config->streamProofESP.holdKey != KeyBind::NONE && !config->streamProofESP.holdKey.isDown()) {
         return;
     }
 
