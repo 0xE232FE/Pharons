@@ -147,6 +147,7 @@
     <ClInclude Include="SDK\GameUI.h" />
     <ClInclude Include="SDK\GlobalVars.h" />
     <ClInclude Include="SDK\GlowObjectManager.h" />
+    <ClInclude Include="SDK\Inconstructible.h" />
     <ClInclude Include="SDK\Input.h" />
     <ClInclude Include="SDK\InputSystem.h" />
     <ClInclude Include="SDK\ItemSchema.h" />
@@ -162,7 +163,6 @@
     <ClInclude Include="SDK\NetworkChannel.h" />
     <ClInclude Include="SDK\NetworkStringTable.h" />
     <ClInclude Include="SDK\Pad.h" />
-    <ClInclude Include="SDK\Panel.h" />
     <ClInclude Include="SDK\Panorama.h" />
     <ClInclude Include="SDK\PhysicsSurfaceProps.h" />
     <ClInclude Include="SDK\Platform.h" />

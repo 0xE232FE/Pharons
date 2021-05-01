@@ -352,9 +352,6 @@
     <ClInclude Include="SDK\ModelInfo.h">
       <Filter>SDK</Filter>
     </ClInclude>
-    <ClInclude Include="SDK\Panel.h">
-      <Filter>SDK</Filter>
-    </ClInclude>
     <ClInclude Include="SDK\Surface.h">
       <Filter>SDK</Filter>
     </ClInclude>
@@ -558,6 +555,9 @@
     </ClInclude>
     <ClInclude Include="JsonForward.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Inconstructible.h">
+      <Filter>SDK</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
