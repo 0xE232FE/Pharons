@@ -401,6 +401,7 @@ void PlayerData::update(Entity* entity) noexcept
     origin = entity->getAbsOrigin();
     inViewFrustum = !interfaces->engine->cullBox(obbMins + origin, obbMaxs + origin);
     alive = entity->isAlive();
+    lastContactTime = alive ? memory->globalVars->realtime : 0.0f;
 
     if (localPlayer) {
         enemy = memory->isOtherEnemy(entity, localPlayer.get());
@@ -514,6 +515,12 @@ ImTextureID PlayerData::getAvatarTexture() const noexcept
     if (!avatar.texture.get())
         avatar.texture.init(32, 32, avatar.rgba.get());
     return avatar.texture.get();
+}
+
+float PlayerData::fadingAlpha() const noexcept
+{
+    constexpr float fadeTime = 1.50f;
+    return std::clamp(1.0f - (memory->globalVars->realtime - lastContactTime - 0.25f) / fadeTime, 0.0f, 1.0f);
 }
 
 WeaponData::WeaponData(Entity* entity) noexcept : BaseData{ entity }
