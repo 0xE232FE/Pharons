@@ -465,7 +465,6 @@ static void from_json(const json& j, Config::Misc& m)
     read<value_t::object>(j, "Reportbot", m.reportbot);
     read(j, "Opposite Hand Knife", m.oppositeHandKnife);
     read<value_t::object>(j, "Preserve Killfeed", m.preserveKillfeed);
-    read(j, "Deathmatch godmode", m.deathmatchGod);
 }
 
 static void from_json(const json& j, Config::Misc::Reportbot& r)
@@ -510,18 +509,19 @@ void Config::load(const char8_t* name, bool incremental) noexcept
     read(j, "Triggerbot", triggerbot);
     read(j, "Triggerbot Key", triggerbotHoldKey);
 
-    AntiAim::fromJson(j["Anti aim"]);
-    Backtrack::fromJson(j["Backtrack"]);
-    Glow::fromJson(j["Glow"]);
     read(j, "Chams", chams);
     read(j["Chams"], "Toggle Key", chamsToggleKey);
     read(j["Chams"], "Hold Key", chamsHoldKey);
     read<value_t::object>(j, "ESP", streamProofESP);
     read<value_t::object>(j, "Visuals", visuals);
-    SkinChanger::fromJson(j["Skin changer"]);
-    ::Sound::fromJson(j["Sound"]);
     read<value_t::object>(j, "Style", style);
     read<value_t::object>(j, "Misc", misc);
+
+    AntiAim::fromJson(j["Anti aim"]);
+    Backtrack::fromJson(j["Backtrack"]);
+    Glow::fromJson(j["Glow"]);
+    InventoryChanger::fromJson(j["Inventory Changer"]);
+    Sound::fromJson(j["Sound"]);
 }
 
 static void to_json(json& j, const ColorToggle& o, const ColorToggle& dummy = {})
@@ -832,7 +832,6 @@ static void to_json(json& j, const Config::Misc& o)
     WRITE("Reportbot", reportbot);
     WRITE("Opposite Hand Knife", oppositeHandKnife);
     WRITE("Preserve Killfeed", preserveKillfeed);
-    WRITE("Deathmatch godmode", deathmatchGod);
 }
 
 static void to_json(json& j, const Config::Visuals::ColorCorrection& o, const Config::Visuals::ColorCorrection& dummy)
@@ -929,35 +928,34 @@ void removeEmptyObjects(json& j) noexcept
 
 void Config::save(size_t id) const noexcept
 {
+    json j;
+
+    j["Aimbot"] = aimbot;
+    j["Aimbot On key"] = aimbotOnKey;
+    to_json(j["Aimbot Key"], aimbotKey, KeyBind::NONE);
+    j["Aimbot Key mode"] = aimbotKeyMode;
+
+    j["Triggerbot"] = triggerbot;
+    to_json(j["Triggerbot Key"], triggerbotHoldKey, KeyBind::NONE);
+
+    j["Backtrack"] = Backtrack::toJson();
+    j["Anti aim"] = AntiAim::toJson();
+    j["Glow"] = Glow::toJson();
+    j["Chams"] = chams;
+    to_json(j["Chams"]["Toggle Key"], chamsToggleKey, KeyBind::NONE);
+    to_json(j["Chams"]["Hold Key"], chamsHoldKey, KeyBind::NONE);
+    j["ESP"] = streamProofESP;
+    j["Sound"] = ::Sound::toJson();
+    j["Visuals"] = visuals;
+    j["Misc"] = misc;
+    j["Style"] = style;
+    j["Inventory Changer"] = InventoryChanger::toJson();
+
+    removeEmptyObjects(j);
+
     createConfigDir();
-
-    if (std::ofstream out{ path / (const char8_t*)configs[id].c_str() }; out.good()) {
-        json j;
-
-        j["Aimbot"] = aimbot;
-        j["Aimbot On key"] = aimbotOnKey;
-        to_json(j["Aimbot Key"], aimbotKey, KeyBind::NONE);
-        j["Aimbot Key mode"] = aimbotKeyMode;
-
-        j["Triggerbot"] = triggerbot;
-        to_json(j["Triggerbot Key"], triggerbotHoldKey, KeyBind::NONE);
-
-        j["Backtrack"] = Backtrack::toJson();
-        j["Anti aim"] = AntiAim::toJson();
-        j["Glow"] = Glow::toJson();
-        j["Chams"] = chams;
-        to_json(j["Chams"]["Toggle Key"], chamsToggleKey, KeyBind::NONE);
-        to_json(j["Chams"]["Hold Key"], chamsHoldKey, KeyBind::NONE);
-        j["ESP"] = streamProofESP;
-        j["Sound"] = ::Sound::toJson();
-        j["Visuals"] = visuals;
-        j["Misc"] = misc;
-        j["Style"] = style;
-        j["Skin changer"] = SkinChanger::toJson();
-
-        removeEmptyObjects(j);
+    if (std::ofstream out{ path / (const char8_t*)configs[id].c_str() }; out.good())
         out << std::setw(2) << j;
-    }
 }
 
 void Config::add(const char* name) noexcept
@@ -985,17 +983,18 @@ void Config::rename(size_t item, const char* newName) noexcept
 void Config::reset() noexcept
 {
     aimbot = { };
-    AntiAim::resetConfig();
     triggerbot = { };
-    Backtrack::resetConfig();
-    Glow::resetConfig();
     chams = { };
     streamProofESP = { };
     visuals = { };
-    SkinChanger::resetConfig();
-    Sound::resetConfig();
     style = { };
     misc = { };
+
+    AntiAim::resetConfig();
+    Backtrack::resetConfig();
+    Glow::resetConfig();
+    InventoryChanger::resetConfig();
+    Sound::resetConfig();
 }
 
 void Config::listConfigs() noexcept
