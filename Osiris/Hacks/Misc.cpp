@@ -136,7 +136,7 @@ void Misc::updateClanTag(bool tagChanged) noexcept
         if (config->misc.animatedClanTag && !clanTag.empty()) {
             const auto offset = Helpers::utf8SeqLen(clanTag[0]);
             if (offset != -1 && static_cast<std::size_t>(offset) <= clanTag.length())
-                std::rotate(clanTag.begin(), clanTag.begin() + offset, clanTag.end());
+                std::ranges::rotate(clanTag, clanTag.begin() + offset);
         }
         lastTime = memory->globalVars->realtime;
         memory->setClanTag(clanTag.c_str(), clanTag.c_str());
@@ -442,7 +442,7 @@ void Misc::stealNames() noexcept
         if (!interfaces->engine->getPlayerInfo(entity->index(), playerInfo))
             continue;
 
-        if (playerInfo.fakeplayer || std::find(stolenIds.cbegin(), stolenIds.cend(), playerInfo.userId) != stolenIds.cend())
+        if (playerInfo.fakeplayer || std::ranges::find(stolenIds, playerInfo.userId) != stolenIds.cend())
             continue;
 
         if (changeName(false, (std::string{ playerInfo.name } +'\x1').c_str(), 1.0f))
@@ -562,28 +562,6 @@ void Misc::fixTabletSignal() noexcept
     if (config->misc.fixTabletSignal && localPlayer) {
         if (auto activeWeapon{ localPlayer->getActiveWeapon() }; activeWeapon && activeWeapon->getClientClass()->classId == ClassId::Tablet)
             activeWeapon->tabletReceptionIsBlocked() = false;
-    }
-}
-
-void Misc::fakePrime() noexcept
-{
-    static bool lastState = false;
-
-    if (config->misc.fakePrime != lastState) {
-        lastState = config->misc.fakePrime;
-
-#ifdef _WIN32
-        if (DWORD oldProtect; VirtualProtect(memory->fakePrime, 1, PAGE_EXECUTE_READWRITE, &oldProtect)) {
-#else
-	if (const auto addressPageAligned = std::uintptr_t(memory->fakePrime) - std::uintptr_t(memory->fakePrime) % sysconf(_SC_PAGESIZE);
-	    mprotect((void*)addressPageAligned, 1, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
-#endif
-            constexpr uint8_t patch[]{ 0x74, 0xEB };
-            *memory->fakePrime = patch[config->misc.fakePrime];
-#ifdef _WIN32
-            VirtualProtect(memory->fakePrime, 1, oldProtect, nullptr);
-#endif
-        }
     }
 }
 
@@ -906,7 +884,7 @@ void Misc::runReportbot() noexcept
         if (!interfaces->engine->getPlayerInfo(i, playerInfo))
             continue;
 
-        if (playerInfo.fakeplayer || std::find(reportedPlayers.cbegin(), reportedPlayers.cend(), playerInfo.xuid) != reportedPlayers.cend())
+        if (playerInfo.fakeplayer || std::ranges::find(reportedPlayers, playerInfo.xuid) != reportedPlayers.cend())
             continue;
 
         std::string report;
