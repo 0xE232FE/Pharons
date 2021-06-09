@@ -95,7 +95,7 @@ public:
     };
 
     struct Collectible {
-        Collectible(bool isOriginal) : isOriginal{ isOriginal } {}
+        explicit Collectible(bool isOriginal) : isOriginal{ isOriginal } {}
 
         bool isOriginal;
     };
@@ -137,14 +137,8 @@ private:
         return kitsWeapons;
     }
 
-    StaticData()
+    void initSkinData(ItemSchema* itemSchema) noexcept
     {
-        assert(memory && interfaces);
-
-        _paintKits.emplace_back(0, L"");
-        constexpr auto vanillaPaintIndex = 0;
-
-        const auto itemSchema = memory->itemSystem()->getItemSchema();
         const auto kitsWeapons = getKitsWeapons(itemSchema->alternateIcons);
 
         _gameItems.reserve(itemSchema->paintKits.lastAlloc);
@@ -169,7 +163,10 @@ private:
                 }
             }
         }
+    }
 
+    void initStickerData(ItemSchema* itemSchema) noexcept
+    {
         const auto& stickerMap = itemSchema->stickerKits;
         _gameItems.reserve(_gameItems.size() + stickerMap.numElements);
         for (const auto& node : stickerMap) {
@@ -194,7 +191,10 @@ private:
                 _gameItems.emplace_back(Type::SealedGraffiti, stickerKit->rarity, WeaponId::SealedGraffiti, _paintKits.size() - 1, stickerKit->inventoryImage.data());
             }
         }
+    }
 
+    void initMusicData(ItemSchema* itemSchema) noexcept
+    {
         const auto& musicMap = itemSchema->musicKits;
         for (const auto& node : musicMap) {
             const auto musicKit = node.value;
@@ -205,13 +205,16 @@ private:
             _paintKits.emplace_back(musicKit->id, std::move(name));
             _gameItems.emplace_back(Type::Music, 3, WeaponId::MusicKit, _paintKits.size() - 1, musicKit->inventoryImage);
         }
+    }
 
+    void initItemData(ItemSchema* itemSchema) noexcept
+    {
         for (const auto& node : itemSchema->itemsSorted) {
             const auto item = node.value;
             const auto itemTypeName = std::string_view{ item->getItemTypeName() };
             const auto isCollectible = (itemTypeName == "#CSGO_Type_Collectible");
             const auto isOriginal = (item->getQuality() == 1);
-            
+
             if (!_weaponNames.contains(item->getWeaponId())) {
                 std::wstring nameWide = interfaces->localize->findSafe(item->getItemBaseName());
                 if (isCollectible && isOriginal) {
@@ -239,15 +242,29 @@ private:
                     _gameItems.emplace_back(Type::Agent, item->getRarity(), item->getWeaponId(), 0, image);
             }
         }
+    }
+
+    StaticData()
+    {
+        assert(memory && interfaces);
+
+        const auto itemSchema = memory->itemSystem()->getItemSchema();
+        initSkinData(itemSchema);
+        initStickerData(itemSchema);
+        initMusicData(itemSchema);
+        initItemData(itemSchema);
 
         std::ranges::sort(_gameItems, [this](const auto& a, const auto& b) {
-            if (_weaponNamesUpper[a.weaponID] < _weaponNamesUpper[b.weaponID])
+            const auto compare = _weaponNamesUpper[a.weaponID].compare(_weaponNamesUpper[b.weaponID]);
+            if (compare < 0)
                 return true;
-            if (a.hasPaintKit() && b.hasPaintKit() && _weaponNamesUpper[a.weaponID] == _weaponNamesUpper[b.weaponID])
+
+            if (a.hasPaintKit() && b.hasPaintKit() && compare == 0)
                 return _paintKits[a.dataIndex].nameUpperCase < _paintKits[b.dataIndex].nameUpperCase;
 
             return false;
         });
+
         _gameItems.shrink_to_fit();
     }
 
@@ -259,7 +276,8 @@ private:
 
     std::vector<GameItem> _gameItems;
     std::vector<Collectible> _collectibles;
-    std::vector<PaintKit> _paintKits;
+    std::vector<PaintKit> _paintKits{ { 0, L"" } };
+    static constexpr auto vanillaPaintIndex = 0;
     std::unordered_map<WeaponId, std::string> _weaponNames;
     std::unordered_map<WeaponId, std::wstring> _weaponNamesUpper;
 };
@@ -314,7 +332,7 @@ private:
     std::size_t itemIndex;
     std::size_t dynamicDataIndex = static_cast<std::size_t>(-1);
 public:
-    InventoryItem(std::size_t itemIndex)  noexcept : itemIndex{ itemIndex }
+    explicit InventoryItem(std::size_t itemIndex)  noexcept : itemIndex{ itemIndex }
     {
         if (isSkin()) {
             DynamicSkinData dynamicData;
