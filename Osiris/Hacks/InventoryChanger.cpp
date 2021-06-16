@@ -57,15 +57,18 @@ constexpr auto isKnife(WeaponId id) noexcept
 class StaticData {
 public:
     enum class Type : std::uint8_t {
+        // has paint kit, must match GameItem::hasPaintKit() below
         Sticker,
         Glove,
         Skin,
         Music,
-        Collectible,
-        NameTag,
         Patch,
         Graffiti,
         SealedGraffiti,
+
+        // has other data
+        Collectible,
+        NameTag,
         Agent,
         CaseKey
     };
@@ -85,8 +88,7 @@ public:
         bool isAgent() const noexcept { return type == Type::Agent; }
         bool isCaseKey() const noexcept { return type == Type::CaseKey; }
 
-        // TODO: We need a better name for this
-        bool hasPaintKit() const noexcept { return isSkin() || isGlove() || isSticker() || isMusic() || isPatch() || isGraffiti() || isSealedGraffiti(); }
+        bool hasPaintKit() const noexcept { return type >= Type::Sticker && type <= Type::SealedGraffiti; }
 
         Type type;
         std::uint8_t rarity;
@@ -262,14 +264,9 @@ private:
         initItemData(itemSchema);
 
         std::ranges::sort(_gameItems, [this](const auto& a, const auto& b) {
-            const auto compare = _weaponNamesUpper[a.weaponID].compare(_weaponNamesUpper[b.weaponID]);
-            if (compare < 0)
-                return true;
-
-            if (a.hasPaintKit() && b.hasPaintKit() && compare == 0)
+            if (a.weaponID == b.weaponID && a.hasPaintKit() && b.hasPaintKit())
                 return _paintKits[a.dataIndex].nameUpperCase < _paintKits[b.dataIndex].nameUpperCase;
-
-            return false;
+            return _weaponNamesUpper[a.weaponID] < _weaponNamesUpper[b.weaponID];
         });
 
         _gameItems.shrink_to_fit();

@@ -378,26 +378,18 @@ struct RenderableInfo {
 
 static int __STDCALL listLeavesInBox(LINUX_ARGS(void* thisptr, ) const Vector& mins, const Vector& maxs, unsigned short* list, int listMax) noexcept
 {
-#ifdef _WIN32
-    if (RETURN_ADDRESS() == memory->insertIntoTree) {
-        if (const auto info = *reinterpret_cast<RenderableInfo**>(FRAME_ADDRESS() + 0x18); info && info->renderable) {
-            if (const auto ent = VirtualMethod::call<Entity*, 7>(info->renderable - 4); ent && ent->isPlayer()) {
-                if (Misc::shouldDisableModelOcclusion()) {
-                    /* 
-                    info->flags &= ~0x100;
-                    info->flags2 |= 0x40;
-                    */
-
-                    constexpr float maxCoord = 16384.0f;
-                    constexpr float minCoord = -maxCoord;
-                    constexpr Vector min{ minCoord, minCoord, minCoord };
-                    constexpr Vector max{ maxCoord, maxCoord, maxCoord };
-                    return hooks->bspQuery.callOriginal<int, 6>(std::cref(min), std::cref(max), list, listMax);
-                }
+    if (Misc::shouldDisableModelOcclusion() && RETURN_ADDRESS() == memory->insertIntoTree) {
+        if (const auto info = *reinterpret_cast<RenderableInfo**>(FRAME_ADDRESS() + WIN32_LINUX(0x18, 0x10 + 0x948)); info && info->renderable) {
+            if (const auto ent = VirtualMethod::call<Entity*, WIN32_LINUX(7, 8)>(info->renderable - sizeof(std::uintptr_t)); ent && ent->isPlayer()) {
+                constexpr float maxCoord = 16384.0f;
+                constexpr float minCoord = -maxCoord;
+                constexpr Vector min{ minCoord, minCoord, minCoord };
+                constexpr Vector max{ maxCoord, maxCoord, maxCoord };
+                return hooks->bspQuery.callOriginal<int, 6>(std::cref(min), std::cref(max), list, listMax);
             }
         }
     }
-#endif
+
     return hooks->bspQuery.callOriginal<int, 6>(std::cref(mins), std::cref(maxs), list, listMax);
 }
 
@@ -466,10 +458,10 @@ static void __STDCALL renderSmokeOverlay(LINUX_ARGS(void* thisptr,) bool update)
 static double __STDCALL getArgAsNumber(LINUX_ARGS(void* thisptr,) void* params, int index) noexcept
 {
     const auto result = hooks->panoramaMarshallHelper.callOriginal<double, 5>(params, index);
-
-    if (RETURN_ADDRESS() == memory->setStickerToolSlotGetArgAsNumberReturnAddress)
+    
+    if (const auto ret = RETURN_ADDRESS(); ret == memory->setStickerToolSlotGetArgAsNumberReturnAddress)
         InventoryChanger::setStickerApplySlot(static_cast<int>(result));
-    else if (RETURN_ADDRESS() == memory->wearItemStickerGetArgAsNumberReturnAddress)
+    else if (ret == memory->wearItemStickerGetArgAsNumberReturnAddress)
         InventoryChanger::setStickerSlotToWear(static_cast<int>(result));
 
     return result;
