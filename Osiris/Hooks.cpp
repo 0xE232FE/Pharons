@@ -56,6 +56,7 @@
 #include "SDK/GlobalVars.h"
 #include "SDK/InputSystem.h"
 #include "SDK/ItemSchema.h"
+#include "SDK/LocalPlayer.h"
 #include "SDK/MaterialSystem.h"
 #include "SDK/ModelRender.h"
 #include "SDK/Platform.h"
@@ -73,7 +74,7 @@ LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 static LRESULT __stdcall wndProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) noexcept
 {
     [[maybe_unused]] static const auto once = [](HWND window) noexcept {
-        netvars = std::make_unique<Netvars>();
+        Netvars::init();
         EventListener::init();
 
         ImGui::CreateContext();
@@ -491,9 +492,11 @@ static const char* __STDCALL getArgAsString(LINUX_ARGS(void* thisptr,) void* par
             InventoryChanger::setNameTagString(result);
         } else if (ret == memory->clearCustomNameGetArgAsStringReturnAddress) {
             InventoryChanger::setItemToRemoveNameTag(stringToUint64(result));
+        } else if (ret == memory->deleteItemGetArgAsStringReturnAddress) {
+            InventoryChanger::deleteItem(stringToUint64(result));
         }
     }
-   
+
     return result;
 }
 
@@ -707,7 +710,7 @@ void Hooks::uninstall() noexcept
     svCheats.restore();
     viewRender.restore();
 
-    netvars->restore();
+    Netvars::restore();
 
     Glow::clearCustomObjects();
     InventoryChanger::clearInventory();
@@ -740,7 +743,7 @@ void Hooks::callOriginalDrawModelExecute(void* ctx, void* state, const ModelRend
 static int pollEvent(SDL_Event* event) noexcept
 {
     [[maybe_unused]] static const auto once = []() noexcept {
-        netvars = std::make_unique<Netvars>();
+        Netvars::init();
         EventListener::init();
 
         ImGui::CreateContext();

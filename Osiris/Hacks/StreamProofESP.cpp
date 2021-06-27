@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <vector>
 
-#define NOMINMAX
 #include "StreamProofESP.h"
 
 #include "../imgui/imgui.h"
@@ -232,7 +231,7 @@ static ImVec2 renderText(float distance, float cullDistance, const Color4& textC
 
 static void drawSnapline(const Snapline& config, const ImVec2& min, const ImVec2& max) noexcept
 {
-    if (!config.enabled)
+    if (!config.asColorToggle().enabled)
         return;
 
     const auto& screenSize = ImGui::GetIO().DisplaySize;
@@ -258,7 +257,7 @@ static void drawSnapline(const Snapline& config, const ImVec2& min, const ImVec2
         return;
     }
 
-    drawList->AddLine(p1, p2, Helpers::calculateColor(config.asColor4()), config.thickness);
+    drawList->AddLine(p1, p2, Helpers::calculateColor(config.asColorToggle().asColor4()), config.thickness);
 }
 
 struct FontPush {
@@ -402,12 +401,12 @@ static void renderEntityBox(const BaseData& entityData, const char* name, const 
 
 static void drawProjectileTrajectory(const Trail& config, const std::vector<std::pair<float, Vector>>& trajectory) noexcept
 {
-    if (!config.enabled)
+    if (!config.asColorToggle().enabled)
         return;
 
     std::vector<ImVec2> points, shadowPoints;
 
-    const auto color = Helpers::calculateColor(config.asColor4());
+    const auto color = Helpers::calculateColor(config.asColorToggle().asColor4());
 
     for (const auto& [time, point] : trajectory) {
         if (ImVec2 pos; time + config.time >= memory->globalVars->realtime && worldToScreen(point, pos, false)) {
@@ -430,10 +429,10 @@ static void drawProjectileTrajectory(const Trail& config, const std::vector<std:
 
 static void drawPlayerSkeleton(const ColorToggleThickness& config, const std::vector<std::pair<Vector, Vector>>& bones) noexcept
 {
-    if (!config.enabled)
+    if (!config.asColorToggle().enabled)
         return;
 
-    const auto color = Helpers::calculateColor(config.asColor4());
+    const auto color = Helpers::calculateColor(config.asColorToggle().asColor4());
 
     std::vector<std::pair<ImVec2, ImVec2>> points, shadowPoints;
 
@@ -520,10 +519,10 @@ static void renderProjectileEsp(const ProjectileData& projectileData, const Proj
 
 void StreamProofESP::render() noexcept
 {
-    if (config->streamProofESP.toggleKey != KeyBind::NONE) {
+    if (config->streamProofESP.toggleKey.isSet()) {
         if (!config->streamProofESP.toggleKey.isToggled() && !config->streamProofESP.holdKey.isDown())
             return;
-    } else if (config->streamProofESP.holdKey != KeyBind::NONE && !config->streamProofESP.holdKey.isDown()) {
+    } else if (config->streamProofESP.holdKey.isSet() && !config->streamProofESP.holdKey.isDown()) {
         return;
     }
 
