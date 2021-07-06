@@ -109,6 +109,13 @@ struct StaticAttrib {
 };
 static_assert(sizeof(StaticAttrib) == WIN32_LINUX(12, 24));
 
+struct EconTool {
+    INCONSTRUCTIBLE(EconTool)
+
+    PAD(sizeof(std::uintptr_t))
+    const char* typeName;
+};
+
 class EconItemDefinition {
 public:
     INCONSTRUCTIBLE(EconItemDefinition)
@@ -170,6 +177,11 @@ public:
     const char* getDefinitionName() noexcept
     {
         return *reinterpret_cast<const char**>(this + WIN32_LINUX(0x1DC, 0x2E0));
+    }
+
+    EconTool* getEconTool() noexcept
+    {
+        return *reinterpret_cast<EconTool**>(std::uintptr_t(this) + WIN32_LINUX(0x140, 0x1E8));
     }
 
     int getLoadoutSlot(Team team) noexcept
