@@ -49,20 +49,6 @@
 #include "Inventory.h"
 #include "StaticData.h"
 
-static float randomFloat(float min, float max) noexcept
-{
-    std::mt19937 gen{ std::random_device{}() };
-    std::uniform_real_distribution dis{ min, max };
-    return dis(gen);
-}
-
-static int randomInt(int min, int max) noexcept
-{
-    std::mt19937 gen{ std::random_device{}() };
-    std::uniform_int_distribution dis{ min, max };
-    return dis(gen);
-}
-
 static void addToInventory(const std::unordered_map<std::size_t, int>& toAdd) noexcept
 {
     for (const auto [idx, count] : toAdd) {
@@ -123,7 +109,7 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
         glove = interfaces->entityList->getEntityFromHandle(gloveHandle);
     if (!glove) {
         const auto entry = interfaces->entityList->getHighestEntityIndex() + 1;
-        const auto serial = randomInt(0, 0x1000);
+        const auto serial = Helpers::random(0, 0x1000);
         glove = make_glove(entry, serial);
     }
 
@@ -131,6 +117,7 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
         return;
 
     wearables[0] = gloveHandle = glove->handle();
+    glove->accountID() = localInventory.getAccountID();
     glove->itemIDHigh() = std::uint32_t(soc->itemID >> 32);
     glove->itemIDLow() = std::uint32_t(soc->itemID & 0xFFFFFFFF);
     glove->entityQuality() = 3;
@@ -138,11 +125,13 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
     memory->equipWearable(glove, local);
     local->body() = 1;
 
+    /*
     const auto attributeList = glove->econItemView().getAttributeList();
     const auto& dynamicData = Inventory::dynamicGloveData(item->getDynamicDataIndex());
     memory->setOrAddAttributeValueByName(attributeList, "set item texture prefab", static_cast<float>(itemData.id));
     memory->setOrAddAttributeValueByName(attributeList, "set item texture wear", dynamicData.wear);
     memory->setOrAddAttributeValueByName(attributeList, "set item texture seed", static_cast<float>(dynamicData.seed));
+    */
 
     if (auto& definitionIndex = glove->itemDefinitionIndex2(); definitionIndex != item->get().weaponID) {
         definitionIndex = item->get().weaponID;
@@ -316,7 +305,7 @@ public:
     {
         instance().destItemID = itemID;
         instance().action = action;
-        instance().useTime = memory->globalVars->realtime + randomFloat(0.18f, 0.48f);
+        instance().useTime = memory->globalVars->realtime + Helpers::random(0.18f, 0.48f);
     }
 
     static void setTool(std::uint64_t itemID) noexcept { instance().toolItemID = itemID; }
@@ -385,16 +374,16 @@ private:
     static float generateWear() noexcept
     {
         float wear;
-        if (const auto condition = randomInt(1, 10000); condition <= 1471)
-            wear = randomFloat(0.0f, 0.07f);
+        if (const auto condition = Helpers::random(1, 10000); condition <= 1471)
+            wear = Helpers::random(0.0f, 0.07f);
         else if (condition <= 3939)
-            wear = randomFloat(0.07f, 0.15f);
+            wear = Helpers::random(0.07f, 0.15f);
         else if (condition <= 8257)
-            wear = randomFloat(0.15f, 0.38f);
+            wear = Helpers::random(0.15f, 0.38f);
         else if (condition <= 9049)
-            wear = randomFloat(0.38f, 0.45f);
+            wear = Helpers::random(0.38f, 0.45f);
         else
-            wear = randomFloat(0.45f, 1.0f);
+            wear = Helpers::random(0.45f, 1.0f);
         return wear;
     }
     //
@@ -407,7 +396,7 @@ private:
         if (caseData.hasLoot()) {
 
             // Move this to loot generator
-            const auto unlockedItemIdx = StaticData::caseLoot()[randomInt(static_cast<int>(caseData.lootBeginIdx), static_cast<int>(caseData.lootEndIdx - 1))];
+            const auto unlockedItemIdx = StaticData::caseLoot()[Helpers::random(static_cast<int>(caseData.lootBeginIdx), static_cast<int>(caseData.lootEndIdx - 1))];
             std::size_t dynamicDataIdx = Inventory::INVALID_DYNAMIC_DATA_IDX;
 
             if (const auto& item = StaticData::gameItems()[unlockedItemIdx]; caseData.willProduceStatTrak && item.isMusic()) {
@@ -418,11 +407,11 @@ private:
                 DynamicSkinData dynamicData;
                 const auto& staticData = StaticData::paintKits()[item.dataIndex];
                 dynamicData.wear = std::lerp(staticData.wearRemapMin, staticData.wearRemapMax, generateWear());
-                dynamicData.seed = randomInt(1, 1000);
+                dynamicData.seed = Helpers::random(1, 1000);
 
                 if (caseData.isSouvenirPackage)
                     dynamicData.isSouvenir = true;
-                else if (randomInt(0, 9) == 0)
+                else if (Helpers::random(0, 9) == 0)
                     dynamicData.statTrak = 0;
 
                 dynamicDataIdx = Inventory::emplaceDynamicData(std::move(dynamicData));
@@ -1144,7 +1133,7 @@ void InventoryChanger::drawGUI(bool contentOnly) noexcept
         }
         ImGui::EndChild();
     } else {
-        if (ImGui::BeginChild("##scrollarea", ImVec2{ 0.0f, contentOnly ? 400.0f : 0.0f })) {
+        if (ImGui::BeginChild("##scrollarea2", ImVec2{ 0.0f, contentOnly ? 400.0f : 0.0f })) {
             auto& inventory = Inventory::get();
             for (std::size_t i = inventory.size(); i-- > 0;) {
                 if (inventory[i].isDeleted() || inventory[i].shouldDelete())
@@ -1165,11 +1154,13 @@ void InventoryChanger::drawGUI(bool contentOnly) noexcept
         ImGui::End();
 }
 
+constexpr auto CONFIG_VERSION = 2;
+
 json InventoryChanger::toJson() noexcept
 {
     json j;
 
-    j["Version"] = 1;
+    j["Version"] = CONFIG_VERSION;
 
     auto& items = j["Items"];
     for (const auto& item : Inventory::get()) {
@@ -1184,6 +1175,7 @@ json InventoryChanger::toJson() noexcept
             itemConfig["Type"] = "Sticker";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Sticker ID"] = staticData.id;
+            itemConfig["Weapon ID"] = gameItem.weaponID;
             break;
         }
         case StaticData::Type::Glove: {
@@ -1232,6 +1224,7 @@ json InventoryChanger::toJson() noexcept
         }
         case StaticData::Type::Music: {
             itemConfig["Type"] = "Music";
+            itemConfig["Weapon ID"] = gameItem.weaponID;
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Music ID"] = staticData.id;
             const auto& dynamicData = Inventory::dynamicMusicData(item.getDynamicDataIndex());
@@ -1248,24 +1241,28 @@ json InventoryChanger::toJson() noexcept
         }
         case StaticData::Type::NameTag: {
             itemConfig["Type"] = "Name Tag";
+            itemConfig["Weapon ID"] = gameItem.weaponID;
             break;
         }
         case StaticData::Type::Patch: {
             itemConfig["Type"] = "Patch";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Patch ID"] = staticData.id;
+            itemConfig["Weapon ID"] = gameItem.weaponID;
             break;
         }
         case StaticData::Type::Graffiti: {
             itemConfig["Type"] = "Graffiti";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Graffiti ID"] = staticData.id;
+            itemConfig["Weapon ID"] = gameItem.weaponID;
             break;
         }
         case StaticData::Type::SealedGraffiti: {
             itemConfig["Type"] = "Sealed Graffiti";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Graffiti ID"] = staticData.id;
+            itemConfig["Weapon ID"] = gameItem.weaponID;
             break;
         }
         case StaticData::Type::Agent: {
@@ -1795,9 +1792,9 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
     case WeaponId::Butterfly:
         switch (sequence) {
         case SEQUENCE_DEFAULT_DRAW:
-            return randomInt(SEQUENCE_BUTTERFLY_DRAW, SEQUENCE_BUTTERFLY_DRAW2);
+            return Helpers::random(SEQUENCE_BUTTERFLY_DRAW, SEQUENCE_BUTTERFLY_DRAW2);
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return randomInt(SEQUENCE_BUTTERFLY_LOOKAT01, SEQUENCE_BUTTERFLY_LOOKAT03);
+            return Helpers::random(SEQUENCE_BUTTERFLY_LOOKAT01, SEQUENCE_BUTTERFLY_LOOKAT03);
         default:
             return sequence + 1;
         }
@@ -1806,9 +1803,9 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
         case SEQUENCE_DEFAULT_IDLE2:
             return SEQUENCE_FALCHION_IDLE1;
         case SEQUENCE_DEFAULT_HEAVY_MISS1:
-            return randomInt(SEQUENCE_FALCHION_HEAVY_MISS1, SEQUENCE_FALCHION_HEAVY_MISS1_NOFLIP);
+            return Helpers::random(SEQUENCE_FALCHION_HEAVY_MISS1, SEQUENCE_FALCHION_HEAVY_MISS1_NOFLIP);
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return randomInt(SEQUENCE_FALCHION_LOOKAT01, SEQUENCE_FALCHION_LOOKAT02);
+            return Helpers::random(SEQUENCE_FALCHION_LOOKAT01, SEQUENCE_FALCHION_LOOKAT02);
         case SEQUENCE_DEFAULT_DRAW:
         case SEQUENCE_DEFAULT_IDLE1:
             return sequence;
@@ -1821,9 +1818,9 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
             return SEQUENCE_DAGGERS_IDLE1;
         case SEQUENCE_DEFAULT_LIGHT_MISS1:
         case SEQUENCE_DEFAULT_LIGHT_MISS2:
-            return randomInt(SEQUENCE_DAGGERS_LIGHT_MISS1, SEQUENCE_DAGGERS_LIGHT_MISS5);
+            return Helpers::random(SEQUENCE_DAGGERS_LIGHT_MISS1, SEQUENCE_DAGGERS_LIGHT_MISS5);
         case SEQUENCE_DEFAULT_HEAVY_MISS1:
-            return randomInt(SEQUENCE_DAGGERS_HEAVY_MISS2, SEQUENCE_DAGGERS_HEAVY_MISS1);
+            return Helpers::random(SEQUENCE_DAGGERS_HEAVY_MISS2, SEQUENCE_DAGGERS_HEAVY_MISS1);
         case SEQUENCE_DEFAULT_HEAVY_HIT1:
         case SEQUENCE_DEFAULT_HEAVY_BACKSTAB:
         case SEQUENCE_DEFAULT_LOOKAT01:
@@ -1851,21 +1848,21 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
     case WeaponId::SurvivalKnife:
         switch (sequence) {
         case SEQUENCE_DEFAULT_DRAW:
-            return randomInt(SEQUENCE_BUTTERFLY_DRAW, SEQUENCE_BUTTERFLY_DRAW2);
+            return Helpers::random(SEQUENCE_BUTTERFLY_DRAW, SEQUENCE_BUTTERFLY_DRAW2);
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return randomInt(SEQUENCE_BUTTERFLY_LOOKAT01, 14);
+            return Helpers::random(SEQUENCE_BUTTERFLY_LOOKAT01, 14);
         default:
             return sequence + 1;
         }
     case WeaponId::Stiletto:
         switch (sequence) {
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return randomInt(12, 13);
+            return Helpers::random(12, 13);
         }
     case WeaponId::Talon:
         switch (sequence) {
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return randomInt(14, 15);
+            return Helpers::random(14, 15);
         }
     default:
         return sequence;
