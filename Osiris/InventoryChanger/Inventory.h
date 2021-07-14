@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassert>
+
 #include "StaticData.h"
 
 enum class Team;
@@ -60,6 +62,7 @@ public:
     bool isNameTag() const noexcept { return !isDeleted() && !shouldDelete() && get().isNameTag(); }
     bool isPatch() const noexcept { return !isDeleted() && !shouldDelete() && get().isPatch(); }
     bool isStatTrakSwapTool() const noexcept { return !isDeleted() && !shouldDelete() && get().isStatTrakSwapTool(); }
+    bool isViewerPass() const noexcept { return !isDeleted() && !shouldDelete() && get().isViewerPass(); }
 
     std::size_t getDynamicDataIndex() const noexcept { assert(dynamicDataIndex != static_cast<std::size_t>(-1)); return dynamicDataIndex; }
 
@@ -71,7 +74,8 @@ namespace Inventory
     constexpr auto INVALID_DYNAMIC_DATA_IDX = static_cast<std::size_t>(-1);
 
     std::vector<InventoryItem>& get() noexcept;
-    void addItem(std::size_t gameItemIndex, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept;
+    void addItemUnacknowledged(std::size_t gameItemIndex, std::size_t dynamicDataIdx) noexcept;
+    void addItemAcknowledged(std::size_t gameItemIndex, std::size_t dynamicDataIdx) noexcept;
     std::uint64_t addItemNow(std::size_t gameItemIndex, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept;
     void deleteItemNow(std::uint64_t itemID) noexcept;
     void runFrame() noexcept;

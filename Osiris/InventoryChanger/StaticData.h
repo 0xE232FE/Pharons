@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "../SDK/WeaponId.h"
 
 namespace StaticData
@@ -23,7 +25,8 @@ namespace StaticData
         Case,
         CaseKey,
         OperationPass,
-        StatTrakSwapTool
+        StatTrakSwapTool,
+        ViewerPass
     };
 
     struct GameItem {
@@ -43,6 +46,7 @@ namespace StaticData
         bool isCaseKey() const noexcept { return type == Type::CaseKey; }
         bool isOperationPass() const noexcept { return type == Type::OperationPass; }
         bool isStatTrakSwapTool() const noexcept { return type == Type::StatTrakSwapTool; }
+        bool isViewerPass() const noexcept { return type == Type::ViewerPass; }
 
         bool hasPaintKit() const noexcept { return type >= Type::Sticker && type <= Type::SealedGraffiti; }
 
@@ -86,4 +90,6 @@ namespace StaticData
     const std::vector<PaintKit>& paintKits() noexcept;
     const std::wstring& getWeaponNameUpper(WeaponId weaponID) noexcept;
     const std::string& getWeaponName(WeaponId weaponID) noexcept;
+
+    std::size_t getItemIndex(WeaponId weaponID, int paintKit) noexcept;
 }
