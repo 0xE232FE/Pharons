@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -123,7 +124,7 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
     local->body() = 1;
 
     bool dataUpdated = false;
-    if (auto& definitionIndex = glove->itemDefinitionIndex2(); definitionIndex != item->get().weaponID) {
+    if (auto& definitionIndex = glove->itemDefinitionIndex(); definitionIndex != item->get().weaponID) {
         definitionIndex = item->get().weaponID;
 
         if (const auto def = memory->itemSystem()->getItemSchema()->getItemDefinitionInterface(item->get().weaponID))
@@ -170,7 +171,7 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
     memory->equipWearable(glove, local);
     local->body() = 1;
 
-    if (auto& definitionIndex = glove->itemDefinitionIndex2(); definitionIndex != item->get().weaponID) {
+    if (auto& definitionIndex = glove->itemDefinitionIndex(); definitionIndex != item->get().weaponID) {
         definitionIndex = item->get().weaponID;
 
         if (const auto def = memory->itemSystem()->getItemSchema()->getItemDefinitionInterface(item->get().weaponID)) {
@@ -207,7 +208,7 @@ static void applyKnife(CSPlayerInventory& localInventory, Entity* local) noexcep
         if (!weapon)
             continue;
 
-        auto& definitionIndex = weapon->itemDefinitionIndex2();
+        auto& definitionIndex = weapon->itemDefinitionIndex();
         if (!Helpers::isKnife(definitionIndex))
             continue;
 
@@ -237,7 +238,7 @@ static void applyKnife(CSPlayerInventory& localInventory, Entity* local) noexcep
     if (!viewModelWeapon)
         return;
 
-    const auto def = memory->itemSystem()->getItemSchema()->getItemDefinitionInterface(viewModelWeapon->itemDefinitionIndex2());
+    const auto def = memory->itemSystem()->getItemSchema()->getItemDefinitionInterface(viewModelWeapon->itemDefinitionIndex());
     if (!def)
         return;
 
@@ -266,7 +267,7 @@ static void applyWeapons(CSPlayerInventory& localInventory, Entity* local) noexc
         if (weapon->originalOwnerXuid() != localXuid)
             continue;
 
-        const auto& definitionIndex = weapon->itemDefinitionIndex2();
+        const auto& definitionIndex = weapon->itemDefinitionIndex();
         if (Helpers::isKnife(definitionIndex))
             continue;
 
@@ -317,15 +318,8 @@ static void updateHud() noexcept
     hudUpdateRequired = false;
 }
 
-void InventoryChanger::setToolToUse(std::uint64_t itemID) noexcept { ToolUser::setTool(itemID); }
-void InventoryChanger::setItemToApplyTool(std::uint64_t itemID) noexcept { ToolUser::setDestItem(itemID, ToolUser::Action::Use); }
-void InventoryChanger::setItemToWearSticker(std::uint64_t itemID) noexcept { ToolUser::setDestItem(itemID, ToolUser::Action::WearSticker); }
-void InventoryChanger::setItemToRemoveNameTag(std::uint64_t itemID) noexcept { ToolUser::setDestItem(itemID, ToolUser::Action::RemoveNameTag);}
-void InventoryChanger::setStatTrakSwapItem1(std::uint64_t itemID) noexcept { ToolUser::setStatTrakSwapItem1(itemID); }
-void InventoryChanger::setStatTrakSwapItem2(std::uint64_t itemID) noexcept { ToolUser::setStatTrakSwapItem2(itemID); }
 void InventoryChanger::setStickerApplySlot(int slot) noexcept { ToolUser::setStickerSlot(slot); }
 void InventoryChanger::setStickerSlotToWear(int slot) noexcept { ToolUser::setStickerSlot(slot); }
-void InventoryChanger::setNameTagString(const char* str) noexcept { ToolUser::setNameTag(str); }
 
 void InventoryChanger::deleteItem(std::uint64_t itemID) noexcept
 {
@@ -1008,9 +1002,7 @@ json InventoryChanger::toJson() noexcept
         }
         case StaticData::Type::Collectible: {
             itemConfig["Type"] = "Collectible";
-            const auto& staticData = StaticData::collectibles()[gameItem.dataIndex];
             itemConfig["Weapon ID"] = gameItem.weaponID;
-            itemConfig["Is Original"] = staticData.isOriginal;
             break;
         }
         case StaticData::Type::NameTag: {
@@ -1126,10 +1118,154 @@ void InventoryChanger::fromJson(const json& j) noexcept
     if (!items.is_array())
         return;
 
+    auto configFileVersion = CONFIG_VERSION;
+    if (j.contains("Version") && j["Version"].is_number_unsigned())
+        configFileVersion = j["Version"];
+
     for (std::size_t i = 0; i < items.size(); ++i) {
         const auto& jsonItem = items[i];
         if (jsonItem.empty() || !jsonItem.is_object())
             continue;
+
+        // new config - version 2 doesn't use "Type" string
+        if (configFileVersion >= 2) {
+            if (!jsonItem.contains("Weapon ID") || !jsonItem["Weapon ID"].is_number_integer())
+                continue;
+
+            const WeaponId weaponID = jsonItem["Weapon ID"];
+            int paintKit = 0;
+
+            if (jsonItem.contains("Paint Kit") && jsonItem["Paint Kit"].is_number_integer())
+                paintKit = jsonItem["Paint Kit"];
+            else if (jsonItem.contains("Sticker ID") && jsonItem["Sticker ID"].is_number_integer())
+                paintKit = jsonItem["Sticker ID"];
+            else if (jsonItem.contains("Music ID") && jsonItem["Music ID"].is_number_integer())
+                paintKit = jsonItem["Music ID"];
+            else if (jsonItem.contains("Patch ID") && jsonItem["Patch ID"].is_number_integer())
+                paintKit = jsonItem["Patch ID"];
+            else if (jsonItem.contains("Graffiti ID") && jsonItem["Graffiti ID"].is_number_integer())
+                paintKit = jsonItem["Graffiti ID"];
+
+            const auto itemIndex = StaticData::getItemIndex(weaponID, paintKit);
+            if (itemIndex == StaticData::InvalidItemIdx)
+                continue;
+
+            const auto& item = StaticData::gameItems()[itemIndex];
+            auto dynamicDataIdx = Inventory::INVALID_DYNAMIC_DATA_IDX;
+
+            if (item.isSkin()) {
+                DynamicSkinData dynamicData;
+
+                if (jsonItem.contains("Is Souvenir")) {
+                    if (const auto& isSouvenir = jsonItem["Is Souvenir"]; isSouvenir.is_boolean())
+                        dynamicData.isSouvenir = isSouvenir;
+                }
+
+                if (jsonItem.contains("Wear")) {
+                    if (const auto& wear = jsonItem["Wear"]; wear.is_number_float())
+                        dynamicData.wear = wear;
+                }
+
+                if (jsonItem.contains("Seed")) {
+                    if (const auto& seed = jsonItem["Seed"]; seed.is_number_integer())
+                        dynamicData.seed = seed;
+                }
+
+                if (jsonItem.contains("StatTrak")) {
+                    if (const auto& statTrak = jsonItem["StatTrak"]; statTrak.is_number_integer())
+                        dynamicData.statTrak = statTrak;
+                }
+
+                if (jsonItem.contains("Name Tag")) {
+                    if (const auto& nameTag = jsonItem["Name Tag"]; nameTag.is_string())
+                        dynamicData.nameTag = nameTag;
+                }
+
+                if (jsonItem.contains("Stickers")) {
+                    if (const auto& stickers = jsonItem["Stickers"]; stickers.is_array()) {
+                        for (std::size_t k = 0; k < stickers.size(); ++k) {
+                            const auto& sticker = stickers[k];
+                            if (!sticker.is_object())
+                                continue;
+
+                            if (!sticker.contains("Sticker ID") || !sticker["Sticker ID"].is_number_integer())
+                                continue;
+
+                            if (!sticker.contains("Slot") || !sticker["Slot"].is_number_integer())
+                                continue;
+
+                            const int stickerID = sticker["Sticker ID"];
+                            if (stickerID == 0)
+                                continue;
+                            const std::size_t slot = sticker["Slot"];
+                            if (slot >= std::tuple_size_v<decltype(DynamicSkinData::stickers)>)
+                                continue;
+                            dynamicData.stickers[slot].stickerID = stickerID;
+                            if (sticker.contains("Wear") && sticker["Wear"].is_number_float())
+                                dynamicData.stickers[slot].wear = sticker["Wear"];
+                        }
+                    }
+                }
+
+                dynamicDataIdx = Inventory::emplaceDynamicData(std::move(dynamicData));
+            } else if (item.isGlove()) {
+                DynamicGloveData dynamicData;
+
+                if (jsonItem.contains("Wear")) {
+                    if (const auto& wear = jsonItem["Wear"]; wear.is_number_float())
+                        dynamicData.wear = wear;
+                }
+
+                if (jsonItem.contains("Seed")) {
+                    if (const auto& seed = jsonItem["Seed"]; seed.is_number_integer())
+                        dynamicData.seed = seed;
+                }
+
+                dynamicDataIdx = Inventory::emplaceDynamicData(std::move(dynamicData));
+            } else if (item.isMusic()) {
+                DynamicMusicData dynamicData;
+
+                if (jsonItem.contains("StatTrak")) {
+                    if (const auto& statTrak = jsonItem["StatTrak"]; statTrak.is_number_integer() && statTrak > -1)
+                        dynamicData.statTrak = statTrak;
+                }
+
+                dynamicDataIdx = Inventory::emplaceDynamicData(std::move(dynamicData));
+            } else if (item.isAgent()) {
+                DynamicAgentData dynamicData;
+
+                if (jsonItem.contains("Patches")) {
+                    if (const auto& patches = jsonItem["Patches"]; patches.is_array()) {
+                        for (std::size_t k = 0; k < patches.size(); ++k) {
+                            const auto& patch = patches[k];
+                            if (!patch.is_object())
+                                continue;
+
+                            if (!patch.contains("Patch ID") || !patch["Patch ID"].is_number_integer())
+                                continue;
+
+                            if (!patch.contains("Slot") || !patch["Slot"].is_number_integer())
+                                continue;
+
+                            const int patchID = patch["Patch ID"];
+                            if (patchID == 0)
+                                continue;
+                            const std::size_t slot = patch["Slot"];
+                            if (slot >= std::tuple_size_v<decltype(DynamicAgentData::patches)>)
+                                continue;
+                            dynamicData.patches[slot].patchID = patchID;
+                        }
+                    }
+                }
+
+                dynamicDataIdx = Inventory::emplaceDynamicData(std::move(dynamicData));
+            }
+
+            Inventory::addItemAcknowledged(itemIndex, dynamicDataIdx);
+            continue;
+        }
+
+        // old config - version 1 (TODO: remove before August 2021 release)
 
         if (!jsonItem.contains("Type") || !jsonItem["Type"].is_string())
             continue;
@@ -1258,19 +1394,11 @@ void InventoryChanger::fromJson(const json& j) noexcept
         } else if (type == "Collectible") {
             if (!jsonItem.contains("Weapon ID") || !jsonItem["Weapon ID"].is_number_integer())
                 continue;
-            if (!jsonItem.contains("Is Original") || !jsonItem["Is Original"].is_boolean())
-                continue;
 
             const WeaponId weaponID = jsonItem["Weapon ID"];
-            const bool isOriginal = jsonItem["Is Original"];
 
-            // FIXME: not using StaticData::getItemIndex() because it doesn't support original collectibles
-            const auto staticData = std::ranges::find_if(StaticData::gameItems(), [weaponID, isOriginal](const auto& gameItem) { return gameItem.isCollectible() && gameItem.weaponID == weaponID && StaticData::collectibles()[gameItem.dataIndex].isOriginal == isOriginal; });
-
-            if (staticData == StaticData::gameItems().end())
-                continue;
-
-            Inventory::addItemAcknowledged(std::ranges::distance(StaticData::gameItems().begin(), staticData), Inventory::INVALID_DYNAMIC_DATA_IDX);
+            if (const auto itemIndex = StaticData::getItemIndex(weaponID, 0); itemIndex != StaticData::InvalidItemIdx)
+                Inventory::addItemAcknowledged(itemIndex, Inventory::INVALID_DYNAMIC_DATA_IDX);
         } else if (type == "Name Tag") {
             if (const auto itemIndex = StaticData::getItemIndex(WeaponId::NameTag, 0); itemIndex != StaticData::InvalidItemIdx)
                 Inventory::addItemAcknowledged(itemIndex, Inventory::INVALID_DYNAMIC_DATA_IDX);
@@ -1444,10 +1572,11 @@ void InventoryChanger::onUserTextMsg(const void*& data, int& size) noexcept
     if (const auto item = Inventory::getItem(soc->itemID); !item || !item->isSkin())
         return;
 
+    constexpr auto HUD_PRINTCENTER = 4;
     // https://github.com/SteamDatabase/Protobufs/blob/017f1710737b7026cdd6d7e602f96a66dddb7b2e/csgo/cstrike15_usermessages.proto#L128-L131
 
     const auto reader = ProtobufReader{ static_cast<const std::uint8_t*>(data), size };
-    if (reader.readInt32(1) != 4 /* HUD_PRINTCENTER */)
+    if (reader.readInt32(1) != HUD_PRINTCENTER)
         return;
 
     const auto strings = reader.readRepeatedString(3);
@@ -1471,7 +1600,7 @@ void InventoryChanger::onUserTextMsg(const void*& data, int& size) noexcept
     const auto itemBaseName = std::string_view{ def->getItemBaseName() };
 
     static std::vector<char> buffer;
-    buffer = std::vector<char>{ 0x8, 0x4 /* HUD_PRINTCENTER */, 0x1A, static_cast<char>(strings[0].length()) };
+    buffer = std::vector<char>{ 0x8, HUD_PRINTCENTER, 0x1A, static_cast<char>(strings[0].length()) };
     std::ranges::copy(strings[0], std::back_inserter(buffer));
     buffer.push_back(0x1A);
     buffer.push_back(static_cast<char>(itemBaseName.length()));
@@ -1483,6 +1612,44 @@ void InventoryChanger::onUserTextMsg(const void*& data, int& size) noexcept
 
     data = buffer.data();
     size = static_cast<int>(buffer.size());
+}
+
+static std::uint64_t stringToUint64(const char* str) noexcept
+{
+    std::uint64_t result = 0;
+    std::from_chars(str, str + std::strlen(str), result);
+    return result;
+}
+
+void InventoryChanger::getArgAsStringHook(const char* string, std::uintptr_t returnAddress) noexcept
+{
+    if (returnAddress == memory->useToolGetArgAsStringReturnAddress) {
+        ToolUser::setTool(stringToUint64(string));
+    } else if (returnAddress == memory->useToolGetArg2AsStringReturnAddress) {
+        ToolUser::setDestItem(stringToUint64(string), ToolUser::Action::Use);
+    } else if (returnAddress == memory->wearItemStickerGetArgAsStringReturnAddress) {
+        ToolUser::setDestItem(stringToUint64(string), ToolUser::Action::WearSticker);
+    } else if (returnAddress == memory->setNameToolStringGetArgAsStringReturnAddress) {
+        ToolUser::setNameTag(string);
+    } else if (returnAddress == memory->clearCustomNameGetArgAsStringReturnAddress) {
+        ToolUser::setDestItem(stringToUint64(string), ToolUser::Action::RemoveNameTag);
+    } else if (returnAddress == memory->deleteItemGetArgAsStringReturnAddress) {
+        InventoryChanger::deleteItem(stringToUint64(string));
+    } else if (returnAddress == memory->acknowledgeNewItemByItemIDGetArgAsStringReturnAddress) {
+        InventoryChanger::acknowledgeItem(stringToUint64(string));
+    } else if (returnAddress == memory->setStatTrakSwapToolItemsGetArgAsStringReturnAddress1) {
+        ToolUser::setStatTrakSwapItem1(stringToUint64(string));
+    } else if (returnAddress == memory->setStatTrakSwapToolItemsGetArgAsStringReturnAddress2) {
+        ToolUser::setStatTrakSwapItem2(stringToUint64(string));
+    }
+}
+
+void InventoryChanger::getArgAsNumberHook(int number, std::uintptr_t returnAddress) noexcept
+{
+    if (returnAddress == memory->setStickerToolSlotGetArgAsNumberReturnAddress)
+        InventoryChanger::setStickerApplySlot(number);
+    else if (returnAddress == memory->wearItemStickerGetArgAsNumberReturnAddress)
+        InventoryChanger::setStickerSlotToWear(number);
 }
 
 struct Icon {
@@ -1557,7 +1724,7 @@ void InventoryChanger::clearUnusedItemIconTextures() noexcept
     constexpr auto maxIcons = 30;
     const auto frameCount = ImGui::GetFrameCount();
     while (iconTextures.size() > maxIcons) {
-        const auto oldestIcon = std::ranges::min_element(iconTextures, [](const auto& a, const auto& b) { return a.second.lastReferencedFrame < b.second.lastReferencedFrame; });
+        const auto oldestIcon = std::ranges::min_element(iconTextures, {}, [](const auto& icon) { return icon.second.lastReferencedFrame; });
         if (oldestIcon->second.lastReferencedFrame == frameCount)
             break;
 
@@ -1685,7 +1852,7 @@ void InventoryChanger::fixKnifeAnimation(Entity* viewModelWeapon, long& sequence
     if (!localPlayer)
         return;
 
-    if (!Helpers::isKnife(viewModelWeapon->itemDefinitionIndex2()))
+    if (!Helpers::isKnife(viewModelWeapon->itemDefinitionIndex()))
         return;
 
     const auto localInventory = memory->inventoryManager->getLocalInventory();
@@ -1699,5 +1866,5 @@ void InventoryChanger::fixKnifeAnimation(Entity* viewModelWeapon, long& sequence
     if (const auto soc = memory->getSOCData(itemView); !soc || Inventory::getItem(soc->itemID) == nullptr)
         return;
 
-    sequence = remapKnifeAnim(viewModelWeapon->itemDefinitionIndex2(), sequence);
+    sequence = remapKnifeAnim(viewModelWeapon->itemDefinitionIndex(), sequence);
 }
