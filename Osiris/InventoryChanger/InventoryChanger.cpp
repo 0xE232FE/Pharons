@@ -3,7 +3,6 @@
 #include <chrono>
 #include <cstdint>
 #include <fstream>
-#include <random>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -19,7 +18,6 @@
 #include "../imgui/imgui_internal.h"
 #include "../imgui/imgui_stdlib.h"
 #include "../Interfaces.h"
-#include "../Netvars.h"
 #include "InventoryChanger.h"
 #include "../ProtobufReader.h"
 #include "../Texture.h"
@@ -39,7 +37,6 @@
 #include "../SDK/GameEvent.h"
 #include "../SDK/GlobalVars.h"
 #include "../SDK/ItemSchema.h"
-#include "../SDK/Localize.h"
 #include "../SDK/LocalPlayer.h"
 #include "../SDK/ModelInfo.h"
 #include "../SDK/Panorama.h"
@@ -110,7 +107,7 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
     if (!glove)
         glove = interfaces->entityList->getEntityFromHandle(gloveHandle);
 
-#ifdef _WIN32 // testing new method
+#if defined(_WIN32) || defined(__linux__) // testing new method
     constexpr auto NUM_ENT_ENTRIES = 8192;
     if (!glove)
         glove = createGlove(NUM_ENT_ENTRIES - 1, -1);
@@ -152,7 +149,7 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
         glove->onDataChanged(0);
     }
 
-#else // on linux still old method
+#else // old method
     if (!glove) {
         const auto entry = interfaces->entityList->getHighestEntityIndex() + 1;
         const auto serial = Helpers::random(0, 0x1000);
@@ -300,9 +297,6 @@ static void onPostDataUpdateStart(int localHandle) noexcept
     if (!localInventory)
         return;
 
-#ifndef _WIN32
-    applyGloves(*localInventory, local);
-#endif
     applyKnife(*localInventory, local);
     applyWeapons(*localInventory, local);
 }
@@ -448,10 +442,8 @@ void InventoryChanger::run(FrameStage stage) noexcept
     if (!localInventory)
         return;
 
-#ifdef _WIN32
     if (localPlayer)
         applyGloves(*localInventory, localPlayer.get());
-#endif;
 
     applyMusicKit(*localInventory);
     applyPlayerAgent(*localInventory);
@@ -1231,6 +1223,41 @@ json InventoryChanger::toJson() noexcept
     return Inventory::emplaceDynamicData(std::move(dynamicData));
 }
 
+void loadEquipmentFromJson(const json& j) noexcept
+{
+    if (!j.contains("Equipment"))
+        return;
+
+    const auto& equipment = j["Equipment"];
+    if (!equipment.is_array())
+        return;
+
+    for (std::size_t i = 0; i < equipment.size(); ++i) {
+        const auto& equipped = equipment[i];
+        if (!equipped.contains("Slot"))
+            continue;
+
+        const auto& slot = equipped["Slot"];
+        if (!slot.is_number_integer())
+            continue;
+
+        if (equipped.contains("CT")) {
+            if (const auto& ct = equipped["CT"]; ct.is_number_integer())
+                Inventory::equipItem(Team::CT, slot, ct);
+        }
+
+        if (equipped.contains("TT")) {
+            if (const auto& tt = equipped["TT"]; tt.is_number_integer())
+                Inventory::equipItem(Team::TT, slot, tt);
+        }
+
+        if (equipped.contains("NOTEAM")) {
+            if (const auto& noteam = equipped["NOTEAM"]; noteam.is_number_integer())
+                Inventory::equipItem(Team::None, slot, noteam);
+        }
+    }
+}
+
 void InventoryChanger::fromJson(const json& j) noexcept
 {
     if (!j.contains("Items"))
@@ -1400,37 +1427,7 @@ void InventoryChanger::fromJson(const json& j) noexcept
         }
     }
 
-    if (!j.contains("Equipment"))
-        return;
-
-    const auto& equipment = j["Equipment"];
-    if (!equipment.is_array())
-        return;
-
-    for (std::size_t i = 0; i < equipment.size(); ++i) {
-        const auto& equipped = equipment[i];
-        if (!equipped.contains("Slot"))
-            continue;
-
-        const auto& slot = equipped["Slot"];
-        if (!slot.is_number_integer())
-            continue;
-
-        if (equipped.contains("CT")) {
-            if (const auto& ct = equipped["CT"]; ct.is_number_integer())
-                Inventory::equipItem(Team::CT, slot, ct);
-        }
-
-        if (equipped.contains("TT")) {
-            if (const auto& tt = equipped["TT"]; tt.is_number_integer())
-                Inventory::equipItem(Team::TT, slot, tt);
-        }
-         
-        if (equipped.contains("NOTEAM")) {
-            if (const auto& noteam = equipped["NOTEAM"]; noteam.is_number_integer())
-                Inventory::equipItem(Team::None, slot, noteam);
-        }
-    }
+    loadEquipmentFromJson(j);
 }
 
 void InventoryChanger::resetConfig() noexcept
@@ -1552,13 +1549,13 @@ void InventoryChanger::getArgAsStringHook(const char* string, std::uintptr_t ret
     if (returnAddress == memory->useToolGetArgAsStringReturnAddress) {
         ToolUser::setTool(stringToUint64(string));
     } else if (returnAddress == memory->useToolGetArg2AsStringReturnAddress) {
-        ToolUser::setDestItem(stringToUint64(string), ToolUser::Action::Use);
+        ToolUser::setItemToApplyTool(stringToUint64(string));
     } else if (returnAddress == memory->wearItemStickerGetArgAsStringReturnAddress) {
-        ToolUser::setDestItem(stringToUint64(string), ToolUser::Action::WearSticker);
+        ToolUser::setItemToWearSticker(stringToUint64(string));
     } else if (returnAddress == memory->setNameToolStringGetArgAsStringReturnAddress) {
         ToolUser::setNameTag(string);
     } else if (returnAddress == memory->clearCustomNameGetArgAsStringReturnAddress) {
-        ToolUser::setDestItem(stringToUint64(string), ToolUser::Action::RemoveNameTag);
+        ToolUser::setItemToRemoveNameTag(stringToUint64(string));
     } else if (returnAddress == memory->deleteItemGetArgAsStringReturnAddress) {
         InventoryChanger::deleteItem(stringToUint64(string));
     } else if (returnAddress == memory->acknowledgeNewItemByItemIDGetArgAsStringReturnAddress) {
