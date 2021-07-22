@@ -68,22 +68,23 @@ static void sendInventoryUpdatedEvent() noexcept
 
 static Entity* createGlove(int entry, int serial) noexcept
 {
-    static std::add_pointer_t<Entity* __CDECL(int, int)> createWearable = nullptr;
-
-    if (!createWearable) {
-        createWearable = []() -> decltype(createWearable) {
-            for (auto clientClass = interfaces->client->getAllClasses(); clientClass; clientClass = clientClass->next)
-                if (clientClass->classId == ClassId::EconWearable)
-                    return clientClass->createFunction;
-            return nullptr;
-        }();
-    }
+    static const auto createWearable = []{
+        std::add_pointer_t<Entity* __CDECL(int, int)> createWearableFn = nullptr;
+        for (auto clientClass = interfaces->client->getAllClasses(); clientClass; clientClass = clientClass->next) {
+            if (clientClass->classId == ClassId::EconWearable) {
+                createWearableFn = clientClass->createFunction;
+                break;
+            }
+        }
+        return createWearableFn;
+    }();
 
     if (!createWearable)
         return nullptr;
 
-    createWearable(entry, serial);
-    return interfaces->entityList->getEntity(entry);
+    if (const auto wearable = createWearable(entry, serial))
+        return reinterpret_cast<Entity*>(std::uintptr_t(wearable) - 2 * sizeof(std::uintptr_t));
+    return nullptr;
 }
 
 static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexcept
@@ -107,7 +108,6 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
     if (!glove)
         glove = interfaces->entityList->getEntityFromHandle(gloveHandle);
 
-#if defined(_WIN32) || defined(__linux__) // testing new method
     constexpr auto NUM_ENT_ENTRIES = 8192;
     if (!glove)
         glove = createGlove(NUM_ENT_ENTRIES - 1, -1);
@@ -148,35 +148,6 @@ static void applyGloves(CSPlayerInventory& localInventory, Entity* local) noexce
         glove->postDataUpdate(0);
         glove->onDataChanged(0);
     }
-
-#else // old method
-    if (!glove) {
-        const auto entry = interfaces->entityList->getHighestEntityIndex() + 1;
-        const auto serial = Helpers::random(0, 0x1000);
-        glove = createGlove(entry, serial);
-    }
-
-    if (!glove)
-        return;
-
-    wearables[0] = gloveHandle = glove->handle();
-    glove->accountID() = localInventory.getAccountID();
-    glove->itemIDHigh() = std::uint32_t(soc->itemID >> 32);
-    glove->itemIDLow() = std::uint32_t(soc->itemID & 0xFFFFFFFF);
-    glove->entityQuality() = 3;
-    glove->initialized() = true;
-    memory->equipWearable(glove, local);
-    local->body() = 1;
-
-    if (auto& definitionIndex = glove->itemDefinitionIndex(); definitionIndex != item->get().weaponID) {
-        definitionIndex = item->get().weaponID;
-
-        if (const auto def = memory->itemSystem()->getItemSchema()->getItemDefinitionInterface(item->get().weaponID)) {
-            glove->setModelIndex(interfaces->modelInfo->getModelIndex(def->getWorldDisplayModel()));
-            glove->preDataUpdate(0);
-        }
-    }
-#endif
 }
 
 static void applyKnife(CSPlayerInventory& localInventory, Entity* local) noexcept
@@ -195,9 +166,7 @@ static void applyKnife(CSPlayerInventory& localInventory, Entity* local) noexcep
     if (!item || !item->isSkin())
         return;
 
-    auto& weapons = local->weapons();
-
-    for (auto weaponHandle : weapons) {
+    for (auto& weapons = local->weapons(); auto weaponHandle : weapons) {
         if (weaponHandle == -1)
             break;
 
@@ -877,9 +846,8 @@ void InventoryChanger::drawGUI(bool contentOnly) noexcept
                 ImGui::PushID(i);
 
                 const auto selected = selectedToAdd.contains(i);
-                const auto toAddCount = selected ? &selectedToAdd[i] : nullptr;
 
-                if (ImGui::SkinSelectable(gameItems[i], { 37.0f, 28.0f }, { 200.0f, 150.0f }, rarityColor(gameItems[i].rarity), selected, toAddCount)) {
+                if (const auto toAddCount = selected ? &selectedToAdd[i] : nullptr; ImGui::SkinSelectable(gameItems[i], { 37.0f, 28.0f }, { 200.0f, 150.0f }, rarityColor(gameItems[i].rarity), selected, toAddCount)) {
                     if (selected)
                         selectedToAdd.erase(i);
                     else
@@ -911,7 +879,7 @@ void InventoryChanger::drawGUI(bool contentOnly) noexcept
         ImGui::End();
 }
 
-constexpr auto CONFIG_VERSION = 2;
+constexpr auto CONFIG_VERSION = 3;
 
 json InventoryChanger::toJson() noexcept
 {
@@ -931,13 +899,11 @@ json InventoryChanger::toJson() noexcept
 
         switch (gameItem.type) {
         case StaticData::Type::Sticker: {
-            itemConfig["Type"] = "Sticker";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Sticker ID"] = staticData.id;
             break;
         }
         case StaticData::Type::Glove: {
-            itemConfig["Type"] = "Glove";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Paint Kit"] = staticData.id;
 
@@ -948,7 +914,6 @@ json InventoryChanger::toJson() noexcept
             break;
         }
         case StaticData::Type::Skin: {
-            itemConfig["Type"] = "Skin";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Paint Kit"] = staticData.id;
 
@@ -979,43 +944,28 @@ json InventoryChanger::toJson() noexcept
             break;
         }
         case StaticData::Type::Music: {
-            itemConfig["Type"] = "Music";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Music ID"] = staticData.id;
-            const auto& dynamicData = Inventory::dynamicMusicData(item.getDynamicDataIndex());
-            if (dynamicData.statTrak > -1)
+            if (const auto& dynamicData = Inventory::dynamicMusicData(item.getDynamicDataIndex()); dynamicData.statTrak > -1)
                 itemConfig["StatTrak"] = dynamicData.statTrak;
             break;
         }
-        case StaticData::Type::Collectible: {
-            itemConfig["Type"] = "Collectible";
-            break;
-        }
-        case StaticData::Type::NameTag: {
-            itemConfig["Type"] = "Name Tag";
-            break;
-        }
         case StaticData::Type::Patch: {
-            itemConfig["Type"] = "Patch";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Patch ID"] = staticData.id;
             break;
         }
         case StaticData::Type::Graffiti: {
-            itemConfig["Type"] = "Graffiti";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Graffiti ID"] = staticData.id;
             break;
         }
         case StaticData::Type::SealedGraffiti: {
-            itemConfig["Type"] = "Sealed Graffiti";
             const auto& staticData = StaticData::paintKits()[gameItem.dataIndex];
             itemConfig["Graffiti ID"] = staticData.id;
             break;
         }
         case StaticData::Type::Agent: {
-            itemConfig["Type"] = "Agent";
-            
             const auto& dynamicData = Inventory::dynamicAgentData(item.getDynamicDataIndex());
             auto& stickers = itemConfig["Patches"];
             for (std::size_t i = 0; i < dynamicData.patches.size(); ++i) {
@@ -1028,26 +978,6 @@ json InventoryChanger::toJson() noexcept
                 patchConfig["Slot"] = i;
                 stickers.push_back(std::move(patchConfig));
             }
-            break;
-        }
-        case StaticData::Type::Case: {
-            itemConfig["Type"] = "Case";
-            break;
-        }
-        case StaticData::Type::CaseKey: {
-            itemConfig["Type"] = "Case Key";
-            break;
-        }
-        case StaticData::Type::OperationPass: {
-            itemConfig["Type"] = "Operation Pass";
-            break;
-        }
-        case StaticData::Type::StatTrakSwapTool: {
-            itemConfig["Type"] = "StatTrak Swap Tool";
-            break;
-        }
-        case StaticData::Type::ViewerPass: {
-            itemConfig["Type"] = "Viewer Pass";
             break;
         }
         }
@@ -1232,8 +1162,7 @@ void loadEquipmentFromJson(const json& j) noexcept
     if (!equipment.is_array())
         return;
 
-    for (std::size_t i = 0; i < equipment.size(); ++i) {
-        const auto& equipped = equipment[i];
+    for (const auto& equipped : equipment) {
         if (!equipped.contains("Slot"))
             continue;
 

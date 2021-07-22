@@ -67,6 +67,7 @@
 #include "SDK/StudioRender.h"
 #include "SDK/Surface.h"
 #include "SDK/UserCmd.h"
+#include "SDK/UserMessages.h"
 
 #ifdef _WIN32
 
@@ -257,8 +258,7 @@ static void __STDCALL drawModelExecute(LINUX_ARGS(void* thisptr,) void* ctx, voi
     if (Visuals::removeHands(info.model->name) || Visuals::removeSleeves(info.model->name) || Visuals::removeWeapons(info.model->name))
         return;
 
-    static Chams chams;
-    if (!chams.render(ctx, state, info, customBoneToWorld))
+    if (static Chams chams; !chams.render(ctx, state, info, customBoneToWorld))
         hooks->modelRender.callOriginal<void, 21>(ctx, state, std::cref(info), customBoneToWorld);
 
     interfaces->studioRender->forcedMaterialOverride(nullptr);
@@ -487,12 +487,12 @@ static void __STDCALL soUpdated(LINUX_ARGS(void* thisptr, ) SOID owner, SharedOb
     hooks->inventory.callOriginal<void, 1>(owner, object, event);
 }
 
-static bool __STDCALL dispatchUserMessage(LINUX_ARGS(void* thisptr, ) int messageType, int passthroughFlags, int size, const void* data) noexcept
+static bool __STDCALL dispatchUserMessage(LINUX_ARGS(void* thisptr, ) UserMessageType type, int passthroughFlags, int size, const void* data) noexcept
 {
-    if (messageType == 7) // CS_UM_TextMsg
+    if (type == UserMessageType::Text)
         InventoryChanger::onUserTextMsg(data, size);
 
-    return hooks->client.callOriginal<bool, 38>(messageType, passthroughFlags, size, data);
+    return hooks->client.callOriginal<bool, 38>(type, passthroughFlags, size, data);
 }
 
 #ifdef _WIN32

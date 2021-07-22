@@ -133,6 +133,7 @@
     <ClCompile Include="InputUtil.cpp" />
     <ClCompile Include="InventoryChanger\Inventory.cpp" />
     <ClCompile Include="InventoryChanger\InventoryChanger.cpp" />
+    <ClCompile Include="InventoryChanger\ItemGenerator.cpp" />
     <ClCompile Include="InventoryChanger\StaticData.cpp" />
     <ClCompile Include="InventoryChanger\ToolUser.cpp" />
     <ClCompile Include="MinHook\buffer.c">
@@ -226,6 +227,7 @@
     <ClInclude Include="InputUtil.h" />
     <ClInclude Include="InventoryChanger\Inventory.h" />
     <ClInclude Include="InventoryChanger\InventoryChanger.h" />
+    <ClInclude Include="InventoryChanger\ItemGenerator.h" />
     <ClInclude Include="InventoryChanger\StaticData.h" />
     <ClInclude Include="InventoryChanger\ToolUser.h" />
     <ClInclude Include="JsonForward.h" />
@@ -293,6 +295,7 @@
     <ClInclude Include="SDK\Pad.h" />
     <ClInclude Include="SDK\Panorama.h" />
     <ClInclude Include="SDK\PhysicsSurfaceProps.h" />
+    <ClInclude Include="SDK\PlantedC4.h" />
     <ClInclude Include="SDK\Platform.h" />
     <ClInclude Include="SDK\PlayerResource.h" />
     <ClInclude Include="SDK\Prediction.h" />
@@ -306,6 +309,10 @@
     <ClInclude Include="SDK\StudioRender.h" />
     <ClInclude Include="SDK\Surface.h" />
     <ClInclude Include="SDK\UserCmd.h" />
+    <ClInclude Include="SDK\UserMessages.h" />
+    <ClInclude Include="SDK\UtlMap.h" />
+    <ClInclude Include="SDK\UtlMemory.h" />
+    <ClInclude Include="SDK\UtlString.h" />
     <ClInclude Include="SDK\UtlVector.h" />
     <ClInclude Include="SDK\VarMapping.h" />
     <ClInclude Include="SDK\Vector.h" />
