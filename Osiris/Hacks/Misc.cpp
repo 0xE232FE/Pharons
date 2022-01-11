@@ -370,7 +370,7 @@ void Misc::noscopeCrosshair(ImDrawList* drawList) noexcept
     {
         GameData::Lock lock;
         //if (const auto& local = GameData::local(); !local.exists || !local.alive)
-            return;
+            //return;
     }
 
     drawCrosshair(drawList, ImGui::GetIO().DisplaySize / 2, Helpers::calculateColor(miscConfig.noscopeCrosshair.asColorToggle().asColor4()));
