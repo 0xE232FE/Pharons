@@ -226,6 +226,7 @@
     <ClInclude Include="imgui\imgui_freetype.h" />
     <ClInclude Include="imgui\imgui_stdlib.h" />
     <ClInclude Include="InputUtil.h" />
+    <ClInclude Include="InventoryChanger\GameItemStorage.h" />
     <ClInclude Include="InventoryChanger\Inventory.h" />
     <ClInclude Include="InventoryChanger\InventoryChanger.h" />
     <ClInclude Include="InventoryChanger\InventoryConfig.h" />
@@ -285,6 +286,7 @@
     <ClInclude Include="SDK\InputSystem.h" />
     <ClInclude Include="SDK\ItemSchema.h" />
     <ClInclude Include="SDK\KeyValues.h" />
+    <ClInclude Include="SDK\KeyValuesSystem.h" />
     <ClInclude Include="SDK\Localize.h" />
     <ClInclude Include="SDK\LocalPlayer.h" />
     <ClInclude Include="SDK\Material.h" />
@@ -326,6 +328,7 @@
     <ClInclude Include="SDK\WeaponData.h" />
     <ClInclude Include="SDK\WeaponSystem.h" />
     <ClInclude Include="stb_image.h" />
+    <ClInclude Include="StringPool.h" />
     <ClInclude Include="Texture.h" />
   </ItemGroup>
   <ItemGroup>

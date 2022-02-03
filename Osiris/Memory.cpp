@@ -231,6 +231,10 @@ Memory::Memory() noexcept
     setItemSessionPropertyValue = relativeToAbsolute<decltype(setItemSessionPropertyValue)>(findPattern(CLIENT_DLL, "\xE8????\x8B\x4C\x24\x2C\x46") + 1);
 
     localPlayer.init(*reinterpret_cast<Entity***>(findPattern(CLIENT_DLL, "\xA1????\x89\x45\xBC\x85\xC0") + 1));
+
+    keyValuesSystem = reinterpret_cast<KeyValuesSystem* (__STDCALL*)()>(GetProcAddress(GetModuleHandleW(L"vstdlib"), "KeyValuesSystem"))();
+    keyValuesAllocEngine = findPattern(ENGINE_DLL, "\xFF\x52\x04\x85\xC0\x74\x0C\x56") + 3;
+    keyValuesAllocClient = findPattern(CLIENT_DLL, "\xFF\x52\x04\x85\xC0\x74\x0C\x56") + 3;
 #else
     const auto tier0 = dlopen(TIER0_DLL, RTLD_NOLOAD | RTLD_NOW);
     debugMsg = decltype(debugMsg)(dlsym(tier0, "Msg"));
