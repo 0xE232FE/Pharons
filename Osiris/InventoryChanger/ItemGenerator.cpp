@@ -32,13 +32,13 @@ using StaticData::TournamentMap;
 
 [[nodiscard]] static std::array<StickerConfig, 5> generateSouvenirStickers(WeaponId weaponID, std::uint32_t tournamentID, TournamentMap map, TournamentStage stage, TournamentTeam team1, TournamentTeam team2, ProPlayer player) noexcept;
 
-[[nodiscard]] StaticData::ItemIndex getRandomItemIndexFromContainer(const StaticData::Case& container) noexcept
+[[nodiscard]] StaticData::ItemIndex2 getRandomItemIndexFromContainer(const StaticData::Case& container) noexcept
 {
     assert(container.hasLoot());
     return StaticData::caseLoot()[Helpers::random(container.lootBeginIdx, container.lootEndIdx - 1)];
 }
 
-std::pair<StaticData::ItemIndex, std::size_t> ItemGenerator::generateItemFromContainer(const InventoryItem& caseItem) noexcept
+std::pair<StaticData::ItemIndex2, std::size_t> ItemGenerator::generateItemFromContainer(const InventoryItem& caseItem) noexcept
 {
     assert(caseItem.isCase());
 
@@ -48,7 +48,7 @@ std::pair<StaticData::ItemIndex, std::size_t> ItemGenerator::generateItemFromCon
     const auto unlockedItemIdx = getRandomItemIndexFromContainer(caseData);
     std::size_t dynamicDataIdx = Inventory::InvalidDynamicDataIdx;
 
-    if (const auto& item = StaticData::gameItems()[unlockedItemIdx]; caseData.willProduceStatTrak && item.isMusic()) {
+    if (const auto& item = StaticData::getGameItem(unlockedItemIdx); caseData.willProduceStatTrak && item.isMusic()) {
         DynamicMusicData dynamicData;
         dynamicData.statTrak = 0;
         dynamicDataIdx = Inventory::emplaceDynamicData(std::move(dynamicData));
@@ -127,7 +127,7 @@ constexpr auto operator<=>(TournamentMap a, TournamentMap b) noexcept
     return dynamicData;
 }
 
-[[nodiscard]] static std::time_t tmToUTCTimestamp(std::tm& tm) noexcept
+[[nodiscard]] std::time_t tmToUTCTimestamp(std::tm& tm) noexcept
 {
 #ifdef _WIN32
     return _mkgmtime(&tm);
@@ -136,7 +136,7 @@ constexpr auto operator<=>(TournamentMap a, TournamentMap b) noexcept
 #endif
 }
 
-[[nodiscard]] static std::time_t getStartOfYearTimestamp(std::uint16_t year) noexcept
+[[nodiscard]] std::time_t getStartOfYearTimestamp(std::uint16_t year) noexcept
 {
     assert(year >= 1900);
     std::tm tm{};
@@ -145,7 +145,7 @@ constexpr auto operator<=>(TournamentMap a, TournamentMap b) noexcept
     return tmToUTCTimestamp(tm);
 }
 
-[[nodiscard]] static std::time_t getEndOfYearTimestamp(std::uint16_t year) noexcept
+[[nodiscard]] std::time_t getEndOfYearTimestamp(std::uint16_t year) noexcept
 {
     assert(year >= 1900);
     std::tm tm{};
@@ -170,11 +170,11 @@ constexpr auto operator<=>(TournamentMap a, TournamentMap b) noexcept
     return static_cast<std::uint32_t>(Helpers::random(min, max));
 }
 
-std::size_t ItemGenerator::createDefaultDynamicData(StaticData::ItemIndex gameItemIndex) noexcept
+std::size_t ItemGenerator::createDefaultDynamicData(StaticData::ItemIndex2 gameItemIndex) noexcept
 {
     std::size_t index = Inventory::InvalidDynamicDataIdx;
 
-    if (const auto& item = StaticData::gameItems()[gameItemIndex]; item.isSkin()) {
+    if (const auto& item = StaticData::getGameItem(gameItemIndex); item.isSkin()) {
         const auto& staticData = StaticData::getPaintKit(item);
         DynamicSkinData dynamicData;
         dynamicData.wear = std::lerp(staticData.wearRemapMin, staticData.wearRemapMax, Helpers::random(0.0f, 0.07f));

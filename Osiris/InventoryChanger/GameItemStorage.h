@@ -105,19 +105,9 @@ public:
         addItem(Type::ViewerPass, rarity, weaponID, dataIndex, iconPath);
     }
 
-    std::span<StaticData::GameItem> get() noexcept
-    {
-        return gameItems;
-    }
-
     const StaticData::GameItem& get(std::size_t index) const noexcept
     {
         return gameItems[index];
-    }
-
-    std::span<const StaticData::GameItem> get() const noexcept
-    {
-        return gameItems;
     }
 
     void shrinkToFit()
@@ -135,18 +125,16 @@ public:
         return gameItems.size();
     }
 
-    [[nodiscard]] std::unordered_set<WeaponId> getUniqueWeaponIDs() const
-    {
-        std::unordered_set<WeaponId> uniqueWeaponIDs;
-        for (const auto& gameItem : gameItems)
-            uniqueWeaponIDs.emplace(gameItem.weaponID);
-        return uniqueWeaponIDs;
-    }
+    auto begin() { return gameItems.begin(); }
+    auto begin() const { return gameItems.begin(); }
+    auto cbegin() const { return gameItems.cbegin(); }
+    auto end() { return gameItems.end(); }
+    auto end() const { return gameItems.end(); }
+    auto cend() const { return gameItems.cend(); }
 
-    template <typename Comparator>
-    void sort(Comparator comparator)
+    void addItem(const StaticData::GameItem& item)
     {
-        std::ranges::sort(gameItems, comparator);
+        gameItems.push_back(item);
     }
 
 private:

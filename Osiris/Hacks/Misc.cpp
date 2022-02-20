@@ -214,7 +214,7 @@ void Misc::edgejump(UserCmd* cmd) noexcept
     if (const auto mt = localPlayer->moveType(); mt == MoveType::LADDER || mt == MoveType::NOCLIP)
         return;
 
-    if ((EnginePrediction::getFlags() & 1) && !(localPlayer->flags() & 1))
+    if ((EnginePrediction::getFlags() & 1) && !localPlayer->isOnGround())
         cmd->buttons |= UserCmd::IN_JUMP;
 }
 
@@ -440,7 +440,7 @@ void Misc::fastPlant(UserCmd* cmd) noexcept
     if (static auto plantAnywhere = interfaces->cvar->findVar("mp_plant_c4_anywhere"); plantAnywhere->getInt())
         return;
 
-    if (!localPlayer || !localPlayer->isAlive() || (localPlayer->inBombZone() && localPlayer->flags() & 1))
+    if (!localPlayer || !localPlayer->isAlive() || (localPlayer->inBombZone() && localPlayer->isOnGround()))
         return;
 
     if (const auto activeWeapon = localPlayer->getActiveWeapon(); !activeWeapon || activeWeapon->getClientClass()->classId != ClassId::C4)
@@ -467,7 +467,7 @@ void Misc::fastStop(UserCmd* cmd) noexcept
     if (!localPlayer || !localPlayer->isAlive())
         return;
 
-    if (localPlayer->moveType() == MoveType::NOCLIP || localPlayer->moveType() == MoveType::LADDER || !(localPlayer->flags() & 1) || cmd->buttons & UserCmd::IN_JUMP)
+    if (localPlayer->moveType() == MoveType::NOCLIP || localPlayer->moveType() == MoveType::LADDER || !localPlayer->isOnGround() || cmd->buttons & UserCmd::IN_JUMP)
         return;
 
     if (cmd->buttons & (UserCmd::IN_MOVELEFT | UserCmd::IN_MOVERIGHT | UserCmd::IN_FORWARD | UserCmd::IN_BACK))
@@ -655,12 +655,12 @@ void Misc::bunnyHop(UserCmd* cmd) noexcept
     if (!localPlayer)
         return;
 
-    static auto wasLastTimeOnGround{ localPlayer->flags() & 1 };
+    static auto wasLastTimeOnGround{ localPlayer->isOnGround() };
 
-    if (miscConfig.bunnyHop && !(localPlayer->flags() & 1) && localPlayer->moveType() != MoveType::LADDER && !wasLastTimeOnGround)
+    if (miscConfig.bunnyHop && !localPlayer->isOnGround() && localPlayer->moveType() != MoveType::LADDER && !wasLastTimeOnGround)
         cmd->buttons &= ~UserCmd::IN_JUMP;
 
-    wasLastTimeOnGround = localPlayer->flags() & 1;
+    wasLastTimeOnGround = localPlayer->isOnGround();
 }
 
 void Misc::fakeBan(bool set) noexcept
@@ -783,7 +783,7 @@ void Misc::autoStrafe(UserCmd* cmd) noexcept
 {
     if (localPlayer
         && miscConfig.autoStrafe
-        && !(localPlayer->flags() & 1)
+        && !localPlayer->isOnGround()
         && localPlayer->moveType() != MoveType::NOCLIP) {
         if (cmd->mousedx < 0)
             cmd->sidemove = -450.0f;
@@ -978,6 +978,46 @@ void Misc::oppositeHandKnife(FrameStage stage) noexcept
 static std::vector<std::uint64_t> reportedPlayers;
 static int reportbotRound;
 
+[[nodiscard]] static std::string generateReportString()
+{
+    std::string report;
+    if (miscConfig.reportbot.textAbuse)
+        report += "textabuse,";
+    if (miscConfig.reportbot.griefing)
+        report += "grief,";
+    if (miscConfig.reportbot.wallhack)
+        report += "wallhack,";
+    if (miscConfig.reportbot.aimbot)
+        report += "aimbot,";
+    if (miscConfig.reportbot.other)
+        report += "speedhack,";
+    return report;
+}
+
+[[nodiscard]] static bool isPlayerReported(std::uint64_t xuid)
+{
+    return std::ranges::find(std::as_const(reportedPlayers), xuid) != reportedPlayers.cend();
+}
+
+[[nodiscard]] static std::vector<std::uint64_t> getXuidsOfCandidatesToBeReported()
+{
+    std::vector<std::uint64_t> xuids;
+
+    for (int i = 1; i <= interfaces->engine->getMaxClients(); ++i) {
+        const auto entity = interfaces->entityList->getEntity(i);
+        if (!entity || entity == localPlayer.get())
+            continue;
+
+        if (miscConfig.reportbot.target != 2 && (localPlayer->isOtherEnemy(entity) ? miscConfig.reportbot.target != 0 : miscConfig.reportbot.target != 1))
+            continue;
+
+        if (PlayerInfo playerInfo; interfaces->engine->getPlayerInfo(i, playerInfo) && !playerInfo.fakeplayer)
+            xuids.push_back(playerInfo.xuid);
+    }
+
+    return xuids;
+}
+
 void Misc::runReportbot() noexcept
 {
     if (!miscConfig.reportbot.enabled)
@@ -994,41 +1034,15 @@ void Misc::runReportbot() noexcept
     if (reportbotRound >= miscConfig.reportbot.rounds)
         return;
 
-    for (int i = 1; i <= interfaces->engine->getMaxClients(); ++i) {
-        const auto entity = interfaces->entityList->getEntity(i);
-
-        if (!entity || entity == localPlayer.get())
+    for (const auto& xuid : getXuidsOfCandidatesToBeReported()) {
+        if (isPlayerReported(xuid))
             continue;
 
-        if (miscConfig.reportbot.target != 2 && (localPlayer->isOtherEnemy(entity) ? miscConfig.reportbot.target != 0 : miscConfig.reportbot.target != 1))
-            continue;
-
-        PlayerInfo playerInfo;
-        if (!interfaces->engine->getPlayerInfo(i, playerInfo))
-            continue;
-
-        if (playerInfo.fakeplayer || std::ranges::find(reportedPlayers, playerInfo.xuid) != reportedPlayers.cend())
-            continue;
-
-        std::string report;
-
-        if (miscConfig.reportbot.textAbuse)
-            report += "textabuse,";
-        if (miscConfig.reportbot.griefing)
-            report += "grief,";
-        if (miscConfig.reportbot.wallhack)
-            report += "wallhack,";
-        if (miscConfig.reportbot.aimbot)
-            report += "aimbot,";
-        if (miscConfig.reportbot.other)
-            report += "speedhack,";
-
-        if (!report.empty()) {
-            memory->submitReport(std::to_string(playerInfo.xuid).c_str(), report.c_str());
+        if (const auto report = generateReportString(); !report.empty()) {
+            memory->submitReport(std::to_string(xuid).c_str(), report.c_str());
             lastReportTime = memory->globalVars->realtime;
-            reportedPlayers.push_back(playerInfo.xuid);
+            reportedPlayers.push_back(xuid);
         }
-        return;
     }
 
     reportedPlayers.clear();
