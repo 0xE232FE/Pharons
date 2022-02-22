@@ -1,11 +1,11 @@
 #include <algorithm>
 #include <cstring>
 #include <numeric>
+#include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
 
-#include "GameItemStorage.h"
 #include "StaticData.h"
 
 #include "../Helpers.h"
@@ -16,7 +16,6 @@
 #include "StaticDataStorage.h"
 
 using StaticData::TournamentMap;
-using StaticData::Type;
 
 constexpr auto operator<=>(WeaponId a, WeaponId b) noexcept
 {
@@ -217,12 +216,29 @@ public:
         return {};
     }
 
+    [[nodiscard]] StaticData::ItemIndex2 getGraffitiIndex(int graffitiID) const noexcept
+    {
+        const auto [begin, end] = findItems(WeaponId::Graffiti);
+        if (const auto it = std::find_if(begin, end, [this, graffitiID](const StaticData::GameItem& item) { return storage.getGraffitiKit(item).id == graffitiID; }); it != end)
+            return StaticData::ItemIndex2{ static_cast<std::size_t>(std::distance(storage.getGameItems().begin(), it)) };
+        return StaticData::InvalidItemIdx2;
+    }
+
+    [[nodiscard]] StaticData::ItemIndex2 getSealedGraffitiIndex(int graffitiID) const noexcept
+    {
+        const auto [begin, end] = findItems(WeaponId::SealedGraffiti);
+        if (const auto it = std::find_if(begin, end, [this, graffitiID](const StaticData::GameItem& item) { return storage.getGraffitiKit(item).id == graffitiID; }); it != end)
+            return StaticData::ItemIndex2{ static_cast<std::size_t>(std::distance(storage.getGameItems().begin(), it)) };
+        return StaticData::InvalidItemIdx2;
+    }
+
     static const auto& gameItems() noexcept { return instance().storage.getGameItems(); }
     static const auto& cases() noexcept { return instance()._cases; }
     static const auto& caseLoot() noexcept { return instance()._caseLoot; }
     static const auto& getStickerKit(const StaticData::GameItem& item) noexcept { return instance().storage.getStickerKit(item); }
     static const auto& getPaintKit(const StaticData::GameItem& item) noexcept { return instance().storage.getPaintKit(item); }
     static const auto& getMusicKit(const StaticData::GameItem& item) noexcept { return instance().storage.getMusicKit(item); }
+    static const auto& getGraffitiKit(const StaticData::GameItem& item) noexcept { return instance().storage.getGraffitiKit(item); }
 
     [[nodiscard]] std::uint16_t getServiceMedalYear(const StaticData::GameItem& serviceMedal) const noexcept
     {
@@ -475,12 +491,12 @@ private:
 
     [[nodiscard]] bool isStickerCapsule(const StaticData::Case& caseData) const noexcept
     {
-        return std::all_of(_caseLoot.begin() + caseData.lootBeginIdx, _caseLoot.begin() + caseData.lootEndIdx, [this](StaticData::ItemIndex2 itemIndex) { return storage.getGameItems().get(itemIndex.value).isSticker(); });
+        return std::all_of(_caseLoot.begin() + caseData.lootBeginIdx, _caseLoot.begin() + caseData.lootEndIdx, [this](StaticData::ItemIndex2 itemIndex) { return storage.getGameItems()[itemIndex.value].isSticker(); });
     }
 
     [[nodiscard]] bool isPatchPack(const StaticData::Case& caseData) const noexcept
     {
-        return std::all_of(_caseLoot.begin() + caseData.lootBeginIdx, _caseLoot.begin() + caseData.lootEndIdx, [this](StaticData::ItemIndex2 itemIndex) { return storage.getGameItems().get(itemIndex.value).isPatch(); });
+        return std::all_of(_caseLoot.begin() + caseData.lootBeginIdx, _caseLoot.begin() + caseData.lootEndIdx, [this](StaticData::ItemIndex2 itemIndex) { return storage.getGameItems()[itemIndex.value].isPatch(); });
     }
 
     void excludeTournamentStickerCapsulesFromSouvenirPackages() noexcept
@@ -571,13 +587,13 @@ std::vector<StaticData::ItemIndex2> StaticData::getItemIndices() noexcept
 int StaticData::getGraffitiID(const GameItem& item) noexcept
 {
     assert(item.isGraffiti());
-    return StaticDataImpl::getPaintKit(item).id;
+    return StaticDataImpl::getGraffitiKit(item).id;
 }
 
 int StaticData::getSealedGraffitiID(const GameItem& item) noexcept
 {
     assert(item.isSealedGraffiti());
-    return StaticDataImpl::getPaintKit(item).id;
+    return StaticDataImpl::getGraffitiKit(item).id;
 }
 
 std::string_view StaticData::getPaintName(const GameItem& item) noexcept
@@ -588,6 +604,8 @@ std::string_view StaticData::getPaintName(const GameItem& item) noexcept
         return StaticDataImpl::getMusicKit(item).name.forDisplay;
     if (item.isSticker())
         return StaticDataImpl::getStickerKit(item).name.forDisplay;
+    if (item.isGraffiti() || item.isSealedGraffiti())
+        return StaticDataImpl::getGraffitiKit(item).name.forDisplay;
     return "";
 }
 
@@ -599,6 +617,8 @@ std::wstring_view StaticData::getPaintNameUpper(const GameItem& item) noexcept
         return StaticDataImpl::getMusicKit(item).name.forSearch;
     if (item.isSticker())
         return StaticDataImpl::getStickerKit(item).name.forSearch;
+    if (item.isGraffiti() || item.isSealedGraffiti())
+        return StaticDataImpl::getGraffitiKit(item).name.forSearch;
     return L"";
 }
 
@@ -616,7 +636,7 @@ const StaticData::Case& StaticData::getCase(const GameItem& item) noexcept
 
 const StaticData::GameItem& StaticData::getGameItem(ItemIndex2 itemIndex) noexcept
 {
-    return StaticDataImpl::gameItems().get(itemIndex.value);
+    return StaticDataImpl::gameItems()[itemIndex.value];
 }
 
 std::wstring_view StaticData::getWeaponNameUpper(WeaponId weaponID) noexcept
@@ -642,6 +662,21 @@ StaticData::ItemIndex2 StaticData::getItemIndex(WeaponId weaponID) noexcept
 StaticData::ItemIndex2 StaticData::getMusicIndex(int musicID) noexcept
 {
     return StaticDataImpl::instance().getMusicIndex(musicID);
+}
+
+StaticData::ItemIndex2 StaticData::getGraffitiIndex(int graffitiID) noexcept
+{
+    return StaticDataImpl::instance().getGraffitiIndex(graffitiID);
+}
+
+StaticData::ItemIndex2 StaticData::getSealedGraffitiIndex(int graffitiID) noexcept
+{
+    return StaticDataImpl::instance().getSealedGraffitiIndex(graffitiID);
+}
+
+StaticData::ItemIndex2 StaticData::getStickerIndex(int stickerID) noexcept
+{
+    return StaticDataImpl::instance().getStickerIndex(stickerID);
 }
 
 int StaticData::findSouvenirTournamentSticker(std::uint32_t tournamentID) noexcept

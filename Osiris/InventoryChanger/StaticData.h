@@ -24,33 +24,8 @@ namespace StaticData
 
     constexpr auto InvalidItemIdx2 = ItemIndex2{};
 
-    enum class Type : std::uint8_t {
-        // has paint kit, must match GameItem::hasPaintKit() below
-        Sticker,
-        Glove,
-        Skin,
-        Music,
-        Patch,
-        Graffiti,
-        SealedGraffiti,
-
-        // has other data
-        Collectible,
-        NameTag,
-        Agent,
-        Case,
-        CaseKey,
-        OperationPass,
-        StatTrakSwapTool,
-        ViewerPass,
-        ServiceMedal,
-        SouvenirToken,
-        TournamentCoin
-    };
-
     struct GameItem {
-        GameItem(Type type, int rarity, WeaponId weaponID, std::size_t dataIndex, std::string_view iconPath) noexcept;
-
+    public:
         [[nodiscard]] static GameItem sticker(int rarity, std::size_t dataIndex, std::string_view iconPath) noexcept
         {
             return GameItem{ Type::Sticker, rarity, WeaponId::Sticker, dataIndex, iconPath };
@@ -160,9 +135,36 @@ namespace StaticData
         bool isSouvenirToken() const noexcept { return type == Type::SouvenirToken; }
         bool isTournamentCoin() const noexcept { return type == Type::TournamentCoin; }
 
-        bool hasPaintKit() const noexcept { return type > Type::Sticker && type <= Type::SealedGraffiti && type != Type::Music; }
+        bool hasPaintKit() const noexcept { return type >= Type::Glove && type <= Type::Patch; }
 
+    private:
+        enum class Type : std::uint8_t {
+            // has paint kit, must match GameItem::hasPaintKit() below
+            Glove,
+            Skin,
+            Patch,
+
+            // has other data
+            Sticker,
+            Music,
+            Graffiti,
+            SealedGraffiti,
+            Collectible,
+            NameTag,
+            Agent,
+            Case,
+            CaseKey,
+            OperationPass,
+            StatTrakSwapTool,
+            ViewerPass,
+            ServiceMedal,
+            SouvenirToken,
+            TournamentCoin
+        };
+        GameItem(Type type, int rarity, WeaponId weaponID, std::size_t dataIndex, std::string_view iconPath) noexcept;
+        
         Type type;
+    public:
         std::uint8_t rarity;
         WeaponId weaponID;
         std::size_t dataIndex;
@@ -177,6 +179,13 @@ namespace StaticData
 
     struct MusicKit {
         MusicKit(int id, ItemName name) : id{ id }, name{ name } {}
+
+        int id;
+        ItemName name;
+    };
+
+    struct GraffitiKit {
+        GraffitiKit(int id, ItemName name) : id{ id }, name{ name } {}
 
         int id;
         ItemName name;
@@ -252,6 +261,9 @@ namespace StaticData
     ItemIndex2 getItemIndex(WeaponId weaponID, int paintKit) noexcept;
     [[nodiscard]] ItemIndex2 getItemIndex(WeaponId weaponID) noexcept;
     ItemIndex2 getMusicIndex(int musicID) noexcept;
+    ItemIndex2 getGraffitiIndex(int graffitiID) noexcept;
+    ItemIndex2 getSealedGraffitiIndex(int graffitiID) noexcept;
+    ItemIndex2 getStickerIndex(int stickerID) noexcept;
 
     int findSouvenirTournamentSticker(std::uint32_t tournamentID) noexcept;
     int getTournamentTeamGoldStickerID(std::uint32_t tournamentID, TournamentTeam team) noexcept;

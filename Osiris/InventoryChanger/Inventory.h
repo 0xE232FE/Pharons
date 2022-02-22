@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -68,15 +69,16 @@ struct DynamicTournamentCoinData {
 
 struct InventoryItem {
 private:
-    std::size_t itemIndex;
+    std::optional<std::reference_wrapper<const StaticData::GameItem>> item;
     std::size_t dynamicDataIndex = static_cast<std::size_t>(-1);
+    bool toDelete = false;
 public:
-    explicit InventoryItem(StaticData::ItemIndex2 itemIndex, std::size_t dynamicDataIndex) noexcept : itemIndex{ itemIndex.value }, dynamicDataIndex{ dynamicDataIndex } {}
+    explicit InventoryItem(const StaticData::GameItem& item, std::size_t dynamicDataIndex) noexcept : item{ item }, dynamicDataIndex{ dynamicDataIndex } {}
 
-    void markAsDeleted() noexcept { itemIndex = static_cast<std::size_t>(-1); }
-    bool isDeleted() const noexcept { return itemIndex == static_cast<std::size_t>(-1); }
-    void markToDelete() noexcept { itemIndex = static_cast<std::size_t>(-2); }
-    bool shouldDelete() const noexcept { return itemIndex == static_cast<std::size_t>(-2); }
+    void markAsDeleted() noexcept { item.reset(); }
+    bool isDeleted() const noexcept { return !item.has_value(); }
+    void markToDelete() noexcept { toDelete = true; }
+    bool shouldDelete() const noexcept { return toDelete; }
     bool isValid() const noexcept { return !isDeleted() && !shouldDelete(); }
 
     bool isSticker() const noexcept { return isValid() && get().isSticker(); }
@@ -99,7 +101,7 @@ public:
 
     std::size_t getDynamicDataIndex() const noexcept { assert(dynamicDataIndex != static_cast<std::size_t>(-1)); return dynamicDataIndex; }
 
-    const StaticData::GameItem& get() const noexcept { assert(isValid()); return StaticData::getGameItem(StaticData::ItemIndex2{ itemIndex }); }
+    const StaticData::GameItem& get() const noexcept { assert(isValid()); return item.value(); }
 };
 
 namespace Inventory
@@ -108,8 +110,8 @@ namespace Inventory
     constexpr auto BASE_ITEMID = 1152921504606746975;
 
     std::vector<InventoryItem>& get() noexcept;
-    void addItemUnacknowledged(StaticData::ItemIndex2 gameItemIndex, std::size_t dynamicDataIdx) noexcept;
-    void addItemAcknowledged(StaticData::ItemIndex2 gameItemIndex, std::size_t dynamicDataIdx) noexcept;
+    void addItemUnacknowledged(const StaticData::GameItem& gameItem, std::size_t dynamicDataIdx) noexcept;
+    void addItemAcknowledged(const StaticData::GameItem& gameItem, std::size_t dynamicDataIdx) noexcept;
     std::uint64_t addItemNow(StaticData::ItemIndex2 gameItemIndex, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept;
     void deleteItemNow(std::uint64_t itemID) noexcept;
     void runFrame() noexcept;
