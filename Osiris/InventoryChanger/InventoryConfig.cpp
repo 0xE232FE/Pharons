@@ -1,6 +1,8 @@
 #include "Inventory.h"
 #include "InventoryConfig.h"
 
+#include "GameItems/Lookup.h"
+
 constexpr auto CONFIG_VERSION = 3;
 
 json InventoryChanger::toJson() noexcept
@@ -16,12 +18,12 @@ json InventoryChanger::toJson() noexcept
         json itemConfig;
 
         const auto& gameItem = item.get();
-        itemConfig["Weapon ID"] = gameItem.weaponID;
-        itemConfig["Item Name"] = StaticData::getWeaponName(gameItem.weaponID);
+        itemConfig["Weapon ID"] = gameItem.getWeaponID();
+        itemConfig["Item Name"] = StaticData::getWeaponName(gameItem.getWeaponID());
 
         if (gameItem.isSticker()) {
             itemConfig["Sticker ID"] = StaticData::getStickerID(gameItem);
-        } else if (gameItem.isGlove()) {
+        } else if (gameItem.isGloves()) {
             const auto& staticData = StaticData::getPaintKit(gameItem);
             itemConfig["Paint Kit"] = staticData.id;
             itemConfig["Paint Kit Name"] = staticData.name.forDisplay;
@@ -384,33 +386,33 @@ void InventoryChanger::fromJson(const json& j) noexcept
             continue;
 
         const WeaponId weaponID = jsonItem["Weapon ID"];
-        StaticData::ItemIndex2 itemIndex;
+        std::optional<std::reference_wrapper<const game_items::Item>> itemOptional;
 
         if (jsonItem.contains("Paint Kit") && jsonItem["Paint Kit"].is_number_integer())
-            itemIndex = StaticData::getItemIndex(weaponID, jsonItem["Paint Kit"]);
+            itemOptional = StaticData::lookup().findItem(weaponID, jsonItem["Paint Kit"]);
         else if (jsonItem.contains("Sticker ID") && jsonItem["Sticker ID"].is_number_integer())
-            itemIndex = StaticData::getStickerIndex(jsonItem["Sticker ID"]);
+            itemOptional = StaticData::lookup().findSticker(jsonItem["Sticker ID"]);
         else if (jsonItem.contains("Music ID") && jsonItem["Music ID"].is_number_integer())
-            itemIndex = StaticData::getMusicIndex(jsonItem["Music ID"]);
+            itemOptional = StaticData::lookup().findMusic(jsonItem["Music ID"]);
         else if (jsonItem.contains("Patch ID") && jsonItem["Patch ID"].is_number_integer())
-            itemIndex = StaticData::getItemIndex(weaponID, jsonItem["Patch ID"]);
+            itemOptional = StaticData::lookup().findPatch(jsonItem["Patch ID"]);
         else if (jsonItem.contains("Graffiti ID") && jsonItem["Graffiti ID"].is_number_integer()) {
             if (weaponID == WeaponId::Graffiti)
-                itemIndex = StaticData::getGraffitiIndex(jsonItem["Graffiti ID"]);
+                itemOptional = StaticData::lookup().findGraffiti(jsonItem["Graffiti ID"]);
             else
-                itemIndex = StaticData::getSealedGraffitiIndex(jsonItem["Graffiti ID"]);
+                itemOptional = StaticData::lookup().findSealedGraffiti(jsonItem["Graffiti ID"]);
         } else
-            itemIndex = StaticData::getItemIndex(weaponID);
+            itemOptional = StaticData::lookup().findItem(weaponID);
 
-        if (itemIndex == StaticData::InvalidItemIdx2)
+        if (!itemOptional.has_value())
             continue;
 
-        const auto& item = StaticData::getGameItem(itemIndex);
+        const auto& item = itemOptional->get();
         auto dynamicDataIdx = Inventory::InvalidDynamicDataIdx;
 
         if (item.isSkin()) {
             dynamicDataIdx = loadDynamicSkinDataFromJson(jsonItem);
-        } else if (item.isGlove()) {
+        } else if (item.isGloves()) {
             dynamicDataIdx = loadDynamicGloveDataFromJson(jsonItem);
         } else if (item.isMusic()) {
             dynamicDataIdx = loadDynamicMusicDataFromJson(jsonItem);
@@ -422,7 +424,7 @@ void InventoryChanger::fromJson(const json& j) noexcept
             dynamicDataIdx = loadDynamicSouvenirPackageDataFromJson(jsonItem);
         }
 
-        Inventory::addItemAcknowledged(StaticData::getGameItem(itemIndex), dynamicDataIdx);
+        Inventory::addItemAcknowledged(item, dynamicDataIdx);
     }
 
     loadEquipmentFromJson(j);

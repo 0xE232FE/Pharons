@@ -36,12 +36,12 @@ public:
         return instance().inventory;
     }
 
-    static void addItem(const StaticData::GameItem& gameItem, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept
+    static void addItem(const game_items::Item& gameItem, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept
     {
         instance().toAdd.emplace_back(gameItem, dynamicDataIdx, asUnacknowledged);
     }
 
-    static std::uint64_t addItemNow(const StaticData::GameItem& gameItem, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept
+    static std::uint64_t addItemNow(const game_items::Item& gameItem, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept
     {
         return instance()._addItem(gameItem, dynamicDataIdx, asUnacknowledged);
     }
@@ -102,7 +102,7 @@ private:
         econItem.setPaintKit(static_cast<float>(paintKit));
 
         const auto& dynamicData = dynamicSkinData[inventoryItem.getDynamicDataIndex()];
-        const auto isMP5LabRats = Helpers::isMP5LabRats(inventoryItem.get().weaponID, paintKit);
+        const auto isMP5LabRats = Helpers::isMP5LabRats(inventoryItem.get().getWeaponID(), paintKit);
         if (dynamicData.isSouvenir() || isMP5LabRats) {
             econItem.quality = 12;
         } else {
@@ -163,9 +163,9 @@ private:
         econItem->inventory = asUnacknowledged ? 0 : baseInvID + inventory.size();
 
         const auto& item = inventoryItem.get();
-        econItem->rarity = item.rarity;
+        econItem->rarity = static_cast<std::uint16_t>(item.getRarity());
         econItem->quality = 4;
-        econItem->weaponId = item.weaponID;
+        econItem->weaponId = item.getWeaponID();
 
         if (item.isSticker()) {
             econItem->setStickerID(0, StaticData::getStickerID(item));
@@ -185,7 +185,7 @@ private:
             }
         } else if (item.isSkin()) {
             initSkinEconItem(inventoryItem, *econItem);
-        } else if (item.isGlove()) {
+        } else if (item.isGloves()) {
             econItem->quality = 3;
             econItem->setPaintKit(static_cast<float>(StaticData::getPaintKit(item).id));
 
@@ -261,7 +261,7 @@ private:
         item->markAsDeleted();
     }
 
-    std::uint64_t _addItem(const StaticData::GameItem& gameItem, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept
+    std::uint64_t _addItem(const game_items::Item& gameItem, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept
     {
         return _createSOCItem(inventory.emplace_back(gameItem, dynamicDataIdx != InvalidDynamicDataIdx ? dynamicDataIdx : ItemGenerator::createDefaultDynamicData(gameItem)), asUnacknowledged);
     }
@@ -340,7 +340,7 @@ private:
         return inventory;
     }
 
-    std::vector<std::tuple<std::reference_wrapper<const StaticData::GameItem>, std::size_t, bool>> toAdd;
+    std::vector<std::tuple<std::reference_wrapper<const game_items::Item>, std::size_t, bool>> toAdd;
     std::vector<ToEquip> toEquip;
     std::vector<InventoryItem> inventory;
 };
@@ -427,19 +427,19 @@ std::vector<InventoryItem>& Inventory::get() noexcept
     return InventoryImpl::get();
 }
 
-void Inventory::addItemUnacknowledged(const StaticData::GameItem& gameItem, std::size_t dynamicDataIdx) noexcept
+void Inventory::addItemUnacknowledged(const game_items::Item& gameItem, std::size_t dynamicDataIdx) noexcept
 {
     InventoryImpl::addItem(gameItem, dynamicDataIdx, true);
 }
 
-void Inventory::addItemAcknowledged(const StaticData::GameItem& gameItem, std::size_t dynamicDataIdx) noexcept
+void Inventory::addItemAcknowledged(const game_items::Item& gameItem, std::size_t dynamicDataIdx) noexcept
 {
     InventoryImpl::addItem(gameItem, dynamicDataIdx, false);
 }
 
-std::uint64_t Inventory::addItemNow(StaticData::ItemIndex2 gameItemIndex, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept
+std::uint64_t Inventory::addItemNow(const game_items::Item& gameItem, std::size_t dynamicDataIdx, bool asUnacknowledged) noexcept
 {
-    return InventoryImpl::addItemNow(StaticData::getGameItem(gameItemIndex), dynamicDataIdx, asUnacknowledged);
+    return InventoryImpl::addItemNow(gameItem, dynamicDataIdx, asUnacknowledged);
 }
 
 void Inventory::deleteItemNow(std::uint64_t itemID) noexcept
