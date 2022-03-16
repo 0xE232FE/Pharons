@@ -9,6 +9,7 @@
 #include "../SDK/EconItemView.h"
 #include "../SDK/Entity.h"
 #include "../SDK/ItemSchema.h"
+#include "GameItems/Lookup.h"
 
 using Inventory::InvalidDynamicDataIdx;
 using Inventory::BASE_ITEMID;
@@ -98,7 +99,7 @@ private:
     {
         assert(inventoryItem.isSkin());
 
-        const auto paintKit = StaticData::getPaintKit(inventoryItem.get()).id;
+        const auto paintKit = StaticData::lookup().getStorage().getPaintKit(inventoryItem.get()).id;
         econItem.setPaintKit(static_cast<float>(paintKit));
 
         const auto& dynamicData = dynamicSkinData[inventoryItem.getDynamicDataIndex()];
@@ -168,15 +169,13 @@ private:
         econItem->weaponId = item.getWeaponID();
 
         if (item.isSticker()) {
-            econItem->setStickerID(0, StaticData::getStickerID(item));
+            econItem->setStickerID(0, StaticData::lookup().getStorage().getStickerKit(item).id);
         } else if (item.isPatch()) {
-            econItem->setStickerID(0, StaticData::getPatchID(item));
-        } else if (item.isGraffiti()) {
-            econItem->setStickerID(0, StaticData::getGraffitiID(item));
-        } else if (item.isSealedGraffiti()) {
-            econItem->setStickerID(0, StaticData::getSealedGraffitiID(item));
+            econItem->setStickerID(0, StaticData::lookup().getStorage().getPatchKit(item).id);
+        } else if (item.isGraffiti() || item.isSealedGraffiti()) {
+            econItem->setStickerID(0, StaticData::lookup().getStorage().getGraffitiKit(item).id);
         } else if (item.isMusic()) {
-            econItem->setMusicID(StaticData::getMusicID(item));
+            econItem->setMusicID(StaticData::lookup().getStorage().getMusicKit(item).id);
             const auto& dynamicData = dynamicMusicData[inventoryItem.getDynamicDataIndex()];
             if (dynamicData.statTrak > -1) {
                 econItem->setStatTrak(dynamicData.statTrak);
@@ -187,13 +186,13 @@ private:
             initSkinEconItem(inventoryItem, *econItem);
         } else if (item.isGloves()) {
             econItem->quality = 3;
-            econItem->setPaintKit(static_cast<float>(StaticData::getPaintKit(item).id));
+            econItem->setPaintKit(static_cast<float>(StaticData::lookup().getStorage().getPaintKit(item).id));
 
             const auto& dynamicData = dynamicGloveData[inventoryItem.getDynamicDataIndex()];
             econItem->setWear(dynamicData.wear);
             econItem->setSeed(static_cast<float>(dynamicData.seed));
         } else if (item.isCollectible()) {
-            if (StaticData::isCollectibleGenuine(item))
+            if (StaticData::lookup().getStorage().isCollectibleGenuine(item))
                 econItem->quality = 1;
         } else if (item.isAgent()) {
             const auto& dynamicData = dynamicAgentData[inventoryItem.getDynamicDataIndex()];
@@ -210,7 +209,7 @@ private:
         } else if (item.isTournamentCoin()) {
             econItem->setDropsAwarded(dynamicTournamentCoinData[inventoryItem.getDynamicDataIndex()].dropsAwarded);
             econItem->setDropsRedeemed(0);
-        } else if (item.isCase() && StaticData::getCase(item).isSouvenirPackage()) {
+        } else if (item.isCase() && StaticData::isSouvenirPackage(item)) {
             if (const auto& dynamicData = dynamicSouvenirPackageData[inventoryItem.getDynamicDataIndex()]; dynamicData.tournamentStage != TournamentStage{ 0 }) {
                 econItem->setTournamentStage(static_cast<int>(dynamicData.tournamentStage));
                 econItem->setTournamentTeam1(static_cast<int>(dynamicData.tournamentTeam1));

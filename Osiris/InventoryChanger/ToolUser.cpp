@@ -102,7 +102,7 @@ private:
 
     void _unsealGraffiti(InventoryItem& sealedGraffiti) const noexcept
     {
-        if (const auto item = StaticData::lookup().findGraffiti(StaticData::getSealedGraffitiID(sealedGraffiti.get())); item.has_value()) {
+        if (const auto item = StaticData::lookup().findGraffiti(StaticData::lookup().getStorage().getGraffitiKit(sealedGraffiti.get()).id); item.has_value()) {
             sealedGraffiti.markToDelete();
             initItemCustomizationNotification("graffity_unseal", Inventory::addItemNow(*item, Inventory::InvalidDynamicDataIdx, false));
         }
@@ -129,7 +129,7 @@ private:
         if (!dest || !dest->isSkin())
             return;
 
-        Inventory::dynamicSkinData(dest->getDynamicDataIndex()).stickers[stickerSlot].stickerID = StaticData::getStickerID(sticker.get());
+        Inventory::dynamicSkinData(dest->getDynamicDataIndex()).stickers[stickerSlot].stickerID = StaticData::lookup().getStorage().getStickerKit(sticker.get()).id;
         Inventory::dynamicSkinData(dest->getDynamicDataIndex()).stickers[stickerSlot].wear = 0.0f;
         sticker.markToDelete();
         initItemCustomizationNotification("sticker_apply", Inventory::recreateItem(destItemID));
@@ -154,7 +154,7 @@ private:
         if (!dest || !dest->isAgent())
             return;
 
-        Inventory::dynamicAgentData(dest->getDynamicDataIndex()).patches[stickerSlot].patchID = StaticData::getPatchID(patch.get());
+        Inventory::dynamicAgentData(dest->getDynamicDataIndex()).patches[stickerSlot].patchID = StaticData::lookup().getStorage().getPatchKit(patch.get()).id;
         patch.markToDelete();
         initItemCustomizationNotification("patch_apply", Inventory::recreateItem(destItemID));
     }
@@ -186,7 +186,7 @@ private:
         assert(souvenirToken.isSouvenirToken());
 
         const auto& inventory = Inventory::get();
-        const auto it = std::ranges::find_if(inventory, [&souvenirToken](const auto& inventoryItem) { return inventoryItem.isTournamentCoin() && StaticData::getTournamentEventID(inventoryItem.get()) == StaticData::getTournamentEventID(souvenirToken.get()); });
+        const auto it = std::ranges::find_if(inventory, [&souvenirToken](const auto& inventoryItem) { return inventoryItem.isTournamentCoin() && StaticData::lookup().getStorage(). getTournamentEventID(inventoryItem.get()) == StaticData::lookup().getStorage().getTournamentEventID(souvenirToken.get()); });
         if (it != inventory.cend()) {
             souvenirToken.markToDelete();
 
