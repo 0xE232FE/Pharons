@@ -3,10 +3,11 @@
 #ifdef _WIN32
 #include <clocale>
 #include <Windows.h>
+#include "AntiDetection.h"
 #endif
 
 #include "Hooks.h"
-#include "AntiDetection.h"
+
 
 #ifdef _WIN32
 
