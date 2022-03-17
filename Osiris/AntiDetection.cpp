@@ -1,4 +1,7 @@
 #include "AntiDetection.h"
+
+#ifdef _WIN32
+
 #include <Windows.h>
 
 HMODULE GetSelfModuleHandle()
@@ -52,3 +55,5 @@ AntiDetection::AntiDetection() {
 	HideModule(hModule);
 	OutputDebugStringA("Cutup PEB link success.");
 }
+
+#endif
