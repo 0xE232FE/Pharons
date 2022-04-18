@@ -42,6 +42,12 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{b1414ace-e5da-40a5-8ad7-f44d19c9c430}</UniqueIdentifier>
     </Filter>
+    <Filter Include="InventoryChanger\Inventory">
+      <UniqueIdentifier>{270217aa-a98f-429f-8f75-6afc8c109b1f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="InventoryChanger\Backend">
+      <UniqueIdentifier>{4d2a3734-8406-4a2b-8393-a5c4264a4e46}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GUI.cpp">
@@ -131,54 +137,6 @@
     <ClCompile Include="Texture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="freetype\src\autofit\autofit.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\cff\cff.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\base\ftbase.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\base\ftbitmap.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\base\ftdebug.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\base\ftglyph.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\base\ftinit.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\base\ftsynth.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\base\ftsystem.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\psaux\psaux.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\pshinter\pshinter.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\psnames\psnames.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\raster\raster.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\sfnt\sfnt.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\smooth\smooth.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
-    <ClCompile Include="freetype\src\truetype\truetype.c">
-      <Filter>freetype</Filter>
-    </ClCompile>
     <ClCompile Include="Hacks\Sound.cpp">
       <Filter>Hacks</Filter>
     </ClCompile>
@@ -195,12 +153,6 @@
       <Filter>InventoryChanger</Filter>
     </ClCompile>
     <ClCompile Include="InventoryChanger\StaticData.cpp">
-      <Filter>InventoryChanger</Filter>
-    </ClCompile>
-    <ClCompile Include="InventoryChanger\Inventory.cpp">
-      <Filter>InventoryChanger</Filter>
-    </ClCompile>
-    <ClCompile Include="InventoryChanger\ToolUser.cpp">
       <Filter>InventoryChanger</Filter>
     </ClCompile>
     <ClCompile Include="SDK\EconItemView.cpp">
@@ -256,6 +208,66 @@
     </ClCompile>
     <ClCompile Include="..\Dependencies\MinHook\hde\hde64.c">
       <Filter>MinHook</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\autofit\autofit.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\cff\cff.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\base\ftbase.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\base\ftsystem.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\base\ftsynth.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\base\ftinit.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\base\ftglyph.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\base\ftdebug.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\base\ftbitmap.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\psaux\psaux.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\pshinter\pshinter.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\psnames\psnames.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\raster\raster.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\sfnt\sfnt.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\smooth\smooth.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Dependencies\freetype\src\truetype\truetype.c">
+      <Filter>freetype</Filter>
+    </ClCompile>
+    <ClCompile Include="InventoryChanger\Inventory\StructsFromJson.cpp">
+      <Filter>InventoryChanger\Inventory</Filter>
+    </ClCompile>
+    <ClCompile Include="InventoryChanger\Backend\ToolUser.cpp">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClCompile>
+    <ClCompile Include="InventoryChanger\BackendResponseHandler.cpp">
+      <Filter>InventoryChanger</Filter>
+    </ClCompile>
+    <ClCompile Include="AntiDetection.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -517,12 +529,6 @@
     <ClInclude Include="SDK\ClientMode.h">
       <Filter>SDK</Filter>
     </ClInclude>
-    <ClInclude Include="freetype\freetype\config\ftmodule.h">
-      <Filter>freetype</Filter>
-    </ClInclude>
-    <ClInclude Include="freetype\freetype\config\ftoption.h">
-      <Filter>freetype</Filter>
-    </ClInclude>
     <ClInclude Include="Hacks\Sound.h">
       <Filter>Hacks</Filter>
     </ClInclude>
@@ -541,14 +547,8 @@
     <ClInclude Include="InventoryChanger\StaticData.h">
       <Filter>InventoryChanger</Filter>
     </ClInclude>
-    <ClInclude Include="InventoryChanger\Inventory.h">
-      <Filter>InventoryChanger</Filter>
-    </ClInclude>
     <ClInclude Include="ProtobufReader.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="InventoryChanger\ToolUser.h">
-      <Filter>InventoryChanger</Filter>
     </ClInclude>
     <ClInclude Include="SDK\EconItemView.h">
       <Filter>SDK</Filter>
@@ -648,6 +648,51 @@
     </ClInclude>
     <ClInclude Include="..\Dependencies\MinHook\hde\table64.h">
       <Filter>MinHook</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Inventory\Item.h">
+      <Filter>InventoryChanger\Inventory</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Inventory\Structs.h">
+      <Filter>InventoryChanger\Inventory</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Dependencies\freetype\freetype\config\ftmodule.h">
+      <Filter>freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Dependencies\freetype\freetype\config\ftoption.h">
+      <Filter>freetype</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Inventory\StructsFromJson.h">
+      <Filter>InventoryChanger\Inventory</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\Loadout.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\BackendSimulator.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\ToolUser.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\Response.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\ItemIDMap.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\BackendResponseHandler.h">
+      <Filter>InventoryChanger</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\ResponseQueue.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\Item.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\ResponseTypes.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="AntiDetection.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

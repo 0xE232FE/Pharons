@@ -36,47 +36,47 @@ public:
     void addSouvenirToken(EconRarity rarity, WeaponId weaponID, std::uint32_t tournamentEventID, std::string_view iconPath);
     void addViewerPass(EconRarity rarity, WeaponId weaponID, std::uint32_t tournamentEventID, std::string_view iconPath);
 
-    const auto& getStickerKit(const Item& item) const
+    [[nodiscard]] const auto& getStickerKit(const Item& item) const
     {
         assert(item.isSticker());
         return stickerKits[item.getDataIndex()];
     }
 
-    const auto& getMusicKit(const Item& item) const
+    [[nodiscard]] const auto& getMusicKit(const Item& item) const
     {
         assert(item.isMusic());
         return musicKits[item.getDataIndex()];
     }
 
-    const auto& getPaintKit(const Item& item) const
+    [[nodiscard]] const auto& getPaintKit(const Item& item) const
     {
         assert(item.isSkin() || item.isGloves());
         return paintKits[item.getDataIndex()];
     }
 
-    const auto& getGraffitiKit(const Item& item) const
+    [[nodiscard]] const auto& getGraffitiKit(const Item& item) const
     {
         assert(item.isGraffiti());
         return graffitiKits[item.getDataIndex()];
     }
 
-    const auto& getPatchKit(const Item& item) const
+    [[nodiscard]] const auto& getPatch(const Item& item) const
     {
         assert(item.isPatch());
-        return patchKits[item.getDataIndex()];
+        return patches[item.getDataIndex()];
     }
 
-    std::span<Item> getItems()
+    [[nodiscard]] std::span<Item> getItems()
     {
         return items;
     }
 
-    std::span<const Item> getItems() const
+    [[nodiscard]] std::span<const Item> getItems() const
     {
         return items;
     }
 
-    std::span<const PaintKit> getPaintKits() const
+    [[nodiscard]] std::span<const PaintKit> getPaintKits() const
     {
         return paintKits;
     }
@@ -119,7 +119,7 @@ private:
     std::vector<StickerKit> stickerKits;
     std::vector<MusicKit> musicKits;
     std::vector<GraffitiKit> graffitiKits;
-    std::vector<PatchKit> patchKits;
+    std::vector<Patch> patches;
     std::vector<Item> items;
 };
 
