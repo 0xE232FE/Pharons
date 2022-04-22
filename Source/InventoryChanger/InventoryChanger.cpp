@@ -453,7 +453,7 @@ void InventoryChanger::run(FrameStage stage) noexcept
     }
 
     processEquipRequests();
-    BackendSimulator::instance().run(inventory_changer::BackendResponseHandler{ BackendSimulator::instance() }, std::chrono::milliseconds{ 200 });
+    BackendSimulator::instance().run(inventory_changer::BackendResponseHandler{ BackendSimulator::instance() }, std::chrono::milliseconds{ 300 });
 }
 
 void InventoryChanger::scheduleHudUpdate() noexcept
@@ -512,12 +512,14 @@ void InventoryChanger::updateStatTrak(GameEvent& event) noexcept
         inventory_changer::backend::BackendSimulator::instance().updateStatTrak(item, skin->statTrak + 1);
 }
 
+[[nodiscard]] static bool isLocalPlayerMVP(GameEvent& event)
+{
+    return localPlayer && localPlayer->getUserId() == event.getInt("userid");
+}
+
 void InventoryChanger::onRoundMVP(GameEvent& event) noexcept
 {
-    if (!localPlayer)
-        return;
-
-    if (const auto localUserId = localPlayer->getUserId(); event.getInt("userid") != localUserId)
+    if (!isLocalPlayerMVP(event))
         return;
 
     const auto optionalItem = inventory_changer::backend::BackendSimulator::instance().getLoadout().getItemInSlotNoTeam(54);

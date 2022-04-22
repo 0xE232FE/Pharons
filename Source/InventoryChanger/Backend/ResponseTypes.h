@@ -36,26 +36,17 @@ struct ItemRemoved {
     std::uint64_t itemID;
 };
 
-struct StickerApplied {
-    StickerApplied(ItemConstIterator skinItem, std::uint8_t stickerSlot) : skinItem{ skinItem }, stickerSlot{ stickerSlot } {}
+template <typename Tag>
+struct StickerModified {
+    StickerModified(ItemConstIterator skinItem, std::uint8_t stickerSlot) : skinItem{ skinItem }, stickerSlot{ stickerSlot } {}
 
     ItemConstIterator skinItem;
     std::uint8_t stickerSlot;
 };
 
-struct StickerScraped {
-    StickerScraped(ItemConstIterator skinItem, std::uint8_t stickerSlot) : skinItem{ skinItem }, stickerSlot{ stickerSlot } {}
-
-    ItemConstIterator skinItem;
-    std::uint8_t stickerSlot;
-};
-
-struct StickerRemoved {
-    StickerRemoved(ItemConstIterator skinItem, std::uint8_t stickerSlot) : skinItem{ skinItem }, stickerSlot{ stickerSlot } {}
-
-    ItemConstIterator skinItem;
-    std::uint8_t stickerSlot;
-};
+using StickerApplied = StickerModified<struct StickerAppliedTag>;
+using StickerScraped = StickerModified<struct StickerScrapedTag>;
+using StickerRemoved = StickerModified<struct StickerRemovedTag>;
 
 struct StatTrakUpdated {
     StatTrakUpdated(std::uint64_t itemID, int newStatTrakValue) : itemID{ itemID }, newStatTrakValue{ newStatTrakValue } {}
@@ -70,17 +61,15 @@ struct ViewerPassActivated {
     ItemConstIterator createdEventCoin;
 };
 
-struct NameTagAdded {
-    explicit NameTagAdded(ItemConstIterator skinItem) : skinItem{ skinItem } {}
+template <typename Tag>
+struct NameTagModified {
+    explicit NameTagModified(ItemConstIterator skinItem) : skinItem{ skinItem } {}
 
     ItemConstIterator skinItem;
 };
 
-struct NameTagRemoved {
-    explicit NameTagRemoved(ItemConstIterator skinItem) : skinItem{ skinItem } {}
-
-    ItemConstIterator skinItem;
-};
+using NameTagAdded = NameTagModified<struct NameTagAddedTag>;
+using NameTagRemoved = NameTagModified<struct NameTagRemovedTag>;
 
 struct ContainerOpened {
     explicit ContainerOpened(ItemConstIterator receivedItem) : receivedItem{ receivedItem } {}
@@ -88,19 +77,16 @@ struct ContainerOpened {
     ItemConstIterator receivedItem;
 };
 
-struct PatchApplied {
-    PatchApplied(ItemConstIterator agentItem, std::uint8_t patchSlot) : agentItem{ agentItem }, patchSlot{ patchSlot } {}
+template <typename Tag>
+struct PatchModified {
+    PatchModified(ItemConstIterator agentItem, std::uint8_t patchSlot) : agentItem{ agentItem }, patchSlot{ patchSlot } {}
 
     ItemConstIterator agentItem;
     std::uint8_t patchSlot;
 };
 
-struct PatchRemoved {
-    PatchRemoved(ItemConstIterator agentItem, std::uint8_t patchSlot) : agentItem{ agentItem }, patchSlot{ patchSlot } {}
-
-    ItemConstIterator agentItem;
-    std::uint8_t patchSlot;
-};
+using PatchApplied = PatchModified<struct PatchAppliedTag>;
+using PatchRemoved = PatchModified<struct PatchRemovedTag>;
 
 struct SouvenirTokenActivated {
     explicit SouvenirTokenActivated(ItemConstIterator tournamentCoin) : tournamentCoin{ tournamentCoin } {}

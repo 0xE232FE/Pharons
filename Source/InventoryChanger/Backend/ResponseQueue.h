@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <queue>
+#include <utility>
 #include <variant>
 
 #include "Response.h"
@@ -9,6 +10,7 @@
 namespace inventory_changer::backend
 {
 
+template <typename Clock = std::chrono::steady_clock>
 class ResponseQueue {
 public:
     void add(const Response& response)
@@ -17,20 +19,19 @@ public:
     }
 
     template <typename Visitor>
-    void visit(Visitor visitor, std::chrono::milliseconds delay)
+    void visit(Visitor&& visitor, std::chrono::milliseconds delay)
     {
         while (!responses.empty()) {
             const auto& [timestamp, response] = responses.front();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - timestamp) < delay)
+            if (Clock::now() - timestamp < delay)
                 break;
-            std::visit(visitor, response.data);
+            std::visit(std::forward<Visitor>(visitor), response.data);
             responses.pop();
         }
     }
 
 private:
-    using Clock = std::chrono::steady_clock;
-    std::queue<std::pair<Clock::time_point, Response>> responses;
+    std::queue<std::pair<typename Clock::time_point, Response>> responses;
 };
 
 }
