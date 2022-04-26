@@ -7,31 +7,14 @@
 #include "Item.h"
 #include "ItemIDMap.h"
 #include "Loadout.h"
+#include "RequestHandler.h"
 #include "Response.h"
 #include "ResponseQueue.h"
-#include "ToolUser.h"
 
 #include <InventoryChanger/StaticData.h>
 
 namespace inventory_changer::backend
 {
-
-struct UseToolRequest {
-    enum class Action {
-        None,
-        Use,
-        WearSticker,
-        RemoveNameTag
-    };
-
-    std::uint64_t toolItemID = 0;
-    std::uint64_t destItemID = 0;
-    std::uint64_t statTrakSwapItem1 = 0;
-    std::uint64_t statTrakSwapItem2 = 0;
-    Action action = Action::None;
-    int stickerSlot = 0;
-    std::string nameTag;
-};
 
 class BackendSimulator {
 public:
@@ -112,15 +95,6 @@ public:
         return newIterator;
     }
 
-    void updateStatTrak(ItemConstIterator it, int newStatTrak)
-    {
-        if (!updateStatTrak(*removeConstness(it), newStatTrak))
-            return;
-
-        if (const auto itemID = getItemID(it); itemID.has_value())
-            responseQueue.add(response::StatTrakUpdated{ *itemID, newStatTrak });
-    }
-
     void moveToFront(ItemConstIterator it)
     {
         inventory.splice(inventory.end(), inventory, it);
@@ -148,9 +122,10 @@ public:
         return itemIDMap.getItemID(it);
     }
 
-    void useTool(const UseToolRequest& request)
+    template <typename Request, typename... Args>
+    void handleRequest(Args&&... args)
     {
-        if (const auto response = processUseToolRequest(request); !response.isEmpty())
+        if (const auto response = RequestHandler{ *this, gameItemLookup, ItemConstRemover{ inventory } }(Request{ std::forward<Args>(args)... }); !isEmptyResponse(response))
             responseQueue.add(response);
     }
 
@@ -167,69 +142,6 @@ private:
         const auto added = std::prev(inventory.end());
         responseQueue.add(response::ItemAdded{ added, asUnacknowledged });
         return added;
-    }
-
-    Response processUseToolRequest(const UseToolRequest& request)
-    {
-        const auto destItem = itemIDMap.get(request.destItemID);
-        const auto tool = itemIDMap.get(request.toolItemID);
-
-        if (request.action == UseToolRequest::Action::Use) {
-            if (destItem.has_value() && (*destItem)->gameItem().isCase())
-                return ToolUser{ *this, gameItemLookup }.openContainer(*destItem, tool);
-
-            if (!tool.has_value())
-                return {};
-
-            if ((*tool)->gameItem().isSticker()) {
-                if (!destItem.has_value())
-                    return {};
-
-                return ToolUser{ *this, gameItemLookup }.applySticker(removeConstness(*destItem), *tool, request.stickerSlot);
-            } else if ((*tool)->gameItem().isOperationPass()) {
-                ToolUser{ *this, gameItemLookup }.activateOperationPass(*tool);
-            } else if ((*tool)->gameItem().isViewerPass()) {
-                return ToolUser{ *this, gameItemLookup }.activateViewerPass(*tool);
-            } else if ((*tool)->gameItem().isNameTag()) {
-                if (!destItem.has_value())
-                    return {};
-
-                return ToolUser{ *this, gameItemLookup }.addNameTag(removeConstness(*destItem), *tool, request.nameTag);
-            } else if ((*tool)->gameItem().isPatch()) {
-                if (!destItem.has_value())
-                    return {};
-
-                return ToolUser{ *this, gameItemLookup }.applyPatch(removeConstness(*destItem), *tool, request.stickerSlot);
-            } else if ((*tool)->gameItem().isGraffiti()) {
-                return ToolUser{ *this, gameItemLookup }.unsealGraffiti(removeConstness(*tool));
-            }
-        } else if (request.action == UseToolRequest::Action::WearSticker) {
-            if (!destItem.has_value())
-                return {};
-            return ToolUser{ *this, gameItemLookup }.wearSticker(removeConstness(*destItem), request.stickerSlot);
-        }
-
-        return {};
-    }
-
-    static bool updateStatTrak(inventory::Item& item, int newStatTrak)
-    {
-        if (const auto skin = item.get<inventory::Skin>()) {
-            skin->statTrak = newStatTrak;
-            return true;
-        }
-
-        if (const auto music = item.get<inventory::Music>()) {
-            music->statTrak = newStatTrak;
-            return true;
-        }
-
-        return false;
-    }
-
-    [[nodiscard]] ItemIterator removeConstness(ItemConstIterator it)
-    {
-        return inventory.erase(it, it);
     }
 
     ItemList inventory;

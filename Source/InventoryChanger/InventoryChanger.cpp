@@ -382,8 +382,6 @@ static void applyMedal() noexcept
     pr->activeCoinRank()[localPlayer->index()] = static_cast<int>(item->gameItem().getWeaponID());
 }
 
-static inventory_changer::backend::UseToolRequest useToolRequest;
-
 struct EquipRequest {
     std::chrono::steady_clock::time_point time;
     std::uint64_t itemID;
@@ -447,11 +445,6 @@ void InventoryChanger::run(FrameStage stage) noexcept
 
     using namespace inventory_changer::backend;
 
-    if (useToolRequest.action != UseToolRequest::Action::None) {
-        BackendSimulator::instance().useTool(useToolRequest);
-        useToolRequest.action = UseToolRequest::Action::None;
-    }
-
     processEquipRequests();
     BackendSimulator::instance().run(inventory_changer::BackendResponseHandler{ BackendSimulator::instance() }, std::chrono::milliseconds{ 300 });
 }
@@ -509,7 +502,7 @@ void InventoryChanger::updateStatTrak(GameEvent& event) noexcept
         return;
 
     if (skin->statTrak > -1)
-        inventory_changer::backend::BackendSimulator::instance().updateStatTrak(item, skin->statTrak + 1);
+        inventory_changer::backend::BackendSimulator::instance().handleRequest<inventory_changer::backend::request::UpdateStatTrak>(item, skin->statTrak + 1);
 }
 
 [[nodiscard]] static bool isLocalPlayerMVP(GameEvent& event)
@@ -533,7 +526,7 @@ void InventoryChanger::onRoundMVP(GameEvent& event) noexcept
 
     if (music->statTrak > -1) {
         event.setInt("musickitmvps", music->statTrak + 1);
-        inventory_changer::backend::BackendSimulator::instance().updateStatTrak(item, music->statTrak + 1);
+        inventory_changer::backend::BackendSimulator::instance().handleRequest<inventory_changer::backend::request::UpdateStatTrak>(item, music->statTrak + 1);
     }
 }
 
@@ -1073,21 +1066,138 @@ static std::uint64_t stringToUint64(const char* str) noexcept
     return result;
 }
 
+namespace inventory_changer
+{
+    class BackendRequestBuilder {
+    public:
+        explicit BackendRequestBuilder(backend::BackendSimulator& backend) : backend{ backend } {}
+
+        void setToolItemID(std::uint64_t itemID) noexcept
+        {
+            toolItemID = itemID;
+        }
+
+        void setStickerSlot(std::uint8_t slot) noexcept
+        {
+            stickerSlot = slot;
+        }
+
+        void setStatTrakSwapItem1(std::uint64_t itemID) noexcept
+        {
+            statTrakSwapItemID1 = itemID;
+        }
+
+        void setStatTrakSwapItem2(std::uint64_t itemID) noexcept
+        {
+            statTrakSwapItemID2 = itemID;
+        }
+
+        void setNameTag(std::string_view newName)
+        {
+            nameTag = newName;
+        }
+
+        void useToolOn(std::uint64_t destItemID)
+        {
+            const auto toolItem = backend.itemFromID(toolItemID);
+            const auto destItem = backend.itemFromID(destItemID);
+
+            if (toolItem.has_value() && destItem.has_value()) {
+                useToolOnItem(*toolItem, *destItem);
+            } else if (toolItem.has_value()) {
+                useTool(*toolItem);
+            } else if (destItem.has_value()) {
+                useItem(*destItem);
+            }
+        }
+
+        void wearStickerOf(std::uint64_t itemID)
+        {
+            const auto item = backend.itemFromID(itemID);
+            if (!item.has_value())
+                return;
+
+            if (const auto gameItem = (*item)->gameItem(); gameItem.isSkin())
+                backend.handleRequest<backend::request::WearSticker>(*item, stickerSlot);
+            else if (gameItem.isAgent())
+                backend.handleRequest<backend::request::RemovePatch>(*item, stickerSlot);
+        }
+
+        void removeNameTagFrom(std::uint64_t itemID)
+        {
+            const auto item = backend.itemFromID(itemID);
+            if (!item.has_value())
+                return;
+
+            backend.handleRequest<backend::request::RemoveNameTag>(*item);
+        }
+
+        [[nodiscard]] static BackendRequestBuilder& instance()
+        {
+            static BackendRequestBuilder builder{ backend::BackendSimulator::instance() };
+            return builder;
+        }
+
+    private:
+        void useToolOnItem(backend::ItemConstIterator tool, backend::ItemConstIterator destItem)
+        {
+            if (tool->gameItem().isSticker() && destItem->gameItem().isSkin()) {
+                backend.handleRequest<backend::request::ApplySticker>(destItem, tool, stickerSlot);
+            } else if (tool->gameItem().isCaseKey() && destItem->gameItem().isCase()) {
+                backend.handleRequest<backend::request::OpenContainer>(destItem, tool);
+            } else if (tool->gameItem().isPatch() && destItem->gameItem().isAgent()) {
+                backend.handleRequest<backend::request::ApplyPatch>(destItem, tool, stickerSlot);
+            } else if (tool->gameItem().isNameTag() && destItem->gameItem().isSkin()) {
+                backend.handleRequest<backend::request::AddNameTag>(destItem, tool, nameTag);
+            }
+        }
+
+        void useTool(backend::ItemConstIterator tool)
+        {
+            if (tool->gameItem().isStatTrakSwapTool()) {
+                const auto statTrakSwapItem1 = backend.itemFromID(statTrakSwapItemID1);
+                const auto statTrakSwapItem2 = backend.itemFromID(statTrakSwapItemID2);
+
+                if (statTrakSwapItem1.has_value() && statTrakSwapItem2.has_value())
+                    backend.handleRequest<backend::request::SwapStatTrak>(*statTrakSwapItem1, *statTrakSwapItem2, tool);
+            } else if (tool->gameItem().isOperationPass()) {
+                backend.handleRequest<backend::request::ActivateOperationPass>(tool);
+            } else if (tool->gameItem().isViewerPass()) {
+                backend.handleRequest<backend::request::ActivateViewerPass>(tool);
+            } else if (tool->gameItem().isSouvenirToken()) {
+                backend.handleRequest<backend::request::ActivateSouvenirToken>(tool);
+            } else if (tool->gameItem().isGraffiti()) {
+                backend.handleRequest<backend::request::UnsealGraffiti>(tool);
+            }
+        }
+
+        void useItem(backend::ItemConstIterator item)
+        {
+            if (item->gameItem().isCase())
+                backend.handleRequest<backend::request::OpenContainer>(item);
+        }
+
+        backend::BackendSimulator& backend;
+        std::uint64_t toolItemID = 0;
+        std::uint8_t stickerSlot = 0;
+        std::uint64_t statTrakSwapItemID1 = 0;
+        std::uint64_t statTrakSwapItemID2 = 0;
+        std::string nameTag;
+    };
+}
+
 void InventoryChanger::getArgAsStringHook(const char* string, std::uintptr_t returnAddress) noexcept
 {
     if (returnAddress == memory->useToolGetArgAsStringReturnAddress) {
-        useToolRequest.toolItemID = stringToUint64(string);
+        inventory_changer::BackendRequestBuilder::instance().setToolItemID(stringToUint64(string));
     } else if (returnAddress == memory->useToolGetArg2AsStringReturnAddress) {
-        useToolRequest.destItemID = stringToUint64(string);
-        useToolRequest.action = inventory_changer::backend::UseToolRequest::Action::Use;
+        inventory_changer::BackendRequestBuilder::instance().useToolOn(stringToUint64(string));
     } else if (returnAddress == memory->wearItemStickerGetArgAsStringReturnAddress) {
-        useToolRequest.destItemID = stringToUint64(string);
-        useToolRequest.action = inventory_changer::backend::UseToolRequest::Action::WearSticker;
+        inventory_changer::BackendRequestBuilder::instance().wearStickerOf(stringToUint64(string));
     } else if (returnAddress == memory->setNameToolStringGetArgAsStringReturnAddress) {
-        useToolRequest.nameTag = string;
+        inventory_changer::BackendRequestBuilder::instance().setNameTag(string);
     } else if (returnAddress == memory->clearCustomNameGetArgAsStringReturnAddress) {
-        useToolRequest.destItemID = stringToUint64(string);
-        useToolRequest.action = inventory_changer::backend::UseToolRequest::Action::RemoveNameTag;
+        inventory_changer::BackendRequestBuilder::instance().removeNameTagFrom(stringToUint64(string));
     } else if (returnAddress == memory->deleteItemGetArgAsStringReturnAddress) {
         auto& backend = inventory_changer::backend::BackendSimulator::instance();
         if (const auto itOptional = backend.itemFromID(stringToUint64(string)); itOptional.has_value())
@@ -1095,16 +1205,16 @@ void InventoryChanger::getArgAsStringHook(const char* string, std::uintptr_t ret
     } else if (returnAddress == memory->acknowledgeNewItemByItemIDGetArgAsStringReturnAddress) {
         InventoryChanger::acknowledgeItem(stringToUint64(string));
     } else if (returnAddress == memory->setStatTrakSwapToolItemsGetArgAsStringReturnAddress1) {
-        useToolRequest.statTrakSwapItem1 = stringToUint64(string);
+        inventory_changer::BackendRequestBuilder::instance().setStatTrakSwapItem1(stringToUint64(string));
     } else if (returnAddress == memory->setStatTrakSwapToolItemsGetArgAsStringReturnAddress2) {
-        useToolRequest.statTrakSwapItem2 = stringToUint64(string);
+        inventory_changer::BackendRequestBuilder::instance().setStatTrakSwapItem2(stringToUint64(string));
     }
 }
 
 void InventoryChanger::getArgAsNumberHook(int number, std::uintptr_t returnAddress) noexcept
 {
     if (returnAddress == memory->setStickerToolSlotGetArgAsNumberReturnAddress || returnAddress == memory->wearItemStickerGetArgAsNumberReturnAddress)
-        useToolRequest.stickerSlot = number;
+        inventory_changer::BackendRequestBuilder::instance().setStickerSlot(static_cast<std::uint8_t>(number));
 }
 
 struct Icon {

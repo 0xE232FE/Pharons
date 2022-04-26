@@ -260,14 +260,14 @@
     <ClCompile Include="InventoryChanger\Inventory\StructsFromJson.cpp">
       <Filter>InventoryChanger\Inventory</Filter>
     </ClCompile>
-    <ClCompile Include="InventoryChanger\Backend\ToolUser.cpp">
-      <Filter>InventoryChanger\Backend</Filter>
-    </ClCompile>
     <ClCompile Include="InventoryChanger\BackendResponseHandler.cpp">
       <Filter>InventoryChanger</Filter>
     </ClCompile>
     <ClCompile Include="AntiDetection.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="InventoryChanger\Backend\RequestHandler.cpp">
+      <Filter>InventoryChanger\Backend</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -670,9 +670,6 @@
     <ClInclude Include="InventoryChanger\Backend\BackendSimulator.h">
       <Filter>InventoryChanger\Backend</Filter>
     </ClInclude>
-    <ClInclude Include="InventoryChanger\Backend\ToolUser.h">
-      <Filter>InventoryChanger\Backend</Filter>
-    </ClInclude>
     <ClInclude Include="InventoryChanger\Backend\Response.h">
       <Filter>InventoryChanger\Backend</Filter>
     </ClInclude>
@@ -693,6 +690,12 @@
     </ClInclude>
     <ClInclude Include="AntiDetection.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\RequestTypes.h">
+      <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\Backend\RequestHandler.h">
+      <Filter>InventoryChanger\Backend</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
