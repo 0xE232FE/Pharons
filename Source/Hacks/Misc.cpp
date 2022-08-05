@@ -21,7 +21,7 @@
 #include "EnginePrediction.h"
 #include "Misc.h"
 
-#include "../SDK/ClassId.h"
+#include <SDK/Constants/ClassId.h>
 #include "../SDK/Client.h"
 #include "../SDK/ClientClass.h"
 #include "../SDK/ClientMode.h"
@@ -31,7 +31,7 @@
 #include "../SDK/EngineTrace.h"
 #include "../SDK/Entity.h"
 #include "../SDK/EntityList.h"
-#include "../SDK/FrameStage.h"
+#include <SDK/Constants/FrameStage.h>
 #include "../SDK/GameEvent.h"
 #include "../SDK/GlobalVars.h"
 #include "../SDK/ItemSchema.h"
@@ -815,7 +815,7 @@ void Misc::playHitSound(GameEvent& event) noexcept
     if (const auto localUserId = localPlayer->getUserId(); event.getInt("attacker") != localUserId || event.getInt("userid") == localUserId)
         return;
 
-    constexpr std::array hitSounds{
+    static constexpr std::array hitSounds{
         "play physics/metal/metal_solid_impact_bullet2",
         "play buttons/arena_switch_press_02",
         "play training/timer_bell",
@@ -839,7 +839,7 @@ void Misc::killSound(GameEvent& event) noexcept
     if (const auto localUserId = localPlayer->getUserId(); event.getInt("attacker") != localUserId || event.getInt("userid") == localUserId)
         return;
 
-    constexpr std::array killSounds{
+    static constexpr std::array killSounds{
         "play physics/metal/metal_solid_impact_bullet2",
         "play buttons/arena_switch_press_02",
         "play training/timer_bell",

@@ -20,6 +20,7 @@
 #include "Hacks/Backtrack.h"
 #include "Hacks/Glow.h"
 #include "InventoryChanger/InventoryChanger.h"
+#include "InventoryChanger/InventoryConfig.h"
 #include "Hacks/Sound.h"
 #include "Hacks/Visuals.h"
 #include "Hacks/Misc.h"
@@ -309,7 +310,7 @@ void Config::load(const char8_t* name, bool incremental) noexcept
     Backtrack::fromJson(j["Backtrack"]);
     Glow::fromJson(j["Glow"]);
     Visuals::fromJson(j["Visuals"]);
-    InventoryChanger::fromJson(j["Inventory Changer"]);
+    fromJson(j["Inventory Changer"], inventory_changer::InventoryChanger::instance());
     Sound::fromJson(j["Sound"]);
     Misc::fromJson(j["Misc"]);
 }
@@ -526,7 +527,7 @@ void Config::save(size_t id) const noexcept
     j["Visuals"] = Visuals::toJson();
     j["Misc"] = Misc::toJson();
     j["Style"] = style;
-    j["Inventory Changer"] = InventoryChanger::toJson();
+    j["Inventory Changer"] = toJson(inventory_changer::InventoryChanger::instance());
 
     removeEmptyObjects(j);
 
@@ -569,7 +570,7 @@ void Config::reset() noexcept
     Backtrack::resetConfig();
     Glow::resetConfig();
     Visuals::resetConfig();
-    InventoryChanger::resetConfig();
+    inventory_changer::InventoryChanger::instance().reset();
     Sound::resetConfig();
     Misc::resetConfig();
 }

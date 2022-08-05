@@ -143,6 +143,11 @@ public:
         return getAttributeValue(137 /* "tournament event id" */);
     }
 
+    std::uint32_t getStickerID() noexcept
+    {
+        return getAttributeValue(113 /* "sticker slot 0 id" */);
+    }
+
     bool hasTournamentEventID() noexcept
     {
         return getTournamentEventID() != 0;
@@ -282,6 +287,9 @@ public:
     VIRTUAL_METHOD(ItemSchema*, getItemSchema, 0, (), (this))
 };
 
+namespace tournament_team
+{
+
 enum TournamentTeam : std::uint8_t {
     None = 0,
     NinjasInPyjamas = 1,
@@ -364,6 +372,7 @@ enum TournamentTeam : std::uint8_t {
     NRG = 87,
     ViCiGaming = 88,
     Vitality = 89,
+    forZeESports = 90,
     Heroic = 95,
     EvilGeniuses = 98,
     CopenhagenFlames = 101,
@@ -371,8 +380,19 @@ enum TournamentTeam : std::uint8_t {
     MovistarRiders = 103,
     SharksEsports = 104,
     Entropiq = 105,
-    MOUZ = 106
+    MOUZ = 106,
+    IHCEsports = 108,
+    Outsiders = 109,
+    EternalFire = 110,
+    ComplexityGaming_ = 111,
+    _9ZTeam = 112,
+    ImperialEsports = 113,
+    BadNewsEagles = 114
 };
+
+}
+
+using tournament_team::TournamentTeam;
 
 enum TournamentStage : std::uint8_t {
     GroupStage = 2,
@@ -382,6 +402,9 @@ enum TournamentStage : std::uint8_t {
     AllStar = 14,
     ChallengersStage = 27
 };
+
+namespace csgo::pro_player
+{
 
 enum ProPlayer {
     f0rest = 93724,
@@ -615,8 +638,28 @@ enum ProPlayer {
     xseveN = 52906775,
     Aleksib = 52977598,
     sergej = 67574097,
-    Aerial = 2445180
+    Aerial = 2445180,
+    JaCkz = 11977189,
+    Lucky = 71624387,
+    VINI = 36104456,
+    KSCERATO = 98234764,
+    arT = 83503844,
+    ableJ = 82940700,
+    yuurih = 204704832,
+    n0rb3r7 = 262176776,
+    Ethan = 169177802,
+    CeRq = 196088155,
+    Brehze = 94595411
 };
+
+}
+
+namespace csgo
+{
+
+using pro_player::ProPlayer;
+
+}
 
 class EconItemAttributeSetter {
 public:
@@ -632,12 +675,18 @@ public:
     void setTournamentStage(EconItem& econItem, int stage) noexcept { setAttributeValue(econItem, 138, &stage); }
     void setTournamentTeam1(EconItem& econItem, int team) noexcept { setAttributeValue(econItem, 139, &team); }
     void setTournamentTeam2(EconItem& econItem, int team) noexcept { setAttributeValue(econItem, 140, &team); }
+    void setCampaignCompletion(EconItem& econItem, std::uint32_t bits) noexcept { setAttributeValue(econItem, 185, &bits); }
     void setTournamentPlayer(EconItem& econItem, int player) noexcept { setAttributeValue(econItem, 223, &player); }
     void setSpecialEventID(EconItem& econItem, int id) noexcept { setAttributeValue(econItem, 267, &id); }
     void setIssueDate(EconItem& econItem, std::uint32_t date) noexcept { setAttributeValue(econItem, 222, &date); }
     void setSpraysRemaining(EconItem& econItem, std::uint32_t n) noexcept { setAttributeValue(econItem, 232, &n); }
     void setDropsAwarded(EconItem& econItem, std::uint32_t n) noexcept { setAttributeValue(econItem, 237, &n); }
     void setDropsRedeemed(EconItem& econItem, std::uint32_t n) noexcept { setAttributeValue(econItem, 240, &n); }
+    void setItemsCount(EconItem& econItem, std::uint32_t itemsCount) noexcept { setAttributeValue(econItem, 270, &itemsCount); }
+    void setModificationDate(EconItem& econItem, std::uint32_t date) noexcept { setAttributeValue(econItem, 271, &date); }
+    void setCasketItemIdLow(EconItem& econItem, std::uint32_t itemIdLow) noexcept { setAttributeValue(econItem, 272, &itemIdLow); }
+    void setCasketItemIdHigh(EconItem& econItem, std::uint32_t itemIdHigh) noexcept { setAttributeValue(econItem, 273, &itemIdHigh); }
+    void removeCasketItemId(EconItem& econItem) noexcept { removeAttribute(econItem, 272); removeAttribute(econItem, 273); }
 
     void setStickerID(EconItem& econItem, int slot, int stickerID) noexcept
     {
@@ -656,6 +705,12 @@ private:
     {
         if (const auto attribute = itemSchema.getAttributeDefinitionInterface(index))
             memory->setDynamicAttributeValue(&econItem, attribute, value);
+    }
+
+    void removeAttribute(EconItem& econItem, int index) noexcept
+    {
+        if (const auto attribute = itemSchema.getAttributeDefinitionInterface(index))
+            memory->removeDynamicAttribute(&econItem, attribute);
     }
 
     ItemSchema& itemSchema;

@@ -10,7 +10,12 @@
 #include "Item.h"
 #include "Structs.h"
 
-namespace game_items
+namespace inventory_changer
+{
+    enum class TournamentMap : std::uint8_t;
+}
+
+namespace inventory_changer::game_items
 {
 
 class Storage {
@@ -23,18 +28,19 @@ public:
     void addCollectible(EconRarity rarity, WeaponId weaponID, bool isOriginal, std::string_view iconPath);
     void addVanillaSkin(WeaponId weaponID, std::string_view iconPath);
     void addServiceMedal(EconRarity rarity, std::uint32_t year, WeaponId weaponID, std::string_view iconPath);
-    void addTournamentCoin(EconRarity rarity, WeaponId weaponID, std::uint32_t tournamentEventID, std::string_view iconPath);
+    void addTournamentCoin(EconRarity rarity, WeaponId weaponID, std::uint8_t tournamentEventID, std::uint16_t defaultGraffitiID, std::string_view iconPath);
     void addPaintKit(int id, ItemName name, float wearRemapMin, float wearRemapMax);
     void addGlovesWithLastPaintKit(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
     void addSkinWithLastPaintKit(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
     void addNameTag(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
     void addAgent(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
-    void addCase(EconRarity rarity, WeaponId weaponID, std::size_t descriptorIndex, std::string_view iconPath);
+    void addCase(EconRarity rarity, WeaponId weaponID, std::uint16_t crateSeries, std::uint8_t tournamentID, TournamentMap map, bool isSouvenirPackage, std::string_view iconPath);
     void addCaseKey(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
     void addOperationPass(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
     void addStatTrakSwapTool(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
-    void addSouvenirToken(EconRarity rarity, WeaponId weaponID, std::uint32_t tournamentEventID, std::string_view iconPath);
-    void addViewerPass(EconRarity rarity, WeaponId weaponID, std::uint32_t tournamentEventID, std::string_view iconPath);
+    void addSouvenirToken(EconRarity rarity, WeaponId weaponID, std::uint8_t tournamentEventID, std::string_view iconPath);
+    void addViewerPass(EconRarity rarity, WeaponId weaponID, std::uint8_t tournamentEventID, std::string_view iconPath);
+    void addStorageUnit(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
 
     [[nodiscard]] const auto& getStickerKit(const Item& item) const
     {
@@ -93,10 +99,39 @@ public:
         return static_cast<bool>(collectible.getDataIndex());
     }
 
-    [[nodiscard]] std::uint32_t getTournamentEventID(const Item& item) const noexcept
+    [[nodiscard]] std::uint8_t getTournamentEventID(const Item& item) const noexcept
     {
-        assert(item.isSouvenirToken() || item.isViewerPass() || item.isTournamentCoin());
-        return static_cast<std::uint32_t>(item.getDataIndex());
+        assert(item.isSouvenirToken() || item.isViewerPass() || item.isTournamentCoin() || item.isCase());
+        return static_cast<std::uint8_t>(item.getDataIndex() & 0xFF);
+    }
+
+    [[nodiscard]] std::uint16_t getDefaultTournamentGraffitiID(const Item& item) const noexcept
+    {
+        assert(item.isTournamentCoin());
+        return static_cast<std::uint16_t>(item.getDataIndex() >> 8);
+    }
+
+    [[nodiscard]] std::uint16_t getCrateSeries(const Item& crate) const noexcept
+    {
+        assert(crate.isCase());
+        return static_cast<std::uint16_t>(crate.getDataIndex() >> 8);
+    }
+
+    [[nodiscard]] TournamentMap getTournamentMap(const Item& crate) const noexcept
+    {
+        assert(crate.isCase());
+        return static_cast<TournamentMap>((crate.getDataIndex() >> 24) & 0x7F);
+    }
+
+    [[nodiscard]] bool isSouvenirPackage(const Item& crate) const noexcept
+    {
+        assert(crate.isCase());
+        return ((crate.getDataIndex() >> 31) & 1) != 0;
+    }
+
+    [[nodiscard]] bool hasPaintKit(const Item& item) const noexcept
+    {
+        return item.isSkin() || item.isGloves();
     }
 
     void compress();
@@ -122,5 +157,7 @@ private:
     std::vector<Patch> patches;
     std::vector<Item> items;
 };
+
+[[nodiscard]] const ItemName& getItemName(const Storage& gameItemStorage, const Item& item);
 
 }

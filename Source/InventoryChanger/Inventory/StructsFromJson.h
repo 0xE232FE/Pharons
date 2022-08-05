@@ -6,7 +6,7 @@
 
 #include "Structs.h"
 
-namespace inventory
+namespace inventory_changer::inventory
 {
 
 [[nodiscard]] Glove gloveFromJson(const json& j);
@@ -16,5 +16,8 @@ namespace inventory
 [[nodiscard]] Graffiti graffitiFromJson(const json& j);
 [[nodiscard]] std::array<Skin::Sticker, 5> skinStickersFromJson(const json& j);
 [[nodiscard]] Skin skinFromJson(const json& j);
+[[nodiscard]] std::array<Agent::Patch, 5> agentPatchesFromJson(const json& j);
+[[nodiscard]] Agent agentFromJson(const json& j);
+[[nodiscard]] StorageUnit storageUnitFromJson(const json& j);
 
 }

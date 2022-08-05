@@ -1,11 +1,13 @@
+#include <limits>
 #include <string_view>
 
 #include <gtest/gtest.h>
 
+#include <InventoryChanger/GameItems/Enums.h>
 #include <InventoryChanger/GameItems/Storage.h>
 #include <InventoryChanger/GameItems/Lookup.h>
 
-namespace game_items
+namespace inventory_changer::game_items
 {
 namespace
 {
@@ -65,7 +67,7 @@ Item& addToStorage(Storage& storage, ItemType type, EconRarity rarity, WeaponId 
         storage.addAgent(rarity, weaponID, iconPath);
         break;
     case ItemType::Case:
-        storage.addCase(rarity, weaponID, 0, iconPath);
+        storage.addCase(rarity, weaponID, 0, 0, {}, false, iconPath);
         break;
     case ItemType::CaseKey:
         storage.addCaseKey(rarity, weaponID, iconPath);
@@ -86,7 +88,7 @@ Item& addToStorage(Storage& storage, ItemType type, EconRarity rarity, WeaponId 
         storage.addSouvenirToken(rarity, weaponID, 0, iconPath);
         break;
     case ItemType::TournamentCoin:
-        storage.addTournamentCoin(rarity, weaponID, 0, iconPath);
+        storage.addTournamentCoin(rarity, weaponID, 0, 0, iconPath);
         break;
     case ItemType::VanillaKnife:
         storage.addVanillaKnife(weaponID, iconPath);
@@ -143,6 +145,13 @@ TEST_P(GameItemsStorageTest, AddedItemHasCorrectType) {
     Storage storage;
     const auto& item = addToStorage(storage, GetParam(), EconRarity::Default, WeaponId::None, 0, {});
     ASSERT_TRUE(validateItemType(item, GetParam()));
+}
+
+TEST_P(GameItemsStorageTest, AddingItemCopiesIconPath) {
+    Storage storage;
+    const std::string iconPath = "image.png";
+    const auto& item = addToStorage(storage, GetParam(), EconRarity::Default, WeaponId::None, 0, iconPath);
+    ASSERT_NE(item.getIconPath().data(), iconPath.c_str());
 }
 
 const auto typesToTest = testing::Values(
@@ -254,6 +263,90 @@ INSTANTIATE_TEST_SUITE_P(TypesWithConstantWeaponID, GameItemsStorageWeaponIdTest
         ItemTypeAndWeaponID{ ItemType::Music, WeaponId::MusicKit }
     )
 );
+
+TEST(InventoryChanger_GameItems_StorageTest, FirstAddedItemIsFirstInItemList) {
+    Storage storage;
+    storage.addNameTag(EconRarity::Gray, WeaponId::NameTag, {});
+    storage.addAgent(EconRarity::Pink, WeaponId::None, {});
+    ASSERT_TRUE(storage.getItems()[0].isNameTag());
+}
+
+Item& addTournamentItem(Storage& storage, ItemType type, std::uint8_t tournamentID)
+{
+    switch (type) {
+    case ItemType::Case:
+        storage.addCase(EconRarity::Blue, WeaponId::None, 0, tournamentID, {}, false, {});
+        break;
+    case ItemType::ViewerPass:
+        storage.addViewerPass(EconRarity::Blue, WeaponId::None, tournamentID, {});
+        break;
+    case ItemType::SouvenirToken:
+        storage.addSouvenirToken(EconRarity::Blue, WeaponId::None, tournamentID, {});
+        break;
+    case ItemType::TournamentCoin:
+        storage.addTournamentCoin(EconRarity::Blue, WeaponId::None, tournamentID, 0, {});
+        break;
+    default:
+        throw "Unhandled item type!";
+    }
+    return storage.getItems().back();
+}
+
+class InventoryChanger_GameItems_Storage_TournamentIdTest : public testing::TestWithParam<std::tuple<ItemType, std::uint8_t>> {};
+
+TEST_P(InventoryChanger_GameItems_Storage_TournamentIdTest, AddedItemHasCorrectTournamentID) {
+    Storage storage;
+    const auto [itemType, tournamentID] = GetParam();
+    const auto& item = addTournamentItem(storage, itemType, tournamentID);
+    ASSERT_EQ(storage.getTournamentEventID(item), tournamentID);
+}
+
+INSTANTIATE_TEST_SUITE_P(, InventoryChanger_GameItems_Storage_TournamentIdTest,
+    testing::Combine(testing::Values(ItemType::Case, ItemType::ViewerPass, ItemType::SouvenirToken, ItemType::TournamentCoin),
+                     testing::Values(0, 19, (std::numeric_limits<std::uint8_t>::max)())));
+
+class InventoryChanger_GameItems_Storage_DefaultTournamentGraffitiIdTest : public testing::TestWithParam<std::uint16_t> {};
+
+TEST_P(InventoryChanger_GameItems_Storage_DefaultTournamentGraffitiIdTest, AddedTournamentCoinHasCorrectDefaultTournamentGraffitiId) {
+    Storage storage;
+    storage.addTournamentCoin(EconRarity::Red, WeaponId::None, 0, GetParam(), {});
+    ASSERT_EQ(storage.getDefaultTournamentGraffitiID(storage.getItems().back()), GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(, InventoryChanger_GameItems_Storage_DefaultTournamentGraffitiIdTest,
+    testing::Values(0, 5555, (std::numeric_limits<std::uint16_t>::max)()));
+
+class InventoryChanger_GameItems_Storage_CrateSeriesTest : public testing::TestWithParam<std::uint16_t> {};
+
+TEST_P(InventoryChanger_GameItems_Storage_CrateSeriesTest, AddedCrateHasCorrectSeriesNumber) {
+    Storage storage;
+    storage.addCase(EconRarity::Blue, WeaponId::None, GetParam(), 255, TournamentMap::Vertigo, true, {});
+    ASSERT_EQ(storage.getCrateSeries(storage.getItems().back()), GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(, InventoryChanger_GameItems_Storage_CrateSeriesTest,
+    testing::Values(0, 300, (std::numeric_limits<std::uint16_t>::max)()));
+
+class InventoryChanger_GameItems_Storage_TournamentMapTest : public testing::TestWithParam<TournamentMap> {};
+
+TEST_P(InventoryChanger_GameItems_Storage_TournamentMapTest, AddedCrateHasCorrectTournamentMap) {
+    Storage storage;
+    storage.addCase(EconRarity::Blue, WeaponId::None, 0xFFFF, 0xFF, GetParam(), true, {});
+    ASSERT_EQ(storage.getTournamentMap(storage.getItems().back()), GetParam());
+}
+
+INSTANTIATE_TEST_SUITE_P(, InventoryChanger_GameItems_Storage_TournamentMapTest,
+    testing::Values(TournamentMap::None, TournamentMap::Mirage, TournamentMap::Vertigo, static_cast<TournamentMap>(0x7F)));
+
+class InventoryChanger_GameItems_Storage_SouvenirPackageTest : public testing::TestWithParam<bool> {};
+
+TEST_P(InventoryChanger_GameItems_Storage_SouvenirPackageTest, AddedCrateIsSouvenirPackage) {
+    Storage storage;
+    storage.addCase(EconRarity::Blue, WeaponId::None, 1234, 20, TournamentMap::Train, GetParam(), {});
+    ASSERT_EQ(storage.isSouvenirPackage(storage.getItems().back()), GetParam());
+}
+INSTANTIATE_TEST_SUITE_P(, InventoryChanger_GameItems_Storage_SouvenirPackageTest,
+    testing::Values(true, false));
 
 }
 }

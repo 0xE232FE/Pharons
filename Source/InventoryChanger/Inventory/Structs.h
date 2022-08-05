@@ -6,7 +6,7 @@
 
 #include <SDK/ItemSchema.h>
 
-namespace inventory
+namespace inventory_changer::inventory
 {
 
 struct Skin {
@@ -24,7 +24,7 @@ struct Skin {
     TournamentStage tournamentStage{};
     TournamentTeam tournamentTeam1{};
     TournamentTeam tournamentTeam2{};
-    ProPlayer proPlayer{};
+    csgo::ProPlayer proPlayer{};
 
     [[nodiscard]] bool isSouvenir() const noexcept { return tournamentID != 0; }
 };
@@ -50,7 +50,7 @@ struct SouvenirPackage {
     TournamentStage tournamentStage{};
     TournamentTeam tournamentTeam1{};
     TournamentTeam tournamentTeam2{};
-    ProPlayer proPlayer{};
+    csgo::ProPlayer proPlayer{};
 };
 
 struct ServiceMedal {
@@ -63,6 +63,12 @@ struct TournamentCoin {
 
 struct Graffiti {
     std::int8_t usesLeft = -1;
+};
+
+struct StorageUnit {
+    std::uint32_t modificationDateTimestamp = 0;
+    std::uint32_t itemCount = 0;
+    std::string name;
 };
 
 }
