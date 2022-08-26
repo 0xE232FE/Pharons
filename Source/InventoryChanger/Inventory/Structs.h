@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <string>
 
+#include <SDK/Constants/ProPlayer.h>
+#include <SDK/Constants/Tournament.h>
+#include <SDK/Constants/TournamentTeam.h>
 #include <SDK/ItemSchema.h>
 
 namespace inventory_changer::inventory
@@ -18,16 +21,18 @@ struct Skin {
     float wear = 0.0f;
     int seed = 1;
     int statTrak = -1;
-    std::uint32_t tournamentID = 0;
+    csgo::Tournament tournamentID{};
     std::array<Sticker, 5> stickers;
     std::string nameTag;
     TournamentStage tournamentStage{};
-    TournamentTeam tournamentTeam1{};
-    TournamentTeam tournamentTeam2{};
+    csgo::TournamentTeam tournamentTeam1{};
+    csgo::TournamentTeam tournamentTeam2{};
     csgo::ProPlayer proPlayer{};
 
     [[nodiscard]] bool isSouvenir() const noexcept { return tournamentID != 0; }
 };
+
+using SkinStickers = decltype(Skin::stickers);
 
 struct Agent {
     struct Patch {
@@ -37,7 +42,7 @@ struct Agent {
     std::array<Patch, 5> patches;
 };
 
-struct Glove {
+struct Gloves {
     float wear = 0.0f;
     int seed = 1;
 };
@@ -48,8 +53,8 @@ struct Music {
 
 struct SouvenirPackage {
     TournamentStage tournamentStage{};
-    TournamentTeam tournamentTeam1{};
-    TournamentTeam tournamentTeam2{};
+    csgo::TournamentTeam tournamentTeam1{};
+    csgo::TournamentTeam tournamentTeam2{};
     csgo::ProPlayer proPlayer{};
 };
 

@@ -16,8 +16,6 @@ struct ResponseHandler {
     explicit ResponseHandler(const game_items::Storage& gameItemStorage, ItemIDMap& itemIDMap, StorageUnitManager& storageUnitManager, GameInventory& gameInventory)
         : gameItemStorage{ gameItemStorage }, itemIDMap{ itemIDMap }, storageUnitManager{ storageUnitManager }, gameInventory{ gameInventory } {}
 
-    void operator()(std::monostate) const { /* Empty response, this should never be called */ }
-
     void operator()(const response::ItemAdded& response) const
     {
         const auto itemID = gameInventory.createSOCItem(gameItemStorage, *response.item, response.asUnacknowledged);
@@ -69,7 +67,7 @@ struct ResponseHandler {
     void operator()(const response::StickerApplied& response) const
     {
         if (const auto itemID = getItemID(response.skinItem); itemID.has_value()) {
-            if (const auto skin = response.skinItem->get<inventory::Skin>())
+            if (const auto skin = get<inventory::Skin>(*response.skinItem))
                 gameInventory.applySticker(*itemID, skin->stickers[response.stickerSlot].stickerID, response.stickerSlot);
         }
     }
@@ -77,7 +75,7 @@ struct ResponseHandler {
     void operator()(const response::StickerScraped& response) const
     {
         if (const auto itemID = getItemID(response.skinItem); itemID.has_value()) {
-            if (const auto skin = response.skinItem->get<inventory::Skin>())
+            if (const auto skin = get<inventory::Skin>(*response.skinItem))
                 gameInventory.updateStickerWear(*itemID, response.stickerSlot, skin->stickers[response.stickerSlot].wear);
         }
     }
@@ -103,7 +101,7 @@ struct ResponseHandler {
     void operator()(const response::NameTagAdded& response) const
     {
         if (const auto itemID = getItemID(response.skinItem); itemID.has_value()) {
-            if (const auto skin = response.skinItem->get<inventory::Skin>())
+            if (const auto skin = get<inventory::Skin>(*response.skinItem))
                 gameInventory.addNameTag(*itemID, skin->nameTag.c_str());
         }
     }
@@ -123,7 +121,7 @@ struct ResponseHandler {
     void operator()(const response::PatchApplied& response) const
     {
         if (const auto itemID = getItemID(response.agentItem); itemID.has_value()) {
-            if (const auto agent = response.agentItem->get<inventory::Agent>())
+            if (const auto agent = get<inventory::Agent>(*response.agentItem))
                 gameInventory.applyPatch(*itemID, agent->patches[response.patchSlot].patchID, response.patchSlot);
         }
     }
@@ -137,7 +135,7 @@ struct ResponseHandler {
     void operator()(const response::SouvenirTokenActivated& response) const
     {
         if (const auto itemID = getItemID(response.tournamentCoin); itemID.has_value()) {
-            if (const auto tournamentCoin = response.tournamentCoin->get<inventory::TournamentCoin>())
+            if (const auto tournamentCoin = get<inventory::TournamentCoin>(*response.tournamentCoin))
                 gameInventory.souvenirTokenActivated(*itemID, tournamentCoin->dropsAwarded);
         }
     }
@@ -174,13 +172,13 @@ struct ResponseHandler {
     void operator()(const response::XRayItemClaimed& response) const
     {
         if (const auto itemID = getItemID(response.item); itemID.has_value())
-            gameInventory.xRayItemClaimed(*itemID);
+            gameInventory.xRayItemClaimed(*itemID, response.item->getProperties().common.tradableAfterDate);
     }
 
     void operator()(const response::StorageUnitNamed& response) const
     {
         if (const auto itemID = getItemID(response.storageUnit); itemID.has_value()) {
-            if (const auto storageUnit = response.storageUnit->get<inventory::StorageUnit>())
+            if (const auto storageUnit = get<inventory::StorageUnit>(*response.storageUnit))
                 gameInventory.nameStorageUnit(*itemID, storageUnit->name.c_str());
         }
     }
@@ -188,7 +186,7 @@ struct ResponseHandler {
     void operator()(const response::StorageUnitModified& response) const
     {
         if (const auto itemID = getItemID(response.storageUnit); itemID.has_value()) {
-            if (const auto storageUnit = response.storageUnit->get<inventory::StorageUnit>())
+            if (const auto storageUnit = get<inventory::StorageUnit>(*response.storageUnit))
                 gameInventory.storageUnitModified(*itemID, storageUnit->modificationDateTimestamp, storageUnit->itemCount);
         }
     }

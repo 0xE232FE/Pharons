@@ -8,11 +8,17 @@
 #include "ItemIDMap.h"
 #include "Loadout.h"
 #include "PickEm.h"
-#include "Requestor.h"
 #include "StorageUnitManager.h"
 #include "XRayScanner.h"
+#include "Request/ItemActivationHandler.h"
+#include "Request/ItemModificationHandler.h"
+#include "Request/LoadoutHandler.h"
+#include "Request/PickEmHandler.h"
 #include "Request/RequestHandler.h"
+#include "Request/StorageUnitHandler.h"
+#include "Request/XRayScannerHandler.h"
 #include "Response/Response.h"
+#include "Response/ResponseAccumulator.h"
 #include "Response/ResponseHandler.h"
 #include "Response/ResponseQueue.h"
 
@@ -67,81 +73,6 @@ public:
         return xRayScanner;
     }
 
-    void equipItemCT(ItemIterator itemIterator, Loadout::Slot slot)
-    {
-        loadout.equipItemCT(itemIterator, slot);
-        responseQueue.add(response::ItemEquipped{ itemIterator, slot, Team::CT });
-    }
-
-    void markItemEquippedCT(ItemIterator itemIterator, Loadout::Slot slot)
-    {
-        loadout.equipItemCT(itemIterator, slot);
-    }
-
-    void equipItemTT(ItemIterator itemIterator, Loadout::Slot slot)
-    {
-        loadout.equipItemTT(itemIterator, slot);
-        responseQueue.add(response::ItemEquipped{ itemIterator, slot, Team::TT });
-    }
-
-    void markItemEquippedTT(ItemIterator itemIterator, Loadout::Slot slot)
-    {
-        loadout.equipItemTT(itemIterator, slot);
-    }
-
-    void equipItemNoTeam(ItemIterator itemIterator, Loadout::Slot slot)
-    {
-        loadout.equipItemNoTeam(itemIterator, slot);
-        responseQueue.add(response::ItemEquipped{ itemIterator, slot, Team::None });
-    }
-
-    void markItemEquippedNoTeam(ItemIterator itemIterator, Loadout::Slot slot)
-    {
-        loadout.equipItemNoTeam(itemIterator, slot);
-    }
-
-    void clearInventory()
-    {
-        for (auto it = inventory.cbegin(); it != inventory.cend();)
-            it = removeItem(it);
-    }
-
-    void clearPickEm()
-    {
-        pickEm.clear();
-        responseQueue.add(response::PickEmUpdated{});
-    }
-
-    ItemIterator addItemUnacknowledged(inventory::Item item)
-    {
-        return addItem(std::move(item), true);
-    }
-
-    ItemIterator addItemAcknowledged(inventory::Item item)
-    {
-        return addItem(std::move(item), false);
-    }
-
-    ItemIterator removeItem(ItemIterator it)
-    {
-        const auto removedFromStorageUnit = storageUnitManager.onItemRemoval(it, [this, it](const auto& storedItem) {
-            if (storedItem != it)
-                removeItemInternal(storedItem);
-        });
-
-        if (removedFromStorageUnit.has_value()) {
-            getRequestor().request<request::RemoveFromStorageUnit>(it, *removedFromStorageUnit);
-        }
-
-        return removeItemInternal(it);
-    }
-
-    void moveToFront(ItemIterator it)
-    {
-        inventory.splice(inventory.end(), inventory, it);
-        responseQueue.add(response::ItemMovedToFront{ it });
-    }
-
     [[nodiscard]] std::optional<ItemIterator> itemFromID(std::uint64_t itemID) const
     {
         return itemIDMap.get(itemID);
@@ -152,11 +83,49 @@ public:
         return itemIDMap.getItemID(it);
     }
 
-    using RequestorType = Requestor<RequestHandler, ResponseQueue<>>;
-
-    [[nodiscard]] RequestorType getRequestor()
+    [[nodiscard]] RequestHandler getRequestHandler()
     {
-        return Requestor{ RequestHandler{ *this, pickEm, storageUnitManager, xRayScanner, ItemConstRemover{ inventory } }, responseQueue };
+        return RequestHandler{ getItemModificationHandler(), getItemRemovalHandler(), getInventoryHandler(), getStorageUnitHandler(), xRayScanner, ResponseAccumulator{ responseQueue }, inventory, loadout, gameItemLookup, crateLootLookup, ItemConstRemover{ inventory } };
+    }
+
+    [[nodiscard]] PickEmHandler<ResponseAccumulator> getPickEmHandler()
+    {
+        return PickEmHandler{ pickEm, ResponseAccumulator{ responseQueue } };
+    }
+
+    [[nodiscard]] LoadoutHandler<ResponseAccumulator> getLoadoutHandler()
+    {
+        return LoadoutHandler{ loadout, ResponseAccumulator{ responseQueue } };
+    }
+
+    [[nodiscard]] InventoryHandler<ResponseAccumulator> getInventoryHandler()
+    {
+        return InventoryHandler{ inventory, ResponseAccumulator{ responseQueue } };
+    }
+
+    [[nodiscard]] ItemRemovalHandler<ResponseAccumulator> getItemRemovalHandler()
+    {
+        return ItemRemovalHandler{ storageUnitManager, xRayScanner, responseQueue, inventory, loadout, itemIDMap, getStorageUnitHandler() };
+    }
+
+    [[nodiscard]] StorageUnitHandler<ResponseAccumulator> getStorageUnitHandler()
+    {
+        return StorageUnitHandler{ storageUnitManager, ItemConstRemover{ inventory }, getInventoryHandler(), ResponseAccumulator{ responseQueue } };
+    }
+
+    [[nodiscard]] XRayScannerHandler<ResponseAccumulator> getXRayScannerHandler()
+    {
+        return XRayScannerHandler{ gameItemLookup, crateLootLookup, xRayScanner, getInventoryHandler(), getItemRemovalHandler(), ResponseAccumulator{ responseQueue }, ItemConstRemover{ inventory } };
+    }
+
+    [[nodiscard]] ItemModificationHandler<ResponseAccumulator> getItemModificationHandler()
+    {
+        return ItemModificationHandler{ ItemConstRemover{ inventory }, ResponseAccumulator{ responseQueue } };
+    }
+
+    [[nodiscard]] ItemActivationHandler<ResponseAccumulator> getItemActivationHandler()
+    {
+        return ItemActivationHandler{ gameItemLookup, crateLootLookup, getInventoryHandler(), getItemRemovalHandler(), ResponseAccumulator{ responseQueue } };
     }
 
     template <typename GameInventory>
@@ -171,26 +140,6 @@ public:
     }
 
 private:
-    ItemIterator removeItemInternal(ItemIterator it)
-    {
-        const auto itemID = itemIDMap.remove(it);
-        loadout.unequipItem(it);
-        responseQueue.removeResponsesReferencingItem(it);
-        xRayScanner.onItemRemoval(it);
-        const auto newIterator = inventory.erase(it);
-        if (itemID.has_value())
-            responseQueue.add(response::ItemRemoved{ *itemID });
-        return newIterator;
-    }
-
-    ItemIterator addItem(inventory::Item item, bool asUnacknowledged)
-    {
-        inventory.push_back(std::move(item));
-        const auto added = std::prev(inventory.end());
-        responseQueue.add(response::ItemAdded{ added, asUnacknowledged });
-        return added;
-    }
-
     ItemList inventory;
     Loadout loadout;
     ResponseQueue<> responseQueue;
@@ -201,5 +150,14 @@ private:
     XRayScanner xRayScanner;
     StorageUnitManager storageUnitManager;
 };
+
+inline void clearInventory(BackendSimulator& backend)
+{
+    const auto& inventory = backend.getInventory();
+    const auto itemRemovalHandler = backend.getItemRemovalHandler();
+
+    for (auto it = inventory.cbegin(); it != inventory.cend();)
+        it = itemRemovalHandler.removeItem(it);
+}
 
 }

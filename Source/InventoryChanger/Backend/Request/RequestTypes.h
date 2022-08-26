@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include <InventoryChanger/Backend/Item.h>
+#include <InventoryChanger/Backend/Loadout.h>
 #include <InventoryChanger/Backend/PickEm.h>
 
 namespace inventory_changer::backend::request
@@ -35,15 +36,6 @@ struct SwapStatTrak {
     ItemIterator statTrakSwapTool;
 };
 
-struct OpenContainer {
-    explicit OpenContainer(ItemIterator container) : container{ container } {}
-    OpenContainer(ItemIterator container, ItemIterator key)
-        : container{ container }, key{ key } {}
-
-    ItemIterator container;
-    std::optional<ItemIterator> key;
-};
-
 struct ApplyPatch {
     ApplyPatch(ItemIterator item, ItemIterator patch, std::uint8_t slot)
         : item{ item }, patch{ patch }, slot{ slot } {}
@@ -60,12 +52,6 @@ struct RemovePatch {
     std::uint8_t slot;
 };
 
-struct ActivateOperationPass {
-    explicit ActivateOperationPass(ItemIterator operationPass) : operationPass{ operationPass } {}
-
-    ItemIterator operationPass;
-};
-
 template <typename Tag>
 struct ModifyItem {
     explicit ModifyItem(ItemIterator item) : item{ item } {}
@@ -73,13 +59,9 @@ struct ModifyItem {
     ItemIterator item;
 };
 
-using ActivateViewerPass = ModifyItem<struct ActivateViewerPassTag>;
 using ActivateSouvenirToken = ModifyItem<struct ActivateSouvenirTokenTag>;
 using RemoveNameTag = ModifyItem<struct RemoveNameTagTag>;
 using UnsealGraffiti = ModifyItem<struct UnsealGraffitiTag>;
-using MarkItemUpdated = ModifyItem<struct MarkItemUpdatedTag>;
-using HideItem = ModifyItem<struct HideItemTag>;
-using UnhideItem = ModifyItem<struct UnhideItemTag>;
 
 struct AddNameTag {
     AddNameTag(ItemIterator item, ItemIterator nameTagItem, std::string_view nameTag)
@@ -88,91 +70,6 @@ struct AddNameTag {
     ItemIterator item;
     ItemIterator nameTagItem;
     std::string_view nameTag;
-};
-
-struct NameStorageUnit {
-    NameStorageUnit(ItemIterator storageUnit, std::string_view name)
-        : storageUnit{ storageUnit }, name{ name } {}
-
-    ItemIterator storageUnit;
-    std::string_view name;
-};
-
-struct UpdateStatTrak {
-    UpdateStatTrak(ItemIterator item, int newStatTrak)
-        : item{ item }, newStatTrak{ newStatTrak } {}
-
-    ItemIterator item;
-    int newStatTrak;
-};
-
-struct SelectTeamGraffiti {
-    SelectTeamGraffiti(ItemIterator tournamentCoin, std::uint16_t graffitiID)
-        : tournamentCoin{ tournamentCoin }, graffitiID{ graffitiID } {}
-
-    ItemIterator tournamentCoin;
-    std::uint16_t graffitiID;
-};
-
-struct PickStickerPickEm {
-    PickStickerPickEm(PickEm::PickPosition position, TournamentTeam team)
-        : position{ position }, team{ team } {}
-
-    PickEm::PickPosition position;
-    TournamentTeam team;
-};
-
-struct PerformXRayScan {
-    explicit PerformXRayScan(ItemIterator crate) : crate{ crate } {}
-
-    ItemIterator crate;
-};
-
-struct ClaimXRayScannedItem {
-    explicit ClaimXRayScannedItem(ItemIterator container) : container{ container } {}
-    ClaimXRayScannedItem(ItemIterator container, ItemIterator key)
-        : container{ container }, key{ key } {}
-
-    ItemIterator container;
-    std::optional<ItemIterator> key;
-};
-
-struct BindItemToStorageUnit {
-    explicit BindItemToStorageUnit(ItemIterator item, ItemIterator storageUnit)
-        : item{ item }, storageUnit{ storageUnit } {}
-
-    ItemIterator item;
-    ItemIterator storageUnit;
-};
-
-struct AddItemToStorageUnit {
-    explicit AddItemToStorageUnit(ItemIterator item, ItemIterator storageUnit)
-        : item{ item }, storageUnit{ storageUnit } {}
-
-    ItemIterator item;
-    ItemIterator storageUnit;
-};
-
-struct RemoveFromStorageUnit {
-    explicit RemoveFromStorageUnit(ItemIterator item, ItemIterator storageUnit)
-        : item{ item }, storageUnit{ storageUnit } {}
-
-    ItemIterator item;
-    ItemIterator storageUnit;
-};
-
-struct MarkStorageUnitModified {
-    explicit MarkStorageUnitModified(ItemIterator storageUnit)
-        : storageUnit{ storageUnit } {}
-
-    ItemIterator storageUnit;
-};
-
-struct UpdateStorageUnitAttributes {
-    explicit UpdateStorageUnitAttributes(ItemIterator storageUnit)
-        : storageUnit{ storageUnit } {}
-
-    ItemIterator storageUnit;
 };
 
 }

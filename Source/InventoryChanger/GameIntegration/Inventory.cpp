@@ -93,7 +93,7 @@ void initSkinEconItem(const game_items::Storage& gameItemStorage, const inventor
     const auto paintKit = gameItemStorage.getPaintKit(inventoryItem.gameItem()).id;
     attributeSetter.setPaintKit(econItem, static_cast<float>(paintKit));
 
-    const auto skin = inventoryItem.get<inventory::Skin>();
+    const auto skin = get<inventory::Skin>(inventoryItem);
     if (!skin)
         return;
 
@@ -168,19 +168,23 @@ std::uint64_t Inventory::createSOCItem(const game_items::Storage& gameItemStorag
 
     EconItemAttributeSetter attributeSetter{ *memory->itemSystem()->getItemSchema() };
 
+    if (const auto tradableAfterDate = inventoryItem.getProperties().common.tradableAfterDate; tradableAfterDate != 0) {
+        attributeSetter.setTradableAfterDate(*econItem, tradableAfterDate);
+    }
+
     if (item.isSticker()) {
         attributeSetter.setStickerID(*econItem, 0, gameItemStorage.getStickerKit(item).id);
     } else if (item.isPatch()) {
         attributeSetter.setStickerID(*econItem, 0, gameItemStorage.getPatch(item).id);
     } else if (item.isGraffiti()) {
         attributeSetter.setStickerID(*econItem, 0, gameItemStorage.getGraffitiKit(item).id);
-        if (const auto graffiti = inventoryItem.get<inventory::Graffiti>(); graffiti && graffiti->usesLeft >= 0) {
+        if (const auto graffiti = get<inventory::Graffiti>(inventoryItem); graffiti && graffiti->usesLeft >= 0) {
             econItem->weaponId = WeaponId::Graffiti;
             attributeSetter.setSpraysRemaining(*econItem, graffiti->usesLeft);
         }
     } else if (item.isMusic()) {
         attributeSetter.setMusicID(*econItem, gameItemStorage.getMusicKit(item).id);
-        if (const auto music = inventoryItem.get<inventory::Music>(); music && music->statTrak > -1) {
+        if (const auto music = get<inventory::Music>(inventoryItem); music && music->statTrak > -1) {
             attributeSetter.setStatTrak(*econItem, music->statTrak);
             attributeSetter.setStatTrakType(*econItem, 1);
             econItem->quality = 9;
@@ -191,7 +195,7 @@ std::uint64_t Inventory::createSOCItem(const game_items::Storage& gameItemStorag
         econItem->quality = 3;
         attributeSetter.setPaintKit(*econItem, static_cast<float>(gameItemStorage.getPaintKit(item).id));
 
-        if (const auto glove = inventoryItem.get<inventory::Glove>()) {
+        if (const auto glove = get<inventory::Gloves>(inventoryItem)) {
             attributeSetter.setWear(*econItem, glove->wear);
             attributeSetter.setSeed(*econItem, static_cast<float>(glove->seed));
         }
@@ -199,7 +203,7 @@ std::uint64_t Inventory::createSOCItem(const game_items::Storage& gameItemStorag
         if (gameItemStorage.isCollectibleGenuine(item))
             econItem->quality = 1;
     } else if (item.isAgent()) {
-        if (const auto agent = inventoryItem.get<inventory::Agent>()) {
+        if (const auto agent = get<inventory::Agent>(inventoryItem)) {
             for (std::size_t j = 0; j < agent->patches.size(); ++j) {
                 const auto& patch = agent->patches[j];
                 if (patch.patchID == 0)
@@ -209,16 +213,16 @@ std::uint64_t Inventory::createSOCItem(const game_items::Storage& gameItemStorag
             }
         }
     } else if (item.isServiceMedal()) {
-        if (const auto serviceMedal = inventoryItem.get<inventory::ServiceMedal>(); serviceMedal && serviceMedal->issueDateTimestamp != 0)
+        if (const auto serviceMedal = get<inventory::ServiceMedal>(inventoryItem); serviceMedal && serviceMedal->issueDateTimestamp != 0)
             attributeSetter.setIssueDate(*econItem, serviceMedal->issueDateTimestamp);
     } else if (item.isTournamentCoin()) {
-        if (const auto tournamentCoin = inventoryItem.get<inventory::TournamentCoin>())
+        if (const auto tournamentCoin = get<inventory::TournamentCoin>(inventoryItem))
             attributeSetter.setDropsAwarded(*econItem, tournamentCoin->dropsAwarded);
         attributeSetter.setDropsRedeemed(*econItem, 0);
         attributeSetter.setStickerID(*econItem, 0, gameItemStorage.getDefaultTournamentGraffitiID(item));
         attributeSetter.setCampaignCompletion(*econItem, 1);
-    } else if (item.isCase()) {
-        if (const auto souvenirPackage = inventoryItem.get<inventory::SouvenirPackage>(); souvenirPackage && souvenirPackage->tournamentStage != TournamentStage{ 0 }) {
+    } else if (item.isCrate()) {
+        if (const auto souvenirPackage = get<inventory::SouvenirPackage>(inventoryItem); souvenirPackage && souvenirPackage->tournamentStage != TournamentStage{ 0 }) {
             attributeSetter.setTournamentStage(*econItem, static_cast<int>(souvenirPackage->tournamentStage));
             attributeSetter.setTournamentTeam1(*econItem, static_cast<int>(souvenirPackage->tournamentTeam1));
             attributeSetter.setTournamentTeam2(*econItem, static_cast<int>(souvenirPackage->tournamentTeam2));
@@ -229,7 +233,7 @@ std::uint64_t Inventory::createSOCItem(const game_items::Storage& gameItemStorag
         constexpr auto nonEconomyFlag = 8;
         econItem->flags |= nonEconomyFlag;
     } else if (item.isStorageUnit()) {
-        if (const auto storageUnit = inventoryItem.get<inventory::StorageUnit>(); storageUnit && storageUnit->modificationDateTimestamp != 0) {
+        if (const auto storageUnit = get<inventory::StorageUnit>(inventoryItem); storageUnit && storageUnit->modificationDateTimestamp != 0) {
             attributeSetter.setModificationDate(*econItem, storageUnit->modificationDateTimestamp);
             memory->setCustomName(econItem, storageUnit->name.c_str());
         }
@@ -517,8 +521,24 @@ void Inventory::xRayItemRevealed(std::uint64_t itemID)
    initItemCustomizationNotification("xray_item_reveal", itemID);
 }
 
-void Inventory::xRayItemClaimed(std::uint64_t itemID)
+void Inventory::xRayItemClaimed(std::uint64_t itemID, std::uint32_t tradableAfterDate)
 {
+    const auto view = memory->findOrCreateEconItemViewForItemID(itemID);
+    if (!view)
+        return;
+
+    const auto econItem = memory->getSOCData(view);
+    if (!econItem)
+        return;
+
+    const auto localInventory = memory->inventoryManager->getLocalInventory();
+    if (!localInventory)
+        return;
+
+    EconItemAttributeSetter attributeSetter{ *memory->itemSystem()->getItemSchema() };
+    attributeSetter.setTradableAfterDate(*econItem, tradableAfterDate);
+    localInventory->soUpdated(localInventory->getSOID(), (SharedObject*)econItem, 4);
+
     initItemCustomizationNotification("xray_item_claim", itemID);
 }
 

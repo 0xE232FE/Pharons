@@ -16,31 +16,46 @@ struct MockRequestor {
     MOCK_METHOD(void, request, (const request::RemoveNameTag&));
     MOCK_METHOD(void, request, (const request::WearSticker&));
     MOCK_METHOD(void, request, (const request::RemovePatch&));
-    MOCK_METHOD(void, request, (const request::OpenContainer&));
-    MOCK_METHOD(void, request, (const request::PerformXRayScan&));
-    MOCK_METHOD(void, request, (const request::ClaimXRayScannedItem&));
     MOCK_METHOD(void, request, (const request::SwapStatTrak&));
-    MOCK_METHOD(void, request, (const request::ActivateOperationPass&));
-    MOCK_METHOD(void, request, (const request::ActivateViewerPass&));
     MOCK_METHOD(void, request, (const request::ActivateSouvenirToken&));
     MOCK_METHOD(void, request, (const request::UnsealGraffiti&));
     MOCK_METHOD(void, request, (const request::ApplySticker&));
     MOCK_METHOD(void, request, (const request::ApplyPatch&));
     MOCK_METHOD(void, request, (const request::AddNameTag&));
-    MOCK_METHOD(void, request, (const request::NameStorageUnit&));
 };
 
 struct MockRequestorWrapper {
     MockRequestorWrapper(MockRequestor& requestor) : requestor{ requestor } {}
 
-    template <typename RequestType, typename... Args>
-    void request(Args&&... args)
+    template <typename RequestType>
+    void operator()(const RequestType& request)
     {
-        requestor.request(RequestType{ std::forward<Args>(args)... });
+        requestor.request(request);
     }
 
 private:
     MockRequestor& requestor;
+};
+
+struct DummyStorageUnitHandler {
+    void nameStorageUnit(ItemIterator, std::string_view) const {}
+    void markStorageUnitModified(ItemIterator) const {}
+    void bindItemToStorageUnit(ItemIterator, ItemIterator) const {}
+    void addItemToStorageUnit(ItemIterator, ItemIterator) const {}
+    void removeFromStorageUnit(ItemIterator, ItemIterator) const {}
+    void updateStorageUnitAttributes(ItemIterator) const {}
+};
+
+struct MockXRayScannerHandler {
+    MOCK_METHOD(void, performXRayScan, (ItemIterator crate), (const));
+    MOCK_METHOD(void, claimXRayScannedItem, (ItemIterator crate, std::optional<ItemIterator> key), (const));
+};
+
+struct MockItemActivationHandler {
+    MOCK_METHOD(void, activateOperationPass, (ItemIterator operationPass), (const));
+    MOCK_METHOD(void, activateViewerPass, (ItemIterator viewerPass), (const));
+    MOCK_METHOD(void, openContainer, (ItemIterator container, ItemIterator key), (const));
+    MOCK_METHOD(void, openKeylessContainer, (ItemIterator container), (const));
 };
 
 class InventoryChanger_Backend_RequestBuilderTest : public testing::Test {
@@ -59,7 +74,10 @@ protected:
 
     testing::StrictMock<MockRequestor> requestor;
     ItemIDMap itemIDMap;
-    RequestBuilder<MockRequestorWrapper> requestBuilder{ itemIDMap, MockRequestorWrapper{ requestor } };
+    MockXRayScannerHandler xRayScannerHandler;
+    MockItemActivationHandler itemActivationHandler;
+    RequestBuilderParams requestBuilderParams;
+    RequestBuilder<MockRequestorWrapper, DummyStorageUnitHandler, const MockXRayScannerHandler&, const MockItemActivationHandler&> requestBuilder{ requestBuilderParams, itemIDMap, MockRequestorWrapper{ requestor }, DummyStorageUnitHandler{}, xRayScannerHandler, itemActivationHandler };
 
     static constexpr auto nonexistentItemID = 1234;
     static constexpr auto dummyItemIDs = std::to_array<std::uint64_t>({ 123, 256, 1024 });
@@ -107,7 +125,7 @@ TEST_P(InventoryChanger_Backend_RequestBuilder_StickerTest, StickerIsAppliedToTh
 
     EXPECT_CALL(requestor, request(testing::Matcher<const request::ApplySticker&>(testing::FieldsAre(skin, sticker, GetParam()))));
 
-    requestBuilder.setStickerSlot(GetParam());
+    requestBuilderParams.stickerSlot = GetParam();
     requestBuilder.useToolOn(dummyItemIDs[0], dummyItemIDs[1]);
 }
 
@@ -117,7 +135,7 @@ TEST_P(InventoryChanger_Backend_RequestBuilder_StickerTest, PatchIsAppliedToTheC
 
     EXPECT_CALL(requestor, request(testing::Matcher<const request::ApplyPatch&>(testing::FieldsAre(agent, patch, GetParam()))));
 
-    requestBuilder.setStickerSlot(GetParam());
+    requestBuilderParams.stickerSlot = GetParam();
     requestBuilder.useToolOn(dummyItemIDs[0], dummyItemIDs[1]);
 }
 
@@ -143,31 +161,31 @@ TEST_F(InventoryChanger_Backend_RequestBuilderTest, NothingIsRequestedWhenItemsA
 }
 
 TEST_F(InventoryChanger_Backend_RequestBuilderTest, OpeningKeylessContainerCanBeRequested) {
-    const auto crate = createDummyItem<ItemType::Case>();
-    EXPECT_CALL(requestor, request(testing::Matcher<const request::OpenContainer&>(testing::FieldsAre(crate, std::nullopt))));
+    const auto crate = createDummyItem<ItemType::Crate>();
+    EXPECT_CALL(itemActivationHandler, openKeylessContainer(testing::Eq(crate)));
 
     requestBuilder.useToolOn(nonexistentItemID, dummyItemIDs[0]);
 }
 
 TEST_F(InventoryChanger_Backend_RequestBuilderTest, ClaimingXRayScannedItemFromKeylessContainerCanBeRequested) {
-    const auto crate = createDummyItem<ItemType::Case>();
+    const auto crate = createDummyItem<ItemType::Crate>();
     crate->setState(inventory::Item::State::InXrayScanner);
 
-    EXPECT_CALL(requestor, request(testing::Matcher<const request::ClaimXRayScannedItem&>(testing::FieldsAre(crate, std::nullopt))));
+    EXPECT_CALL(xRayScannerHandler, claimXRayScannedItem(testing::Eq(crate), testing::Eq(std::nullopt)));
 
     requestBuilder.useToolOn(nonexistentItemID, dummyItemIDs[0]);
 }
 
 TEST_F(InventoryChanger_Backend_RequestBuilderTest, ActivatingOperationPassCanBeRequested) {
     const auto operationPass = createDummyItem<ItemType::OperationPass>();
-    EXPECT_CALL(requestor, request(testing::Matcher<const request::ActivateOperationPass&>(testing::FieldsAre(operationPass))));
+    EXPECT_CALL(itemActivationHandler, activateOperationPass(testing::Eq(operationPass)));
 
     requestBuilder.useToolOn(dummyItemIDs[0], nonexistentItemID);
 }
 
 TEST_F(InventoryChanger_Backend_RequestBuilderTest, ActivatingViewerPassCanBeRequested) {
     const auto viewerPass = createDummyItem<ItemType::ViewerPass>();
-    EXPECT_CALL(requestor, request(testing::Matcher<const request::ActivateViewerPass&>(testing::FieldsAre(viewerPass))));
+    EXPECT_CALL(itemActivationHandler, activateViewerPass(testing::Eq(viewerPass)));
 
     requestBuilder.useToolOn(dummyItemIDs[0], nonexistentItemID);
 }
@@ -198,7 +216,8 @@ TEST_F(InventoryChanger_Backend_RequestBuilderTest, UsingStatTrakSwapToolWithOne
     createDummyItem<ItemType::StatTrakSwapTool>();
     EXPECT_CALL(requestor, request(testing::An<const request::SwapStatTrak&>())).Times(0);
 
-    requestBuilder.setStatTrakSwapItems(dummyItemIDs[0], nonexistentItemID);
+    requestBuilderParams.statTrakSwapItemID1 = dummyItemIDs[0];
+    requestBuilderParams.statTrakSwapItemID2 = nonexistentItemID;
     requestBuilder.useToolOn(dummyItemIDs[1], nonexistentItemID);
 }
 
@@ -209,25 +228,26 @@ TEST_F(InventoryChanger_Backend_RequestBuilderTest, UsingStatTrakSwapToolWithBot
 
     EXPECT_CALL(requestor, request(testing::Matcher<const request::SwapStatTrak&>(testing::FieldsAre(skin1, skin2, statTrakSwapTool))));
 
-    requestBuilder.setStatTrakSwapItems(dummyItemIDs[0], dummyItemIDs[1]);
+    requestBuilderParams.statTrakSwapItemID1 = dummyItemIDs[0];
+    requestBuilderParams.statTrakSwapItemID2 = dummyItemIDs[1];
     requestBuilder.useToolOn(dummyItemIDs[2], nonexistentItemID);
 }
 
 TEST_F(InventoryChanger_Backend_RequestBuilderTest, UsingCrateKeyOnCrateProducesRequest) {
-    const auto key = createDummyItem<ItemType::CaseKey>();
-    const auto crate = createDummyItem<ItemType::Case>();
+    const auto key = createDummyItem<ItemType::CrateKey>();
+    const auto crate = createDummyItem<ItemType::Crate>();
 
-    EXPECT_CALL(requestor, request(testing::Matcher<const request::OpenContainer&>(testing::FieldsAre(crate, key))));
+    EXPECT_CALL(itemActivationHandler, openContainer(testing::Eq(crate), testing::Eq(key)));
 
     requestBuilder.useToolOn(dummyItemIDs[0], dummyItemIDs[1]);
 }
 
 TEST_F(InventoryChanger_Backend_RequestBuilderTest, UsingCrateKeyOnHiddenCrateProducesXRayClaimRequest) {
-    const auto key = createDummyItem<ItemType::CaseKey>();
-    const auto crate = createDummyItem<ItemType::Case>();
+    const auto key = createDummyItem<ItemType::CrateKey>();
+    const auto crate = createDummyItem<ItemType::Crate>();
     crate->setState(inventory::Item::State::InXrayScanner);
 
-    EXPECT_CALL(requestor, request(testing::Matcher<const request::ClaimXRayScannedItem&>(testing::FieldsAre(crate, key))));
+    EXPECT_CALL(xRayScannerHandler, claimXRayScannedItem(testing::Eq(crate), testing::Eq(key)));
 
     requestBuilder.useToolOn(dummyItemIDs[0], dummyItemIDs[1]);
 }
@@ -257,11 +277,11 @@ TEST_F(InventoryChanger_Backend_RequestBuilderTest, UsingNameTagNotOnSkinDoesNot
 }
 
 TEST_F(InventoryChanger_Backend_RequestBuilderTest, UsingCrateKeyNotOnCrateDoesNotProduceRequest) {
-    createDummyItem<ItemType::CaseKey>();
+    createDummyItem<ItemType::CrateKey>();
     createDummyItem<ItemType::Music>();
 
-    EXPECT_CALL(requestor, request(testing::An<const request::OpenContainer&>())).Times(0);
-    EXPECT_CALL(requestor, request(testing::An<const request::ClaimXRayScannedItem&>())).Times(0);
+    EXPECT_CALL(itemActivationHandler, openContainer(testing::_, testing::_)).Times(0);
+    // EXPECT_CALL(requestor, request(testing::An<const request::ClaimXRayScannedItem&>())).Times(0);
 
     requestBuilder.useToolOn(dummyItemIDs[0], dummyItemIDs[1]);
 }

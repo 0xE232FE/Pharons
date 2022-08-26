@@ -4,33 +4,27 @@
 #include <string_view>
 
 #include <InventoryChanger/Backend/ItemIDMap.h>
+#include <InventoryChanger/Backend/Response/ResponseAccumulator.h>
 #include <InventoryChanger/GameItems/Lookup.h>
 
 #include "RequestTypes.h"
+#include "StorageUnitHandler.h"
 
 namespace inventory_changer::backend
 {
 
-template <typename Requestor>
+struct RequestBuilderParams {
+    std::uint8_t stickerSlot = 0;
+    std::uint64_t statTrakSwapItemID1 = 0;
+    std::uint64_t statTrakSwapItemID2 = 0;
+    std::string nameTag;
+};
+
+template <typename Requestor, typename StorageUnitHandler, typename XRayScannerHandler, typename ItemActivationHandler>
 class RequestBuilder {
 public:
-    explicit RequestBuilder(const ItemIDMap& itemIDMap, Requestor requestor) : itemIDMap{ itemIDMap }, requestor{ requestor } {}
-
-    void setStickerSlot(std::uint8_t slot) noexcept
-    {
-        stickerSlot = slot;
-    }
-
-    void setStatTrakSwapItems(std::uint64_t itemId1, std::uint64_t itemId2) noexcept
-    {
-        statTrakSwapItemID1 = itemId1;
-        statTrakSwapItemID2 = itemId2;
-    }
-
-    void setNameTag(std::string_view newName)
-    {
-        nameTag = newName;
-    }
+    explicit RequestBuilder(const RequestBuilderParams& params, const ItemIDMap& itemIDMap, Requestor requestor, StorageUnitHandler storageUnitHandler, XRayScannerHandler xRayScannerHandler, ItemActivationHandler itemActivationHandler)
+        : params{ params }, itemIDMap{ itemIDMap }, requestor{ requestor }, storageUnitHandler{ storageUnitHandler }, xRayScannerHandler{ xRayScannerHandler }, itemActivationHandler{ itemActivationHandler } {}
 
     void useToolOn(std::uint64_t toolItemID, std::uint64_t destItemID)
     {
@@ -75,7 +69,7 @@ public:
         if (!item.has_value() || !storageUnit.has_value() || !(*storageUnit)->gameItem().isStorageUnit())
             return;
 
-        request<request::AddItemToStorageUnit>(*item, *storageUnit);
+        storageUnitHandler.addItemToStorageUnit(*item, *storageUnit);
     }
 
     void removeFromStorageUnit(std::uint64_t itemID, std::uint64_t storageUnitItemID)
@@ -86,40 +80,40 @@ public:
         if (!item.has_value() || !storageUnit.has_value() || !(*storageUnit)->gameItem().isStorageUnit())
             return;
 
-        request<request::RemoveFromStorageUnit>(*item, *storageUnit);
+        storageUnitHandler.removeFromStorageUnit(*item, *storageUnit);
     }
 
 private:
     void useToolOnItem(ItemIterator tool, ItemIterator destItem)
     {
         if (tool->gameItem().isSticker() && destItem->gameItem().isSkin()) {
-            request<request::ApplySticker>(destItem, tool, stickerSlot);
-        } else if (tool->gameItem().isCaseKey() && destItem->gameItem().isCase()) {
+            request<request::ApplySticker>(destItem, tool, params.stickerSlot);
+        } else if (tool->gameItem().isCaseKey() && destItem->gameItem().isCrate()) {
             if (destItem->getState() != inventory::Item::State::InXrayScanner)
-                request<request::OpenContainer>(destItem, tool);
+                itemActivationHandler.openContainer(destItem, tool);
             else
-                request<request::ClaimXRayScannedItem>(destItem, tool);
+                xRayScannerHandler.claimXRayScannedItem(destItem, tool);
         } else if (tool->gameItem().isPatch() && destItem->gameItem().isAgent()) {
-            request<request::ApplyPatch>(destItem, tool, stickerSlot);
+            request<request::ApplyPatch>(destItem, tool, params.stickerSlot);
         } else if (tool->gameItem().isNameTag() && destItem->gameItem().isSkin()) {
-            request<request::AddNameTag>(destItem, tool, nameTag);
-        } else if (tool->gameItem().isCase() && tool == destItem) {
-            request<request::PerformXRayScan>(tool);
+            request<request::AddNameTag>(destItem, tool, params.nameTag);
+        } else if (tool->gameItem().isCrate() && tool == destItem) {
+            xRayScannerHandler.performXRayScan(tool);
         }
     }
 
     void useTool(ItemIterator tool)
     {
         if (tool->gameItem().isStatTrakSwapTool()) {
-            const auto statTrakSwapItem1 = itemIDMap.get(statTrakSwapItemID1);
-            const auto statTrakSwapItem2 = itemIDMap.get(statTrakSwapItemID2);
+            const auto statTrakSwapItem1 = itemIDMap.get(params.statTrakSwapItemID1);
+            const auto statTrakSwapItem2 = itemIDMap.get(params.statTrakSwapItemID2);
 
             if (statTrakSwapItem1.has_value() && statTrakSwapItem2.has_value())
                 request<request::SwapStatTrak>(*statTrakSwapItem1, *statTrakSwapItem2, tool);
         } else if (tool->gameItem().isOperationPass()) {
-            request<request::ActivateOperationPass>(tool);
+            itemActivationHandler.activateOperationPass(tool);
         } else if (tool->gameItem().isViewerPass()) {
-            request<request::ActivateViewerPass>(tool);
+            itemActivationHandler.activateViewerPass(tool);
         } else if (tool->gameItem().isSouvenirToken()) {
             request<request::ActivateSouvenirToken>(tool);
         } else if (tool->gameItem().isGraffiti()) {
@@ -131,28 +125,28 @@ private:
     {
         constexpr std::uint64_t fauxNameTagItemID = (std::uint64_t{ 0xF } << 60) | static_cast<std::uint16_t>(WeaponId::NameTag);
 
-        if (item->gameItem().isCase()) {
+        if (item->gameItem().isCrate()) {
             if (item->getState() != inventory::Item::State::InXrayScanner)
-                request<request::OpenContainer>(item);
+                itemActivationHandler.openKeylessContainer(item);
             else
-                request<request::ClaimXRayScannedItem>(item);
+                xRayScannerHandler.claimXRayScannedItem(item, std::nullopt);
         } else if (item->gameItem().isStorageUnit() && toolItemID == fauxNameTagItemID) {
-            request<request::NameStorageUnit>(item, nameTag);
+            storageUnitHandler.nameStorageUnit(item, params.nameTag);
         }
     }
 
     template <typename RequestType, typename... Args>
     void request(Args&&... args)
     {
-        requestor.template request<RequestType>(std::forward<Args>(args)...);
+        requestor(RequestType{ std::forward<Args>(args)... });
     }
 
+    const RequestBuilderParams& params;
     const ItemIDMap& itemIDMap;
     Requestor requestor;
-    std::uint8_t stickerSlot = 0;
-    std::uint64_t statTrakSwapItemID1 = 0;
-    std::uint64_t statTrakSwapItemID2 = 0;
-    std::string nameTag;
+    StorageUnitHandler storageUnitHandler;
+    XRayScannerHandler xRayScannerHandler;
+    ItemActivationHandler itemActivationHandler;
 };
 
 }
