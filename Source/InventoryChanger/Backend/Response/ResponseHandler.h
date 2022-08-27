@@ -47,12 +47,6 @@ struct ResponseHandler {
             gameInventory.hideItem(*itemID);
     }
 
-    void operator()(const response::ItemUnhidden& response) const
-    {
-        if (const auto itemID = getItemID(response.item); itemID.has_value())
-            gameInventory.unhideItem(*itemID);
-    }
-
     void operator()(const response::ItemEquipped& response) const
     {
         if (const auto itemID = getItemID(response.item); itemID.has_value())
@@ -172,7 +166,7 @@ struct ResponseHandler {
     void operator()(const response::XRayItemClaimed& response) const
     {
         if (const auto itemID = getItemID(response.item); itemID.has_value())
-            gameInventory.xRayItemClaimed(*itemID, response.item->getProperties().common.tradableAfterDate);
+            gameInventory.xRayItemClaimed(*itemID);
     }
 
     void operator()(const response::StorageUnitNamed& response) const
@@ -212,6 +206,12 @@ struct ResponseHandler {
             if (const auto storageUnitItemID = getItemID(response.storageUnit); storageUnitItemID.has_value())
                 gameInventory.removeItemFromStorageUnit(*itemID, *storageUnitItemID);
         }
+    }
+
+    void operator()(const response::TradabilityUpdated& response) const
+    {
+        if (const auto itemID = getItemID(response.item); itemID.has_value())
+            gameInventory.updateTradableAfterDate(*itemID, response.item->getProperties().common.tradableAfterDate);
     }
 
 private:

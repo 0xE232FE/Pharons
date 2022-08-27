@@ -94,12 +94,12 @@ static Entity* createGlove(int entry, int serial) noexcept
     return nullptr;
 }
 
-static std::optional<std::list<inventory_changer::inventory::Item>::const_iterator> getItemFromLoadout(const inventory_changer::backend::Loadout& loadout, Team team, std::uint8_t slot)
+static std::optional<std::list<inventory_changer::inventory::Item>::const_iterator> getItemFromLoadout(const inventory_changer::backend::Loadout& loadout, csgo::Team team, std::uint8_t slot)
 {
     switch (team) {
-    case Team::None: return loadout.getItemInSlotNoTeam(slot);
-    case Team::CT: return loadout.getItemInSlotCT(slot);
-    case Team::TT: return loadout.getItemInSlotTT(slot);
+    case csgo::Team::None: return loadout.getItemInSlotNoTeam(slot);
+    case csgo::Team::CT: return loadout.getItemInSlotCT(slot);
+    case csgo::Team::TT: return loadout.getItemInSlotTT(slot);
     default: return {};
     }
 }
@@ -827,7 +827,7 @@ void InventoryChanger::drawGUI(bool contentOnly)
                 bool shouldDelete = false;
                 ImGui::SkinItem(it->gameItem(), { 37.0f, 28.0f }, { 200.0f, 150.0f }, rarityColor(it->gameItem().getRarity()), shouldDelete);
                 if (shouldDelete) {
-                    it = std::make_reverse_iterator(backend.getItemRemovalHandler().removeItem(std::next(it).base()));
+                    it = std::make_reverse_iterator(backend.getItemRemovalHandler()(std::next(it).base()));
                 } else {
                     ++it;
                 }
@@ -1202,7 +1202,7 @@ void InventoryChanger::getArgAsStringHook(const char* string, std::uintptr_t ret
         getRequestBuilder().removeNameTagFrom(stringToUint64(string));
     } else if (returnAddress == memory->deleteItemGetArgAsStringReturnAddress) {
         if (const auto itOptional = backend.itemFromID(stringToUint64(string)); itOptional.has_value())
-            backend.getItemRemovalHandler().removeItem(*itOptional);
+            backend.getItemRemovalHandler()(*itOptional);
     } else if (returnAddress == memory->acknowledgeNewItemByItemIDGetArgAsStringReturnAddress) {
         acknowledgeItem(stringToUint64(string));
     } else if (returnAddress == memory->setStatTrakSwapToolItemsGetArgAsStringReturnAddress1) {
@@ -1350,7 +1350,7 @@ void InventoryChanger::onUserTextMsg(const void*& data, int& size)
     }
 }
 
-void InventoryChanger::onItemEquip(Team team, int slot, std::uint64_t& itemID)
+void InventoryChanger::onItemEquip(csgo::Team team, int slot, std::uint64_t& itemID)
 {
     if (const auto itemOptional = backend.itemFromID(itemID); itemOptional.has_value()) {
         const auto& itemIterator = *itemOptional;

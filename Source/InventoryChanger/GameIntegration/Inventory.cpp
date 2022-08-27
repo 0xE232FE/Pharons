@@ -114,8 +114,8 @@ void initSkinEconItem(const game_items::Storage& gameItemStorage, const inventor
     if (isMP5LabRats) {
         attributeSetter.setSpecialEventID(econItem, 1);
     } else {
-        if (dynamicData.tournamentID != 0)
-            attributeSetter.setTournamentID(econItem, dynamicData.tournamentID);
+        if (dynamicData.tournamentID != csgo::Tournament{})
+            attributeSetter.setTournamentID(econItem, static_cast<int>(dynamicData.tournamentID));
 
         if (dynamicData.tournamentStage != TournamentStage{ 0 }) {
             attributeSetter.setTournamentStage(econItem, static_cast<int>(dynamicData.tournamentStage));
@@ -484,7 +484,7 @@ void Inventory::statTrakSwapped(std::uint64_t itemID)
     initItemCustomizationNotification("stattrack_swap", itemID);
 }
 
-void Inventory::equipItem(std::uint64_t itemID, Team team, std::uint8_t slot)
+void Inventory::equipItem(std::uint64_t itemID, csgo::Team team, std::uint8_t slot)
 {
     memory->inventoryManager->equipItemInSlot(team, slot, itemID);
 }
@@ -521,7 +521,7 @@ void Inventory::xRayItemRevealed(std::uint64_t itemID)
    initItemCustomizationNotification("xray_item_reveal", itemID);
 }
 
-void Inventory::xRayItemClaimed(std::uint64_t itemID, std::uint32_t tradableAfterDate)
+void Inventory::xRayItemClaimed(std::uint64_t itemID)
 {
     const auto view = memory->findOrCreateEconItemViewForItemID(itemID);
     if (!view)
@@ -535,8 +535,8 @@ void Inventory::xRayItemClaimed(std::uint64_t itemID, std::uint32_t tradableAfte
     if (!localInventory)
         return;
 
-    EconItemAttributeSetter attributeSetter{ *memory->itemSystem()->getItemSchema() };
-    attributeSetter.setTradableAfterDate(*econItem, tradableAfterDate);
+    econItem->flags &= ~16;
+
     localInventory->soUpdated(localInventory->getSOID(), (SharedObject*)econItem, 4);
 
     initItemCustomizationNotification("xray_item_claim", itemID);
@@ -613,6 +613,26 @@ void Inventory::removeItemFromStorageUnit(std::uint64_t itemID, std::uint64_t st
 
     localInventory->soUpdated(localInventory->getSOID(), (SharedObject*)econItem, 4);
     initItemCustomizationNotification("casket_removed", storageUnitItemID);
+}
+
+void Inventory::updateTradableAfterDate(std::uint64_t itemID, std::uint32_t tradableAfterDate)
+{
+    const auto view = memory->findOrCreateEconItemViewForItemID(itemID);
+    if (!view)
+        return;
+
+    const auto econItem = memory->getSOCData(view);
+    if (!econItem)
+        return;
+
+    const auto localInventory = memory->inventoryManager->getLocalInventory();
+    if (!localInventory)
+        return;
+
+    EconItemAttributeSetter attributeSetter{ *memory->itemSystem()->getItemSchema() };
+    attributeSetter.setTradableAfterDate(*econItem, tradableAfterDate);
+
+    localInventory->soUpdated(localInventory->getSOID(), (SharedObject*)econItem, 4);
 }
 
 }

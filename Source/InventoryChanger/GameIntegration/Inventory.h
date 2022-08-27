@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+namespace csgo{ enum class Team; }
+
 namespace inventory_changer
 {
 namespace game_items
@@ -38,18 +40,19 @@ public:
     void unsealGraffiti(std::uint64_t itemID);
     void selectTeamGraffiti(std::uint64_t itemID, std::uint16_t graffitiID);
     void statTrakSwapped(std::uint64_t itemID);
-    void equipItem(std::uint64_t itemID, Team team, std::uint8_t slot);
+    void equipItem(std::uint64_t itemID, csgo::Team team, std::uint8_t slot);
     void markItemUpdated(std::uint64_t itemID);
     void pickEmUpdated();
     void hideItem(std::uint64_t itemID);
     void unhideItem(std::uint64_t itemID);
     void xRayItemRevealed(std::uint64_t itemID);
-    void xRayItemClaimed(std::uint64_t itemID, std::uint32_t tradableAfterDate);
+    void xRayItemClaimed(std::uint64_t itemID);
     void nameStorageUnit(std::uint64_t itemID, const char* newName);
     void storageUnitModified(std::uint64_t itemID, std::uint32_t modificationDate, std::uint32_t itemCount);
     void addItemToStorageUnit(std::uint64_t itemID, std::uint64_t storageUnitItemID);
     void itemAddedToStorageUnit(std::uint64_t storageUnitItemID);
     void removeItemFromStorageUnit(std::uint64_t itemID, std::uint64_t storageUnitItemID);
+    void updateTradableAfterDate(std::uint64_t itemID, std::uint32_t tradableAfterDate);
 };
 
 }

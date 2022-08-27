@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cassert>
+
 #include <InventoryChanger/Backend/Item.h>
 #include <InventoryChanger/ItemGenerator/ItemGenerator.h>
 
@@ -14,8 +16,7 @@ public:
 
     void performXRayScan(ItemIterator crate) const
     {
-        if (!crate->gameItem().isCrate())
-            return;
+        assert(crate->gameItem().isCrate());
 
         auto generatedItem = item_generator::generateItemFromContainer(gameItemLookup, crateLootLookup, *crate, nullptr);
         if (!generatedItem.has_value())
@@ -31,8 +32,10 @@ public:
         responseAccumulator(response::XRayScannerUsed{ receivedItem });
     }
 
-    void claimXRayScannedItem(ItemIterator crate, std::optional<ItemIterator> key) const
+    void claimXRayScannedItem(ItemIterator crate, ItemIterator key) const
     {
+        assert(crate->gameItem().isCrate() && key->gameItem().isCaseKey());
+
         const auto scannerItems = xRayScanner.getItems();
         if (!scannerItems.has_value())
             return;
@@ -40,16 +43,27 @@ public:
         if (crate != scannerItems->crate)
             return;
 
-        if (key.has_value()) {
-            if (const auto& keyItem = *key; keyItem->gameItem().isCaseKey()) {
-                constRemover(scannerItems->reward).getProperties().common.tradableAfterDate = keyItem->getProperties().common.tradableAfterDate;
-                itemRemovalHandler.removeItem(keyItem);
-            }
-        }
-
-        itemRemovalHandler.removeItem(crate);
+        constRemover(scannerItems->reward).getProperties().common.tradableAfterDate = key->getProperties().common.tradableAfterDate;
+        responseAccumulator(response::TradabilityUpdated{ scannerItems->reward });
+        itemRemovalHandler(key);
+        itemRemovalHandler(crate);
         constRemover(scannerItems->reward).setState(inventory::Item::State::Default);
-        responseAccumulator(response::ItemUnhidden{ scannerItems->reward });
+        responseAccumulator(response::XRayItemClaimed{ scannerItems->reward });
+    }
+
+    void claimXRayScannedItemWithoutKey(ItemIterator crate) const
+    {
+        assert(crate->gameItem().isCrate());
+
+        const auto scannerItems = xRayScanner.getItems();
+        if (!scannerItems.has_value())
+            return;
+
+        if (crate != scannerItems->crate)
+            return;
+
+        itemRemovalHandler(crate);
+        constRemover(scannerItems->reward).setState(inventory::Item::State::Default);
         responseAccumulator(response::XRayItemClaimed{ scannerItems->reward });
     }
 

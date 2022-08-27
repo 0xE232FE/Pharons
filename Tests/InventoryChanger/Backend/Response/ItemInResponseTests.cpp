@@ -22,7 +22,7 @@ template <typename ResponseType>
     else if constexpr (std::is_same_v<ResponseType, response::ItemUpdated>)
         return response::ItemUpdated{ item };
     else if constexpr (std::is_same_v<ResponseType, response::ItemEquipped>)
-        return response::ItemEquipped{ item, 0, Team::None };
+        return response::ItemEquipped{ item, 0, csgo::Team::None };
     else if constexpr (std::is_same_v<ResponseType, response::StickerApplied>)
         return response::StickerApplied{ item, 0 };
     else if constexpr (std::is_same_v<ResponseType, response::StickerScraped>)
@@ -53,8 +53,6 @@ template <typename ResponseType>
         return response::StatTrakUpdated{ item, 123 };
     else if constexpr (std::is_same_v<ResponseType, response::ItemHidden>)
         return response::ItemHidden{ item };
-    else if constexpr (std::is_same_v<ResponseType, response::ItemUnhidden>)
-        return response::ItemUnhidden{ item };
     else if constexpr (std::is_same_v<ResponseType, response::XRayItemClaimed>)
         return response::XRayItemClaimed{ item };
     else if constexpr (std::is_same_v<ResponseType, response::XRayScannerUsed>)
@@ -105,7 +103,6 @@ using ResponseTypes = testing::Types<
     response::ItemEquipped,
     response::ItemHidden,
     response::ItemMovedToFront,
-    response::ItemUnhidden,
     response::ItemUpdated,
     response::NameTagAdded,
     response::NameTagRemoved,

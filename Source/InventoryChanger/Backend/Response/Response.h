@@ -17,7 +17,6 @@ using Response = std::variant<
     response::ItemHidden,
     response::ItemMovedToFront,
     response::ItemRemoved,
-    response::ItemUnhidden,
     response::ItemUpdated,
     response::NameTagAdded,
     response::NameTagRemoved,
@@ -38,7 +37,8 @@ using Response = std::variant<
     response::StorageUnitModified,
     response::ItemBoundToStorageUnit,
     response::ItemRemovedFromStorageUnit,
-    response::ItemAddedToStorageUnit
+    response::ItemAddedToStorageUnit,
+    response::TradabilityUpdated
 >;
 
 }
