@@ -11,7 +11,11 @@
 #include <SDK/Constants/TournamentTeam.h>
 #include <SDK/ItemSchema.h>
 
-namespace csgo { enum class Tournament : std::uint8_t; }
+namespace csgo
+{
+    enum class Tournament : std::uint8_t;
+    enum class TournamentStage : std::uint8_t;
+}
 
 namespace inventory_changer
 {
@@ -23,7 +27,7 @@ namespace inventory_changer::item_generator
 
 struct MatchWithMVPs {
     TournamentMap map;
-    TournamentStage stage;
+    csgo::TournamentStage stage;
     csgo::TournamentTeam team1;
     csgo::TournamentTeam team2;
     std::array<csgo::ProPlayer, 10> mvpPlayers;
@@ -36,7 +40,7 @@ struct MatchWithMVPs {
 
 struct Match {
     TournamentMap map;
-    TournamentStage stage;
+    csgo::TournamentStage stage;
     csgo::TournamentTeam team1;
     csgo::TournamentTeam team2;
 };

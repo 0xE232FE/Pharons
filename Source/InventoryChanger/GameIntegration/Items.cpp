@@ -37,7 +37,7 @@ void Items::getStickers(game_items::Storage& storage)
         if (isSticker) {
             const auto isGolden = name.ends_with("gold");
             const auto stickerName = interfaces->localize->findSafe(stickerKit->id != 242 ? stickerKit->itemName.data() : "StickerKit_dhw2014_teamdignitas_gold");
-            storage.addSticker(stickerKit->id, game_items::ItemName{ toUtf8.convertUnicodeToAnsi(stickerName), toUpperConverter.toUpper(stickerName) }, static_cast<EconRarity>(stickerKit->rarity), stickerKit->inventoryImage.data(), static_cast<csgo::Tournament>(stickerKit->tournamentID), static_cast<csgo::TournamentTeam>(stickerKit->tournamentTeamID), stickerKit->tournamentPlayerID, isGolden);
+            storage.addSticker(static_cast<csgo::StickerId>(stickerKit->id), game_items::ItemName{ toUtf8.convertUnicodeToAnsi(stickerName), toUpperConverter.toUpper(stickerName) }, static_cast<EconRarity>(stickerKit->rarity), stickerKit->inventoryImage.data(), static_cast<csgo::Tournament>(stickerKit->tournamentID), static_cast<csgo::TournamentTeam>(stickerKit->tournamentTeamID), stickerKit->tournamentPlayerID, isGolden);
         } else if (isPatch) {
             const auto patchName = interfaces->localize->findSafe(stickerKit->itemName.data());
             storage.addPatch(stickerKit->id, game_items::ItemName{ toUtf8.convertUnicodeToAnsi(patchName), toUpperConverter.toUpper(patchName) }, static_cast<EconRarity>(stickerKit->rarity), stickerKit->inventoryImage.data());
@@ -141,10 +141,12 @@ void Items::getOtherItems(game_items::Storage& storage)
             else if (std::strcmp(tool->typeName, "stattrak_swap") == 0)
                 storage.addStatTrakSwapTool(rarity, weaponID, inventoryImage);
             else if (std::strcmp(tool->typeName, "fantoken") == 0) {
-                if (Helpers::isSouvenirToken(weaponID))
+                const auto baseName = std::string_view{ item->getItemBaseName() };
+
+                if (baseName.ends_with("charge"))
                     storage.addSouvenirToken(rarity, weaponID, static_cast<csgo::Tournament>(item->getTournamentEventID()), inventoryImage);
                 else
-                    storage.addViewerPass(rarity, weaponID, static_cast<csgo::Tournament>(item->getTournamentEventID()), inventoryImage);
+                    storage.addViewerPass(rarity, weaponID, static_cast<csgo::Tournament>(item->getTournamentEventID()), baseName.ends_with("pack"), inventoryImage);
             } else if (std::strcmp(tool->typeName, "casket") == 0) {
                 storage.addStorageUnit(rarity, weaponID, inventoryImage);
             }

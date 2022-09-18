@@ -61,18 +61,6 @@ namespace Helpers
         return (id >= WeaponId::Bayonet && id <= WeaponId::SkeletonKnife) || id == WeaponId::KnifeT || id == WeaponId::Knife;
     }
 
-    constexpr auto isSouvenirToken(WeaponId id) noexcept
-    {
-        switch (id) {
-        case WeaponId::Berlin2019SouvenirToken:
-        case WeaponId::Stockholm2021SouvenirToken:
-        case WeaponId::Antwerp2022SouvenirToken:
-            return true;
-        default:
-            return false;
-        }
-    }
-
     constexpr auto bronzeEventCoinFromViewerPass(WeaponId id) noexcept
     {
         switch (id) {
@@ -84,16 +72,6 @@ namespace Helpers
         case WeaponId::Antwerp2022ViewerPass:
         case WeaponId::Antwerp2022ViewerPassWith3Tokens: return WeaponId::Antwerp2022BronzeCoin;
         default: return WeaponId::None;
-        }
-    }
-
-    constexpr std::uint8_t numberOfTokensWithViewerPass(WeaponId id) noexcept
-    {
-        switch (id) {
-        case WeaponId::Berlin2019ViewerPassWith3Tokens: 
-        case WeaponId::Stockholm2021ViewerPassWith3Tokens:
-        case WeaponId::Antwerp2022ViewerPassWith3Tokens: return 3;
-        default: return 0;
         }
     }
 
@@ -126,6 +104,13 @@ namespace Helpers
             return gen();
         }
 
+        template <typename Distribution>
+        auto operator()(Distribution&& distribution) const
+        {
+            std::scoped_lock lock{ mutex };
+            return distribution(gen);
+        }
+
         template <std::integral T>
         [[nodiscard]] static T random(T min, T max) noexcept
         {
@@ -140,22 +125,10 @@ namespace Helpers
             return std::uniform_real_distribution{ min, max }(gen);
         }
 
-        template <typename T>
-        [[nodiscard]] static std::enable_if_t<std::is_enum_v<T>, T> random(T min, T max) noexcept
-        {
-            return static_cast<T>(random(static_cast<std::underlying_type_t<T>>(min), static_cast<std::underlying_type_t<T>>(max)));
-        }
-
     private:
         inline static GeneratorType gen{ std::random_device{}() };
         inline static std::mutex mutex;
     };
-
-    template <typename T>
-    [[nodiscard]] T random(T min, T max) noexcept
-    {
-        return RandomGenerator::random(min, max);
-    }
 
     class ToUpperConverter {
     public:

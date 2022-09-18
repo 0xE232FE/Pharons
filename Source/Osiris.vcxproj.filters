@@ -775,9 +775,6 @@
     <ClInclude Include="InventoryChanger\ItemGenerator\DefaultGenerator.h">
       <Filter>InventoryChanger\ItemGenerator</Filter>
     </ClInclude>
-    <ClInclude Include="InventoryChanger\ItemGenerator\Utils.h">
-      <Filter>InventoryChanger\ItemGenerator</Filter>
-    </ClInclude>
     <ClInclude Include="InventoryChanger\ItemGenerator\AttributeGenerator.h">
       <Filter>InventoryChanger\ItemGenerator</Filter>
     </ClInclude>
@@ -822,6 +819,24 @@
     </ClInclude>
     <ClInclude Include="InventoryChanger\Backend\Items.h">
       <Filter>InventoryChanger\Backend</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Constants\PaintkitConditionChances.h">
+      <Filter>SDK\Constants</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Constants\PaintkitWear.h">
+      <Filter>SDK\Constants</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Constants\StickerId.h">
+      <Filter>SDK\Constants</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Constants\TournamentStage.h">
+      <Filter>SDK\Constants</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Constants\ItemId.h">
+      <Filter>SDK\Constants</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryChanger\ItemId.h">
+      <Filter>InventoryChanger</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

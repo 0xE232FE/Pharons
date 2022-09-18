@@ -10,6 +10,7 @@
 #include "Storage.h"
 #include <Helpers.h>
 #include <SDK/Constants/ProPlayer.h>
+#include <SDK/Constants/StickerId.h>
 #include <SDK/Constants/Tournament.h>
 
 namespace inventory_changer::game_items
@@ -65,30 +66,25 @@ private:
     }
 
 public:
-    int findTournamentEventStickerID(csgo::Tournament tournament) const noexcept
+    csgo::StickerId findTournamentEventStickerID(csgo::Tournament tournament) const noexcept
     {
-        if (tournament == csgo::Tournament::DreamHack2013)
-            return Helpers::random(1, 12);
-        else if (tournament == csgo::Tournament::EmsOneKatowice2014)
-            return Helpers::random(99, 100); // EMS Wolf / Skull
-        else if (tournament == csgo::Tournament::EslOneCologne2014)
-            return 172;
-
-        const auto it = findTournamentStickers(tournament).begin();
-        if (it == tournamentStickersSorted.end())
-            return 0;
-        return storage.getStickerKit(*it).tournament == tournament ? storage.getStickerKit(*it).id : 0;
+        if (const auto it = findTournamentStickers(tournament).begin(); it != tournamentStickersSorted.end() && storage.getStickerKit(*it).tournament == tournament) {
+            return static_cast<csgo::StickerId>(storage.getStickerKit(*it).id);
+        }
+        return csgo::StickerId::Default;
     }
 
-    int findTournamentTeamGoldStickerID(csgo::Tournament tournament, csgo::TournamentTeam team) const noexcept
+    csgo::StickerId findTournamentTeamGoldStickerID(csgo::Tournament tournament, csgo::TournamentTeam team) const noexcept
     {
+        using enum csgo::StickerId;
+
         if (tournament == csgo::Tournament{} || team == csgo::TournamentTeam::None)
-            return 0;
+            return Default;
 
         if (team == csgo::TournamentTeam::AllStarTeamAmerica)
-            return 1315;
+            return AllStarsOrangeHolo;
         if (team == csgo::TournamentTeam::AllStarTeamEurope)
-            return 1316;
+            return AllStarsBlueHolo;
 
         const auto range = findTournamentStickers(tournament);
 
@@ -96,15 +92,15 @@ public:
             return storage.getStickerKit(item).tournamentTeam;
         });
         if (it == range.end())
-            return 0;
-        return storage.getStickerKit(*it).tournamentTeam == team ? storage.getStickerKit(*it).id : 0;
+            return Default;
+        return storage.getStickerKit(*it).tournamentTeam == team ? static_cast<csgo::StickerId>(storage.getStickerKit(*it).id) : Default;
     }
 
-    int findTournamentPlayerGoldStickerID(csgo::Tournament tournament, csgo::ProPlayer player) const noexcept
+    csgo::StickerId findTournamentPlayerGoldStickerID(csgo::Tournament tournament, csgo::ProPlayer player) const noexcept
     {
         const auto range = findTournamentStickers(tournament);
         const auto it = std::ranges::find(range, static_cast<int>(player), [this](const Item& item) { return storage.getStickerKit(item).tournamentPlayerID; });
-        return (it != range.end() ? storage.getStickerKit(*it).id : 0);
+        return (it != range.end() ? static_cast<csgo::StickerId>(storage.getStickerKit(*it).id) : csgo::StickerId::Default);
     }
 
     [[nodiscard]] const Item* findItem(WeaponId weaponID, int paintKit) const noexcept
@@ -123,9 +119,9 @@ public:
         return find(music, musicKit, [this](const Item& item) { return storage.getMusicKit(item).id; });
     }
 
-    [[nodiscard]] const Item* findSticker(int stickerKit) const noexcept
+    [[nodiscard]] const Item* findSticker(csgo::StickerId stickerId) const noexcept
     {
-        return find(stickers, stickerKit, [this](const Item& item) { return storage.getStickerKit(item).id; });
+        return find(stickers, stickerId, [this](const Item& item) { return storage.getStickerKit(item).id; });
     }
 
     [[nodiscard]] const Item* findGraffiti(int graffitiID) const noexcept

@@ -51,7 +51,7 @@ private:
     {
         inventory::Skin skin;
         const auto& paintKit = gameItemLookup.getStorage().getPaintKit(unlockedItem);
-        skin.wear = std::lerp(paintKit.wearRemapMin, paintKit.wearRemapMax, attributeGenerator.generatePaintKitWear(attributeGenerator.generatePaintKitCondition()));
+        skin.wear = std::lerp(paintKit.wearRemapMin, paintKit.wearRemapMax, attributeGenerator.generatePaintKitWear());
         skin.seed = attributeGenerator.generatePaintKitSeed();
 
         if (const auto souvenirPackage = get<inventory::SouvenirPackage>(caseItem)) {
@@ -72,7 +72,7 @@ private:
     {
         inventory::SkinStickers stickers;
 
-        stickers[0].stickerID = gameItemLookup.findTournamentEventStickerID(tournament);
+        stickers[0].stickerID = generateTournamentEventStickerID(tournament);
 
         if (tournament >= csgo::Tournament::EmsOneKatowice2014) {
             stickers[1].stickerID = gameItemLookup.findTournamentTeamGoldStickerID(tournament, team1);
@@ -88,12 +88,28 @@ private:
         return stickers;
     }
 
+    [[nodiscard]] csgo::StickerId generateTournamentEventStickerID(csgo::Tournament tournament) const
+    {
+        switch (tournament) {
+        using enum csgo::StickerId;
+        using enum csgo::Tournament;
+        case DreamHack2013:
+            return attributeGenerator.randomStickerId(Shooter, FrostyTheHitmanFoil);
+        case EmsOneKatowice2014:
+            return attributeGenerator.randomStickerId(GoldEslWolfFoilKatowice2014, GoldEslSkullFoilKatowice2014);
+        case EslOneCologne2014:
+            return EslOneCologne2014Gold;
+        default:
+            return gameItemLookup.findTournamentEventStickerID(tournament);
+        }        
+    }
+
     [[nodiscard]] inventory::Gloves generateGloves(const game_items::Item& unlockedItem) const
     {
         const auto& paintKit = gameItemLookup.getStorage().getPaintKit(unlockedItem);
 
         return inventory::Gloves{
-            .wear = std::lerp(paintKit.wearRemapMin, paintKit.wearRemapMax, attributeGenerator.generatePaintKitWear(attributeGenerator.generatePaintKitCondition())),
+            .wear = std::lerp(paintKit.wearRemapMin, paintKit.wearRemapMax, attributeGenerator.generatePaintKitWear()),
             .seed = attributeGenerator.generatePaintKitSeed()
         };
     }

@@ -4,6 +4,7 @@
 
 #include <InventoryChanger/GameItems/Enums.h>
 #include <SDK/Constants/Tournament.h>
+#include <SDK/Constants/TournamentStage.h>
 
 namespace inventory_changer::item_generator
 {
@@ -14,6 +15,7 @@ struct Tournament {
 };
 
 using enum csgo::TournamentTeam;
+using enum csgo::TournamentStage;
 
 constexpr auto dreamHack2013Matches = std::to_array<Match>({
     // Group A
@@ -1140,7 +1142,7 @@ static_assert(std::ranges::is_sorted(tournaments, {}, &Tournament::tournament));
 template <typename MatchType>
 [[nodiscard]] static std::span<const MatchType> filterMatchesToMap(std::span<const MatchType> matches, TournamentMap map) noexcept
 {
-    if (map == TournamentMap::None)
+    if (map == TournamentMap{})
         return matches;
 
     assert(std::ranges::is_sorted(matches, {}, &MatchType::map));

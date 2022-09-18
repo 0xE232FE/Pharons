@@ -25,7 +25,7 @@ class Storage {
 public:
     void addPatch(int id, ItemName name, EconRarity rarity, std::string_view iconPath);
     void addGraffiti(int id, ItemName name, EconRarity rarity, std::string_view iconPath);
-    void addSticker(int id, ItemName name, EconRarity rarity, std::string_view iconPath, csgo::Tournament tournament, csgo::TournamentTeam tournamentTeam, int tournamentPlayerID, bool isGoldenSticker);
+    void addSticker(csgo::StickerId id, ItemName name, EconRarity rarity, std::string_view iconPath, csgo::Tournament tournament, csgo::TournamentTeam tournamentTeam, int tournamentPlayerID, bool isGoldenSticker);
     void addMusic(int musicID, ItemName name, std::string_view iconPath);
     void addVanillaKnife(WeaponId weaponID, std::string_view iconPath);
     void addCollectible(EconRarity rarity, WeaponId weaponID, bool isOriginal, std::string_view iconPath);
@@ -42,7 +42,7 @@ public:
     void addOperationPass(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
     void addStatTrakSwapTool(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
     void addSouvenirToken(EconRarity rarity, WeaponId weaponID, csgo::Tournament tournament, std::string_view iconPath);
-    void addViewerPass(EconRarity rarity, WeaponId weaponID, csgo::Tournament tournament, std::string_view iconPath);
+    void addViewerPass(EconRarity rarity, WeaponId weaponID, csgo::Tournament tournament, bool hasExtraTokens, std::string_view iconPath);
     void addStorageUnit(EconRarity rarity, WeaponId weaponID, std::string_view iconPath);
 
     [[nodiscard]] const auto& getStickerKit(const Item& item) const
@@ -135,6 +135,12 @@ public:
     [[nodiscard]] bool hasPaintKit(const Item& item) const noexcept
     {
         return item.isSkin() || item.isGloves();
+    }
+
+    [[nodiscard]] bool hasExtraSouvenirTokens(const Item& viewerPass) const noexcept
+    {
+        assert(viewerPass.isViewerPass());
+        return ((viewerPass.getDataIndex() >> 8) & 1) != 0;
     }
 
     void compress();
