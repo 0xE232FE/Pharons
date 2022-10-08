@@ -8,6 +8,8 @@
 #include "../SDK/matrix3x4.h"
 #include "../SDK/Vector.h"
 
+#include "../Memory.h"
+
 namespace csgo { enum class FrameStage; }
 struct UserCmd;
 
@@ -15,8 +17,8 @@ struct UserCmd;
 
 namespace Backtrack
 {
-    void update(csgo::FrameStage) noexcept;
-    void run(UserCmd*) noexcept;
+    void update(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory, csgo::FrameStage) noexcept;
+    void run(const ClientInterfaces& clientInterfaces, const EngineInterfaces& engineInterfaces, const Interfaces& interfaces, const Memory& memory, UserCmd*) noexcept;
 
     struct Record {
         Vector origin;
@@ -25,8 +27,8 @@ namespace Backtrack
     };
 
     const std::deque<Record>* getRecords(std::size_t index) noexcept;
-    bool valid(float simtime) noexcept;
-    void init() noexcept;
+    bool valid(Engine& engine, const Memory& memory, float simtime) noexcept;
+    void init(const Interfaces& interfaces) noexcept;
 
     // GUI
     void menuBarItem() noexcept;

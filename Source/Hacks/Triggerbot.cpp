@@ -12,13 +12,13 @@
 
 static bool keyPressed;
 
-void Triggerbot::run(UserCmd* cmd) noexcept
+void Triggerbot::run(EngineTrace& engineTrace, const Interfaces& interfaces, const Memory& memory, const Config& config, UserCmd* cmd) noexcept
 {
-    if (!localPlayer || !localPlayer->isAlive() || localPlayer->nextAttack() > memory->globalVars->serverTime() || localPlayer->isDefusing() || localPlayer->waitForNoAttack())
+    if (!localPlayer || !localPlayer->isAlive() || localPlayer->nextAttack() > memory.globalVars->serverTime() || localPlayer->isDefusing() || localPlayer->waitForNoAttack())
         return;
 
     const auto activeWeapon = localPlayer->getActiveWeapon();
-    if (!activeWeapon || !activeWeapon->clip() || activeWeapon->nextPrimaryAttack() > memory->globalVars->serverTime())
+    if (!activeWeapon || !activeWeapon->clip() || activeWeapon->nextPrimaryAttack() > memory.globalVars->serverTime())
         return;
 
     if (localPlayer->shotsFired() > 0 && !activeWeapon->isFullAuto())
@@ -28,13 +28,13 @@ void Triggerbot::run(UserCmd* cmd) noexcept
     if (!weaponIndex)
         return;
 
-    if (!config->triggerbot[weaponIndex].enabled)
+    if (!config.triggerbot[weaponIndex].enabled)
         weaponIndex = getWeaponClass(activeWeapon->itemDefinitionIndex());
 
-    if (!config->triggerbot[weaponIndex].enabled)
+    if (!config.triggerbot[weaponIndex].enabled)
         weaponIndex = 0;
 
-    const auto& cfg = config->triggerbot[weaponIndex];
+    const auto& cfg = config.triggerbot[weaponIndex];
 
     if (!cfg.enabled)
         return;
@@ -42,9 +42,9 @@ void Triggerbot::run(UserCmd* cmd) noexcept
     static auto lastTime = 0.0f;
     static auto lastContact = 0.0f;
 
-    const auto now = memory->globalVars->realtime;
+    const auto now = memory.globalVars->realtime;
 
-    if (now - lastContact < config->triggerbot[weaponIndex].burstTime) {
+    if (now - lastContact < config.triggerbot[weaponIndex].burstTime) {
         cmd->buttons |= UserCmd::IN_ATTACK;
         return;
     }
@@ -69,18 +69,18 @@ void Triggerbot::run(UserCmd* cmd) noexcept
     const auto startPos = localPlayer->getEyePosition();
     const auto endPos = startPos + Vector::fromAngle(cmd->viewangles + localPlayer->getAimPunch()) * weaponData->range;
 
-    if (!cfg.ignoreSmoke && memory->lineGoesThroughSmoke(startPos, endPos, 1))
+    if (!cfg.ignoreSmoke && memory.lineGoesThroughSmoke(startPos, endPos, 1))
         return;
 
     Trace trace;
-    interfaces->engineTrace->traceRay({ startPos, endPos }, 0x46004009, localPlayer.get(), trace);
+    engineTrace.traceRay({ startPos, endPos }, 0x46004009, localPlayer.get(), trace);
 
     lastTime = now;
 
     if (!trace.entity || !trace.entity->isPlayer())
         return;
 
-    if (!cfg.friendlyFire && !localPlayer->isOtherEnemy(trace.entity))
+    if (!cfg.friendlyFire && !localPlayer->isOtherEnemy(memory, trace.entity))
         return;
 
     if (trace.entity->gunGameImmunity())
@@ -101,7 +101,7 @@ void Triggerbot::run(UserCmd* cmd) noexcept
     }
 }
 
-void Triggerbot::updateInput() noexcept
+void Triggerbot::updateInput(const Config& config) noexcept
 {
-    keyPressed = !config->triggerbotHoldKey.isSet() || config->triggerbotHoldKey.isDown();
+    keyPressed = !config.triggerbotHoldKey.isSet() || config.triggerbotHoldKey.isDown();
 }

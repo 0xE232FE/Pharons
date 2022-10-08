@@ -13,6 +13,8 @@
 
 #include "../Netvars.h"
 
+class Memory;
+
 class EconItemView;
 
 class matrix3x4;
@@ -134,11 +136,11 @@ public:
         return false;
     }
 
-    bool setupBones(matrix3x4* out, int maxBones, int boneMask, float currentTime) noexcept;
-    Vector getBonePosition(int bone) noexcept;
+    bool setupBones(const Memory& memory, matrix3x4* out, int maxBones, int boneMask, float currentTime) noexcept;
+    Vector getBonePosition(const Memory& memory, int bone) noexcept;
 
-    bool isVisible(const Vector& position = { }) noexcept;
-    bool isOtherEnemy(Entity* other) noexcept;
+    bool isVisible(EngineTrace& engineTrace, const Memory& memory, const Vector& position = { }) noexcept;
+    bool isOtherEnemy(const Memory& memory, Entity* other) noexcept;
 
     VarMap& getVarMap() noexcept
     {
@@ -161,19 +163,19 @@ public:
         return *reinterpret_cast<bool*>(uintptr_t(&clip()) + WIN32_LINUX(0x41, 0x45));
     }
 
-    int getUserId() noexcept;
-    std::uint64_t getSteamId() noexcept;
+    int getUserId(Engine& engine) noexcept;
+    std::uint64_t getSteamId(Engine& engine) noexcept;
 
-    void getPlayerName(char(&out)[128]) noexcept;
-    [[nodiscard]] std::string getPlayerName() noexcept
+    void getPlayerName(const Interfaces& interfaces, const Memory& memory, char(&out)[128]) noexcept;
+    [[nodiscard]] std::string getPlayerName(const Interfaces& interfaces, const Memory& memory) noexcept
     {
         char name[128];
-        getPlayerName(name);
+        getPlayerName(interfaces, memory, name);
         return name;
     }
 
-    bool canSee(Entity* other, const Vector& pos) noexcept;
-    bool visibleTo(Entity* other) noexcept;
+    bool canSee(EngineTrace& engineTrace, const Memory& memory, Entity* other, const Vector& pos) noexcept;
+    bool visibleTo(const EngineInterfaces& engineInterfaces, const Memory& memory, Entity* other) noexcept;
 
     NETVAR(body, "CBaseAnimating", "m_nBody", int)
     NETVAR(hitboxSet, "CBaseAnimating", "m_nHitboxSet", int)

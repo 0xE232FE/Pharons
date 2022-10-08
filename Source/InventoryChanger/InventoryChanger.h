@@ -25,7 +25,7 @@ public:
     InventoryChanger(game_items::Lookup gameItemLookup, game_items::CrateLootLookup crateLootLookup)
         : gameItemLookup{ std::move(gameItemLookup) }, crateLootLookup{ std::move(crateLootLookup) }, backend{ this->gameItemLookup, this->crateLootLookup } {}
 
-    static InventoryChanger& instance();
+    static InventoryChanger& instance(const Interfaces& interfaces, const Memory& memory);
 
     [[nodiscard]] const game_items::Lookup& getGameItemLookup() const noexcept
     {
@@ -47,24 +47,28 @@ public:
         return backend;
     }
 
-    void getArgAsNumberHook(int number, std::uintptr_t returnAddress);
-    void onRoundMVP(GameEvent& event);
-    void updateStatTrak(GameEvent& event);
-    void overrideHudIcon(GameEvent& event);
-    void getArgAsStringHook(const char* string, std::uintptr_t returnAddress, void* params);
-    void getNumArgsHook(unsigned numberOfArgs, std::uintptr_t returnAddress, void* params);
-    int setResultIntHook(std::uintptr_t returnAddress, void* params, int result);
-    void onUserTextMsg(const void*& data, int& size);
+    void getArgAsNumberHook(const InventoryChangerReturnAddresses& returnAddresses, int number, std::uintptr_t returnAddress);
+    void onRoundMVP(Engine& engine, GameEvent& event);
+    void updateStatTrak(Engine& engine, GameEvent& event);
+    void overrideHudIcon(Engine& engine, const Memory& memory, GameEvent& event);
+    void getArgAsStringHook(const InventoryChangerReturnAddresses& returnAddresses, const Memory& memory, const char* string, std::uintptr_t returnAddress, void* params);
+    void getNumArgsHook(const InventoryChangerReturnAddresses& returnAddresses, unsigned numberOfArgs, std::uintptr_t returnAddress, void* params);
+    int setResultIntHook(const InventoryChangerReturnAddresses& returnAddresses, std::uintptr_t returnAddress, void* params, int result);
+    void onUserTextMsg(const Memory& memory, const void*& data, int& size);
     void onItemEquip(csgo::Team team, int slot, std::uint64_t& itemID);
-    void acknowledgeItem(std::uint64_t itemID);
+    void acknowledgeItem(const Memory& memory, std::uint64_t itemID);
     void fixKnifeAnimation(Entity* viewModelWeapon, long& sequence);
 
-    void reset();
+    void reset(const Interfaces& interfaces, const Memory& memory);
 
-    void drawGUI(bool contentOnly);
+    void drawGUI(const Interfaces& interfaces, const Memory& memory, bool contentOnly);
+
+    void run(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory, csgo::FrameStage frameStage) noexcept;
+    void scheduleHudUpdate(const Interfaces& interfaces) noexcept;
+    void onSoUpdated(SharedObject* object) noexcept;
 
 private:
-    void placePickEmPick(std::uint16_t group, std::uint8_t indexInGroup, csgo::StickerId stickerID);
+    void placePickEmPick(csgo::Tournament tournament, std::uint16_t group, std::uint8_t indexInGroup, csgo::StickerId stickerID);
 
     [[nodiscard]] auto getRequestBuilder()
     {
@@ -85,13 +89,8 @@ namespace InventoryChanger
 {
     // GUI
     void menuBarItem() noexcept;
-    void tabItem() noexcept;
-
-    void run(csgo::FrameStage) noexcept;
-    void scheduleHudUpdate() noexcept;
+    void tabItem(const Interfaces& interfaces, const Memory& memory) noexcept;
 
     void clearItemIconTextures() noexcept;
     void clearUnusedItemIconTextures() noexcept;
-
-    void onSoUpdated(SharedObject* object) noexcept;
 }

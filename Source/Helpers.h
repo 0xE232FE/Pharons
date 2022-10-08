@@ -21,8 +21,8 @@ struct Vector;
 
 namespace Helpers
 {
-    unsigned int calculateColor(Color4 color) noexcept;
-    unsigned int calculateColor(Color3 color) noexcept;
+    unsigned int calculateColor(float time, Color4 color) noexcept;
+    unsigned int calculateColor(float time, Color3 color) noexcept;
     unsigned int calculateColor(int r, int g, int b, int a) noexcept;
     void setAlphaFactor(float newAlphaFactor) noexcept;
     float getAlphaFactor() noexcept;
@@ -88,14 +88,14 @@ namespace Helpers
         using GeneratorType = std::mt19937;
         using result_type = GeneratorType::result_type;
 
-        static constexpr auto min()
+        static constexpr auto (min)()
         {
-            return GeneratorType::min();
+            return (GeneratorType::min)();
         }
 
-        static constexpr auto max()
+        static constexpr auto (max)()
         {
-            return GeneratorType::max();
+            return (GeneratorType::max)();
         }
 
         auto operator()() const
@@ -109,20 +109,6 @@ namespace Helpers
         {
             std::scoped_lock lock{ mutex };
             return distribution(gen);
-        }
-
-        template <std::integral T>
-        [[nodiscard]] static T random(T min, T max) noexcept
-        {
-            std::scoped_lock lock{ mutex };
-            return std::uniform_int_distribution{ min, max }(gen);
-        }
-
-        template <std::floating_point T>
-        [[nodiscard]] static T random(T min, T max) noexcept
-        {
-            std::scoped_lock lock{ mutex };
-            return std::uniform_real_distribution{ min, max }(gen);
         }
 
     private:

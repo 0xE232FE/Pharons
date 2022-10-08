@@ -2,25 +2,29 @@
 
 #include <optional>
 
+#include "Config.h"
+#include "Interfaces.h"
+#include "Memory.h"
+
 struct ImFont;
 
 class GUI {
 public:
     GUI() noexcept;
-    void render() noexcept;
-    void handleToggle() noexcept;
+    void render(Engine& engine, const Interfaces& interfaces, const Memory& memory, Config& config) noexcept;
+    void handleToggle(const Interfaces& interfaces) noexcept;
     [[nodiscard]] bool isOpen() const noexcept { return open; }
 private:
     bool open = true;
 
-    void updateColors() const noexcept;
+    void updateColors(Config& config) const noexcept;
     void renderMenuBar() noexcept;
-    void renderAimbotWindow(bool contentOnly = false) noexcept;
-    void renderTriggerbotWindow(bool contentOnly = false) noexcept;
-    void renderChamsWindow(bool contentOnly = false) noexcept;
-    void renderStyleWindow(bool contentOnly = false) noexcept;
-    void renderConfigWindow(bool contentOnly = false) noexcept;
-    void renderGuiStyle2() noexcept;
+    void renderAimbotWindow(Config& config, bool contentOnly = false) noexcept;
+    void renderTriggerbotWindow(Config& config, bool contentOnly = false) noexcept;
+    void renderChamsWindow(Config& config, bool contentOnly = false) noexcept;
+    void renderStyleWindow(Config& config, bool contentOnly = false) noexcept;
+    void renderConfigWindow(const Interfaces& interfaces, const Memory& memory, Config& config, bool contentOnly = false) noexcept;
+    void renderGuiStyle2(Engine& engine, const Interfaces& interfaces, const Memory& memory, Config& config) noexcept;
 
     struct {
         bool aimbot = false;

@@ -14,20 +14,13 @@
 namespace inventory_changer::item_generator
 {
 
-[[nodiscard]] inline std::uint8_t getNumberOfSupportedStickerSlots(WeaponId weaponID) noexcept
-{
-    if (const auto def = memory->itemSystem()->getItemSchema()->getItemDefinitionInterface(weaponID))
-        return static_cast<std::uint8_t>(std::clamp(def->getNumberOfSupportedStickerSlots(), 0, 5));
-    return 0;
-}
-
-template <typename AttributeGenerator>
+template <typename AttributeGenerator, typename StickerSlotCountGetter>
 class DropGenerator {
 public:
-    explicit DropGenerator(const game_items::Lookup& gameItemLookup, AttributeGenerator attributeGenerator)
-        : gameItemLookup{ gameItemLookup }, attributeGenerator{ attributeGenerator } {}
+    explicit DropGenerator(const game_items::Lookup& gameItemLookup, AttributeGenerator attributeGenerator, StickerSlotCountGetter stickerSlotCountGetter)
+        : gameItemLookup{ gameItemLookup }, attributeGenerator{ attributeGenerator }, stickerSlotCountGetter{ stickerSlotCountGetter } {}
 
-    [[nodiscard]] inventory::Item::VariantProperties generateItemData(const game_items::Item& unlockedItem, const inventory::Item& caseItem, bool willProduceStatTrak) const
+    [[nodiscard]] inventory::Item::VariantProperties createVariantProperties(const game_items::Item& unlockedItem, const inventory::Item& caseItem, bool willProduceStatTrak) const
     {
         if (willProduceStatTrak && unlockedItem.isMusic()) {
             return inventory::Music{ .statTrak = 0 };
@@ -84,7 +77,7 @@ private:
                 stickers[3].stickerID = game_integration::getTournamentMapGoldStickerID(map);
         }
 
-        attributeGenerator.shuffleStickers(getNumberOfSupportedStickerSlots(weaponID), stickers);
+        attributeGenerator.shuffleStickers(stickerSlotCountGetter(weaponID), stickers);
         return stickers;
     }
 
@@ -116,6 +109,7 @@ private:
 
     const game_items::Lookup& gameItemLookup;
     AttributeGenerator attributeGenerator;
+    StickerSlotCountGetter stickerSlotCountGetter;
 };
 
 }

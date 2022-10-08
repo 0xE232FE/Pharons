@@ -6,6 +6,11 @@
 #include <type_traits>
 
 #include "SDK/Platform.h"
+#include "SDK/ViewRenderBeams.h"
+
+#include "Interfaces.h"
+
+#include "RetSpoofGadgets.h"
 
 class ClientMode;
 template <typename T> class ClientSharedObjectCache;
@@ -27,7 +32,6 @@ class PlantedC4;
 class PlayerResource;
 template <typename T> class SharedObjectTypeCache;
 class ViewRender;
-class ViewRenderBeams;
 class WeaponSystem;
 template <typename Key, typename Value>
 struct UtlMap;
@@ -41,16 +45,33 @@ struct GlowObjectManager;
 struct PanoramaEventRegistration;
 struct Vector;
 
+template <bool ReportNotFound = true>
+std::uintptr_t findPattern(const char* moduleName, std::string_view pattern) noexcept;
+
+struct InventoryChangerReturnAddresses {
+    std::uintptr_t setStickerToolSlotGetArgAsNumber;
+    std::uintptr_t wearItemStickerGetArgAsString;
+    std::uintptr_t setNameToolStringGetArgAsString;
+    std::uintptr_t clearCustomNameGetArgAsString;
+    std::uintptr_t deleteItemGetArgAsString;
+    std::uintptr_t setStatTrakSwapToolItemsGetArgAsString;
+    std::uintptr_t acknowledgeNewItemByItemIDGetArgAsString;
+    std::uintptr_t setItemAttributeValueAsyncGetArgAsString;
+    std::uintptr_t setMyPredictionUsingItemIdGetNumArgs;
+    std::uintptr_t getMyPredictionTeamIDGetArgAsString;
+    std::uintptr_t setInventorySortAndFiltersGetArgAsString;
+    std::uintptr_t getInventoryCountSetResultInt;
+    std::uintptr_t performItemCasketTransactionGetArgAsString;
+    std::uintptr_t useToolGetArgAsString;
+};
+
 class Memory {
 public:
-    Memory() noexcept;
+    Memory(Client& clientInterface, const RetSpoofGadgets& retSpoofGadgets) noexcept;
 
 #ifdef _WIN32
     std::uintptr_t present;
     std::uintptr_t reset;
-#else
-    std::uintptr_t pollEvent;
-    std::uintptr_t swapWindow;
 #endif
 
     ClientMode* clientMode;
@@ -77,7 +98,7 @@ public:
     int* dispatchSound;
     std::uintptr_t traceToExit;
     ViewRender* viewRender;
-    ViewRenderBeams* viewRenderBeams;
+    ViewRenderBeams viewRenderBeams;
     std::uintptr_t drawScreenEffectMaterial;
     std::add_pointer_t<void CDECL_CONV(const char* msg, ...)> debugMsg;
     std::add_pointer_t<void CDECL_CONV(const std::array<std::uint8_t, 4>& color, const char* msg, ...)> conColorMsg;
@@ -107,23 +128,9 @@ public:
     bool(THISCALL_CONV* addEconItem)(CSPlayerInventory* thisptr, EconItem* item, bool updateAckFile, bool writeAckFile, bool checkForNewItems);
     void(THISCALL_CONV* clearInventoryImageRGBA)(EconItemView* itemView);
     PanoramaMarshallHelper* panoramaMarshallHelper;
-    std::uintptr_t setStickerToolSlotGetArgAsNumberReturnAddress;
-    std::uintptr_t wearItemStickerGetArgAsStringReturnAddress;
-    std::uintptr_t setNameToolStringGetArgAsStringReturnAddress;
-    std::uintptr_t clearCustomNameGetArgAsStringReturnAddress;
-    std::uintptr_t deleteItemGetArgAsStringReturnAddress;
-    std::uintptr_t setStatTrakSwapToolItemsGetArgAsStringReturnAddress1;
-    std::uintptr_t acknowledgeNewItemByItemIDGetArgAsStringReturnAddress;
-    std::uintptr_t setItemAttributeValueAsyncGetArgAsStringReturnAddress;
-    std::uintptr_t setMyPredictionUsingItemIdGetNumArgsReturnAddress;
-    std::uintptr_t getMyPredictionTeamIDGetArgAsStringReturnAddress;
-    std::uintptr_t setInventorySortAndFiltersGetArgAsStringReturnAddress;
-    std::uintptr_t getInventoryCountSetResultIntReturnAddress;
-    std::uintptr_t performItemCasketTransactionGetArgAsStringReturnAddress;
-
+    InventoryChangerReturnAddresses inventoryChangerReturnAddresses;
     std::add_pointer_t<EconItemView* CDECL_CONV(std::uint64_t itemID)> findOrCreateEconItemViewForItemID;
     void*(THISCALL_CONV* getInventoryItemByItemID)(CSPlayerInventory* thisptr, std::uint64_t itemID);
-    std::uintptr_t useToolGetArgAsStringReturnAddress;
     EconItem*(THISCALL_CONV* getSOCData)(void* itemView);
     void(THISCALL_CONV* setCustomName)(EconItem* thisptr, const char* name);
     SharedObjectTypeCache<EconItem>*(THISCALL_CONV* createBaseTypeCache)(ClientSharedObjectCache<EconItem>* thisptr, int classID);
@@ -160,8 +167,6 @@ public:
     class KeyValuesSystem* keyValuesSystem;
     std::uintptr_t keyValuesAllocEngine;
     std::uintptr_t keyValuesAllocClient;
-
-    std::uintptr_t jmpEbxGadgetInClient;
 
     std::uintptr_t shouldDrawFogReturnAddress;
 #endif

@@ -6,6 +6,7 @@
 #include "AntiDetection.h"
 #endif
 
+#include "GlobalContext.h"
 #include "Hooks.h"
 
 
@@ -22,6 +23,7 @@ BOOL APIENTRY DllEntryPoint(HMODULE moduleHandle, DWORD reason, LPVOID reserved)
 
     if (reason == DLL_PROCESS_ATTACH) {
         std::setlocale(LC_CTYPE, ".utf8");
+        globalContext.emplace();
         hooks.emplace(moduleHandle);
     }
     return TRUE;
@@ -31,6 +33,7 @@ BOOL APIENTRY DllEntryPoint(HMODULE moduleHandle, DWORD reason, LPVOID reserved)
 
 void __attribute__((constructor)) DllEntryPoint()
 {
+    globalContext.emplace();
     hooks.emplace(Hooks{});
 }
 

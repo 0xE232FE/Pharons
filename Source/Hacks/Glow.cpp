@@ -20,6 +20,7 @@
 #include "../SDK/Engine.h"
 #include "../SDK/Entity.h"
 #include "../SDK/EntityList.h"
+#include "../SDK/GlobalVars.h"
 #include "../SDK/GlowObjectManager.h"
 #include "../SDK/LocalPlayer.h"
 #include "../SDK/Utils.h"
@@ -46,14 +47,14 @@ static KeyBind glowHoldKey;
 
 static std::vector<std::pair<int, int>> customGlowEntities;
 
-void Glow::render() noexcept
+void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory) noexcept
 {
     if (!localPlayer)
         return;
 
     auto& glow = glowConfig;
 
-    Glow::clearCustomObjects();
+    Glow::clearCustomObjects(memory);
 
     if (glowToggleKey.isSet()) {
         if (!glowToggleKey.isToggled() && !glowHoldKey.isDown())
@@ -62,9 +63,9 @@ void Glow::render() noexcept
         return;
     }
 
-    const auto highestEntityIndex = interfaces->entityList->getHighestEntityIndex();
-    for (int i = interfaces->engine->getMaxClients() + 1; i <= highestEntityIndex; ++i) {
-        const auto entity = interfaces->entityList->getEntity(i);
+    const auto highestEntityIndex = clientInterfaces.entityList->getHighestEntityIndex();
+    for (int i = engineInterfaces.engine->getMaxClients() + 1; i <= highestEntityIndex; ++i) {
+        const auto entity = clientInterfaces.entityList->getEntity(i);
         if (!entity || entity->isDormant())
             continue;
 
@@ -80,8 +81,8 @@ void Glow::render() noexcept
         case ClassId::SnowballProjectile:
         case ClassId::Hostage:
         case ClassId::CSRagdoll:
-            if (!memory->glowObjectManager->hasGlowEffect(entity)) {
-                if (auto index{ memory->glowObjectManager->registerGlowObject(entity) }; index != -1)
+            if (!memory.glowObjectManager->hasGlowEffect(entity)) {
+                if (auto index{ memory.glowObjectManager->registerGlowObject(entity) }; index != -1)
                     customGlowEntities.emplace_back(i, index);
             }
             break;
@@ -90,15 +91,15 @@ void Glow::render() noexcept
         }
     }
 
-    for (int i = 0; i < memory->glowObjectManager->glowObjectDefinitions.size; i++) {
-        GlowObjectDefinition& glowobject = memory->glowObjectManager->glowObjectDefinitions[i];
+    for (int i = 0; i < memory.glowObjectManager->glowObjectDefinitions.size; i++) {
+        GlowObjectDefinition& glowobject = memory.glowObjectManager->glowObjectDefinitions[i];
 
         auto entity = glowobject.entity;
 
         if (glowobject.isUnused() || !entity || entity->isDormant())
             continue;
 
-        auto applyGlow = [&glowobject](const GlowItem& glow, int health = 0) noexcept
+        auto applyGlow = [&glowobject, &memory](const GlowItem& glow, int health = 0) noexcept
         {
             if (glow.enabled) {
                 glowobject.renderWhenOccluded = true;
@@ -108,7 +109,7 @@ void Glow::render() noexcept
                 if (glow.healthBased && health) {
                     Helpers::healthColor(std::clamp(health / 100.0f, 0.0f, 1.0f), glowobject.glowColor.x, glowobject.glowColor.y, glowobject.glowColor.z);
                 } else if (glow.rainbow) {
-                    const auto [r, g, b] { rainbowColor(glow.rainbowSpeed) };
+                    const auto [r, g, b] { rainbowColor(memory.globalVars->realtime, glow.rainbowSpeed) };
                     glowobject.glowColor = { r, g, b };
                 } else {
                     glowobject.glowColor = { glow.color[0], glow.color[1], glow.color[2] };
@@ -116,13 +117,13 @@ void Glow::render() noexcept
             }
         };
 
-        auto applyPlayerGlow = [applyGlow](const std::string& name, Entity* entity) noexcept {
+        auto applyPlayerGlow = [applyGlow, &memory, &engineInterfaces](const std::string& name, Entity* entity) noexcept {
             const auto& cfg = playerGlowConfig[name];
             if (cfg.all.enabled)
                 applyGlow(cfg.all, entity->health());
-            else if (cfg.visible.enabled && entity->visibleTo(localPlayer.get()))
+            else if (cfg.visible.enabled && entity->visibleTo(engineInterfaces, memory, localPlayer.get()))
                 applyGlow(cfg.visible, entity->health());
-            else if (cfg.occluded.enabled && !entity->visibleTo(localPlayer.get()))
+            else if (cfg.occluded.enabled && !entity->visibleTo(engineInterfaces, memory, localPlayer.get()))
                 applyGlow(cfg.occluded, entity->health());
         };
 
@@ -136,7 +137,7 @@ void Glow::render() noexcept
                 applyPlayerGlow("Defusing", entity);
             else if (entity == localPlayer.get())
                 applyGlow(glow["Local Player"], entity->health());
-            else if (entity->isOtherEnemy(localPlayer.get()))
+            else if (entity->isOtherEnemy(memory, localPlayer.get()))
                 applyPlayerGlow("Enemies", entity);
             else
                 applyPlayerGlow("Allies", entity);
@@ -167,10 +168,10 @@ void Glow::render() noexcept
     }
 }
 
-void Glow::clearCustomObjects() noexcept
+void Glow::clearCustomObjects(const Memory& memory) noexcept
 {
     for (const auto& [entityIndex, glowObjectIndex] : customGlowEntities)
-        memory->glowObjectManager->unregisterGlowObject(glowObjectIndex);
+        memory.glowObjectManager->unregisterGlowObject(glowObjectIndex);
 
     customGlowEntities.clear();
 }

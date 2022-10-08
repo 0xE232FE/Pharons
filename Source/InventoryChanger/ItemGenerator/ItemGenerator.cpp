@@ -810,7 +810,7 @@ constexpr auto crateRareSpecialItems = std::to_array<CrateRareSpecialItems>({
 [[nodiscard]] static EconRarity getRandomRarity(inventory_changer::EconRarities rarities)
 {
     if (const auto rate = std::ranges::find(dropRates, rarities, &DropRate::rarities); rate != dropRates.end()) {
-        const auto rolledNumber = Helpers::RandomGenerator::random((std::numeric_limits<DropRate::T>::min)(), (std::numeric_limits<DropRate::T>::max)());
+        const auto rolledNumber = Helpers::RandomGenerator{}(std::uniform_int_distribution<DropRate::T>{(std::numeric_limits<DropRate::T>::min)(), (std::numeric_limits<DropRate::T>::max)()});
         return rate->mapToRarity(rolledNumber);
     }
     return EconRarity::Default;
@@ -819,7 +819,7 @@ constexpr auto crateRareSpecialItems = std::to_array<CrateRareSpecialItems>({
 namespace inventory_changer::item_generator
 {
 
-[[nodiscard]] const game_items::Item& getRandomItemIndexFromContainer(const game_items::Lookup& lookup, const game_items::CrateLootLookup& crateLootLookup, WeaponId weaponID, const game_items::CrateLoot::LootList& lootList) noexcept
+[[nodiscard]] const game_items::Item& getRandomItemFromContainer(Helpers::RandomGenerator& randomGenerator, const game_items::Lookup& lookup, const game_items::CrateLootLookup& crateLootLookup, WeaponId weaponID, const game_items::CrateLoot::LootList& lootList) noexcept
 {
     const auto rareSpecialItems = getRareSpecialItems(weaponID);
     auto rarities = lootList.rarities;
@@ -829,18 +829,18 @@ namespace inventory_changer::item_generator
 
     if (const auto rarity = getRandomRarity(rarities); rarity != EconRarity::Default) {
         if (rarity == EconRarity::Gold) {
-            const auto& randomRareSpecialItem = rareSpecialItems[Helpers::RandomGenerator::random<std::size_t>(0u, rareSpecialItems.size() - 1u)];
+            const auto& randomRareSpecialItem = rareSpecialItems[randomGenerator(std::uniform_int_distribution<std::size_t>{0u, rareSpecialItems.size() - 1u})];
             if (const auto item = lookup.findItem(randomRareSpecialItem.weaponID, randomRareSpecialItem.paintKit))
                 return *item;
         } else {
             const auto loot = game_items::getLootOfRarity(crateLootLookup, lootList.crateSeries, rarity);
-            return loot[Helpers::RandomGenerator::random<std::size_t>(0u, loot.size() - 1u)];
+            return loot[randomGenerator(std::uniform_int_distribution<std::size_t>{0u, loot.size() - 1u})];
         }
     }
 
     std::span<const std::reference_wrapper<const game_items::Item>> loot = crateLootLookup.getLoot(lootList.crateSeries);
     assert(!loot.empty());
-    return loot[Helpers::RandomGenerator::random<std::size_t>(0u, loot.size() - 1u)];
+    return loot[randomGenerator(std::uniform_int_distribution<std::size_t>{0u, loot.size() - 1u})];
 }
 
 }
@@ -860,7 +860,29 @@ namespace inventory_changer::item_generator
 namespace inventory_changer::item_generator
 {
 
-std::optional<inventory::Item> generateItemFromContainer(const game_items::Lookup& gameItemLookup, const game_items::CrateLootLookup& crateLootLookup, const inventory::Item& caseItem, const inventory::Item* crateKey) noexcept
+[[nodiscard]] inline std::uint8_t getNumberOfSupportedStickerSlots(const Memory& memory, WeaponId weaponID) noexcept
+{
+    if (const auto def = memory.itemSystem()->getItemSchema()->getItemDefinitionInterface(weaponID))
+        return static_cast<std::uint8_t>(std::clamp(def->getNumberOfSupportedStickerSlots(), 0, 5));
+    return 0;
+}
+
+struct StickerSlotCountGetter {
+public:
+    explicit StickerSlotCountGetter(ItemSchema& itemSchema) : itemSchema{ itemSchema } {}
+
+    [[nodiscard]] std::uint8_t operator()(WeaponId weaponId) const
+    {
+        if (const auto def = itemSchema.getItemDefinitionInterface(weaponId))
+            return static_cast<std::uint8_t>(std::clamp(def->getNumberOfSupportedStickerSlots(), 0, 5));
+        return 0;
+    }
+
+private:
+    ItemSchema& itemSchema;
+};
+
+std::optional<inventory::Item> generateItemFromContainer(const Memory& memory, Helpers::RandomGenerator& randomGenerator, const game_items::Lookup& gameItemLookup, const game_items::CrateLootLookup& crateLootLookup, const inventory::Item& caseItem, const inventory::Item* crateKey) noexcept
 {
     assert(caseItem.gameItem().isCrate());
 
@@ -869,15 +891,13 @@ std::optional<inventory::Item> generateItemFromContainer(const game_items::Looku
     if (!lootList)
         return std::nullopt;
 
-    const auto& unlockedItem = getRandomItemIndexFromContainer(gameItemLookup, crateLootLookup, caseItem.gameItem().getWeaponID(), *lootList);
-    Helpers::RandomGenerator randomGenerator{};
-    DropGenerator dropGenerator{ gameItemLookup, AttributeGenerator{ randomGenerator } };
-    return inventory::Item{ unlockedItem, { dropGenerator.createCommonProperties(crateKey), dropGenerator.generateItemData(unlockedItem, caseItem, lootList->willProduceStatTrak) } };
+    const auto& unlockedItem = getRandomItemFromContainer(randomGenerator, gameItemLookup, crateLootLookup, caseItem.gameItem().getWeaponID(), *lootList);
+    DropGenerator dropGenerator{ gameItemLookup, AttributeGenerator{ randomGenerator }, StickerSlotCountGetter{ *memory.itemSystem()->getItemSchema() } };
+    return inventory::Item{ unlockedItem, { dropGenerator.createCommonProperties(crateKey), dropGenerator.createVariantProperties(unlockedItem, caseItem, lootList->willProduceStatTrak) } };
 }
 
-inventory::Item::Properties createDefaultDynamicData(const game_items::Storage& gameItemStorage, const game_items::Item& item) noexcept
+inventory::Item::Properties createDefaultItemProperties(Helpers::RandomGenerator& randomGenerator, const game_items::Storage& gameItemStorage, const game_items::Item& item) noexcept
 {
-    Helpers::RandomGenerator randomGenerator{};
     DefaultGenerator defaultGenerator{ gameItemStorage, AttributeGenerator{ randomGenerator } };
     return { defaultGenerator.createCommonProperties(item), defaultGenerator.createVariantProperties(item) };
 }
