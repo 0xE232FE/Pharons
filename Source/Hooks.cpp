@@ -4,7 +4,10 @@
 
 #include "imgui/imgui.h"
 
-#ifdef _WIN32
+#include "Platform/CallStack.h"
+#include "Platform/IsPlatform.h"
+
+#if IS_WIN32()
 #include <intrin.h>
 #include <Windows.h>
 #include <Psapi.h>
@@ -51,8 +54,8 @@
 #include "SDK/Entity.h"
 #include "SDK/EntityList.h"
 #include "SDK/Constants/FrameStage.h"
+#include "SDK/CSPlayerInventory.h"
 #include "SDK/GameEvent.h"
-#include "SDK/GameUI.h"
 #include "SDK/GlobalVars.h"
 #include "SDK/InputSystem.h"
 #include "SDK/ItemSchema.h"
@@ -60,7 +63,6 @@
 #include "SDK/MaterialSystem.h"
 #include "SDK/ModelRender.h"
 #include "SDK/Platform.h"
-#include "SDK/RenderContext.h"
 #include "SDK/SoundInfo.h"
 #include "SDK/SoundEmitter.h"
 #include "SDK/StudioRender.h"
@@ -71,7 +73,7 @@
 
 #include "GlobalContext.h"
 
-#ifdef _WIN32
+#if IS_WIN32()
 
 static LRESULT __stdcall wndProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) noexcept
 {
@@ -137,11 +139,7 @@ static void STDCALL_CONV frameStageNotify(LINUX_ARGS(void* thisptr,) csgo::Frame
 
 static int STDCALL_CONV emitSound(LINUX_ARGS(void* thisptr,) void* filter, int entityIndex, int channel, const char* soundEntry, unsigned int soundEntryHash, const char* sample, float volume, int seed, int soundLevel, int flags, int pitch, const Vector& origin, const Vector& direction, void* utlVecOrigins, bool updatePositions, float soundtime, int speakerentity, void* soundParams) noexcept
 {
-    Sound::modulateSound(*globalContext->clientInterfaces, *memory, soundEntry, entityIndex, volume);
-    Misc::autoAccept(*interfaces, *memory, soundEntry);
-
-    volume = std::clamp(volume, 0.0f, 1.0f);
-    return hooks->sound.callOriginal<int, WIN32_LINUX(5, 6)>(filter, entityIndex, channel, soundEntry, soundEntryHash, sample, volume, seed, soundLevel, flags, pitch, std::cref(origin), std::cref(direction), utlVecOrigins, updatePositions, soundtime, speakerentity, soundParams);
+    return globalContext->emitSoundHook(filter, entityIndex, channel, soundEntry, soundEntryHash, sample, volume, seed, soundLevel, flags, pitch, origin, direction, utlVecOrigins, updatePositions, soundtime, speakerentity, soundParams);
 }
 
 static bool STDCALL_CONV shouldDrawFog(LINUX_ARGS(void* thisptr)) noexcept
@@ -170,7 +168,7 @@ static void STDCALL_CONV overrideView(LINUX_ARGS(void* thisptr,) ViewSetup* setu
 }
 
 struct RenderableInfo {
-    Entity* renderable;
+    std::uintptr_t renderable;
     std::byte pad[18];
     uint16_t flags;
     uint16_t flags2;
@@ -180,7 +178,7 @@ static int STDCALL_CONV listLeavesInBox(LINUX_ARGS(void* thisptr, ) const Vector
 {
     if (Misc::shouldDisableModelOcclusion() && RETURN_ADDRESS() == memory->insertIntoTree) {
         if (const auto info = *reinterpret_cast<RenderableInfo**>(FRAME_ADDRESS() + WIN32_LINUX(0x18, 0x10 + 0x948)); info && info->renderable) {
-            if (const auto ent = VirtualMethod::call<Entity*, WIN32_LINUX(7, 8)>(info->renderable - sizeof(std::uintptr_t)); ent && ent->isPlayer()) {
+            if (const auto ent = VirtualCallable{ retSpoofGadgets.client, std::uintptr_t(info->renderable) - sizeof(std::uintptr_t) }.call<std::uintptr_t, WIN32_LINUX(7, 8)>(); ent && Entity{ retSpoofGadgets.client, ent }.isPlayer()) {
                 constexpr float maxCoord = 16384.0f;
                 constexpr float minCoord = -maxCoord;
                 constexpr Vector min{ minCoord, minCoord, minCoord };
@@ -220,8 +218,8 @@ static void STDCALL_CONV updateColorCorrectionWeights(LINUX_ARGS(void* thisptr))
 {
     hooks->clientMode.callOriginal<void, WIN32_LINUX(58, 61)>();
 
-    Visuals::performColorCorrection(*memory);
-    if (Visuals::shouldRemoveScopeOverlay())
+    globalContext->visuals->performColorCorrection();
+    if (globalContext->visuals->shouldRemoveScopeOverlay())
         *memory->vignette = 0.0f;
 }
 
@@ -234,7 +232,7 @@ static float STDCALL_CONV getScreenAspectRatio(LINUX_ARGS(void* thisptr,) int wi
 
 static void STDCALL_CONV renderSmokeOverlay(LINUX_ARGS(void* thisptr,) bool update) noexcept
 {
-    if (Visuals::shouldRemoveSmoke() || Visuals::isSmokeWireframe())
+    if (globalContext->visuals->shouldRemoveSmoke() || globalContext->visuals->isSmokeWireframe())
         *reinterpret_cast<float*>(std::uintptr_t(memory->viewRender) + WIN32_LINUX(0x588, 0x648)) = 0.0f;
     else
         hooks->viewRender.callOriginal<void, WIN32_LINUX(41, 42)>(update);
@@ -270,15 +268,15 @@ static unsigned STDCALL_CONV getNumArgs(LINUX_ARGS(void* thisptr, ) void* params
     return result;
 }
 
-static void STDCALL_CONV updateInventoryEquippedState(LINUX_ARGS(void* thisptr, ) CSPlayerInventory* inventory, std::uint64_t itemID, csgo::Team team, int slot, bool swap) noexcept
+static void STDCALL_CONV updateInventoryEquippedState(LINUX_ARGS(void* thisptr, ) std::uintptr_t inventory, std::uint64_t itemID, csgo::Team team, int slot, bool swap) noexcept
 {
     inventory_changer::InventoryChanger::instance(*interfaces, *memory).onItemEquip(team, slot, itemID);
     return hooks->inventoryManager.callOriginal<void, WIN32_LINUX(29, 30)>(inventory, itemID, team, slot, swap);
 }
 
-static void STDCALL_CONV soUpdated(LINUX_ARGS(void* thisptr, ) SOID owner, SharedObject* object, int event) noexcept
+static void STDCALL_CONV soUpdated(LINUX_ARGS(void* thisptr, ) SOID owner, csgo::pod::SharedObject* object, int event) noexcept
 {
-    inventory_changer::InventoryChanger::instance(*interfaces, *memory).onSoUpdated(object);
+    inventory_changer::InventoryChanger::instance(*interfaces, *memory).onSoUpdated(SharedObject::from(retSpoofGadgets.client, object));
     hooks->inventory.callOriginal<void, 1>(owner, object, event);
 }
 
@@ -287,7 +285,7 @@ static bool STDCALL_CONV dispatchUserMessage(LINUX_ARGS(void* thisptr, ) csgo::U
     return globalContext->dispatchUserMessageHook(type, passthroughFlags, size, data);
 }
 
-#ifdef _WIN32
+#if IS_WIN32()
 
 static void* STDCALL_CONV allocKeyValuesMemory(LINUX_ARGS(void* thisptr, ) int size) noexcept
 {
@@ -309,9 +307,9 @@ Hooks::Hooks(HMODULE moduleHandle) noexcept : moduleHandle{ moduleHandle }
 
 #endif
 
-void Hooks::install(const Interfaces& interfaces, const Memory& memory) noexcept
+void Hooks::install(const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory) noexcept
 {
-#ifdef _WIN32
+#if IS_WIN32()
     originalPresent = **reinterpret_cast<decltype(originalPresent)**>(memory.present);
     **reinterpret_cast<decltype(present)***>(memory.present) = present;
     originalReset = **reinterpret_cast<decltype(originalReset)**>(memory.reset);
@@ -327,10 +325,10 @@ void Hooks::install(const Interfaces& interfaces, const Memory& memory) noexcept
 
 #endif
     
-    bspQuery.init(globalContext->engineInterfaces->engine->getBSPTreeQuery());
+    bspQuery.init(globalContext->engineInterfaces->getEngine().getBSPTreeQuery());
     bspQuery.hookAt(6, &listLeavesInBox);
 
-    client.init(globalContext->clientInterfaces->client);
+    client.init((void*)clientInterfaces.getClientAddress());
     client.hookAt(37, &frameStageNotify);
     client.hookAt(38, &dispatchUserMessage);
 
@@ -343,19 +341,19 @@ void Hooks::install(const Interfaces& interfaces, const Memory& memory) noexcept
     clientMode.hookAt(WIN32_LINUX(44, 45), &doPostScreenEffects);
     clientMode.hookAt(WIN32_LINUX(58, 61), &updateColorCorrectionWeights);
 
-    engine.init(globalContext->engineInterfaces->engine);
+    engine.init((void*)globalContext->engineInterfaces->getEngineAddress());
     engine.hookAt(82, &isPlayingDemo);
     engine.hookAt(101, &getScreenAspectRatio);
-#ifdef _WIN32
+#if IS_WIN32()
     keyValuesSystem.init(memory.keyValuesSystem);
     keyValuesSystem.hookAt(2, &allocKeyValuesMemory);
 #endif
     engine.hookAt(WIN32_LINUX(218, 219), &getDemoPlaybackParameters);
 
-    inventory.init(memory.inventoryManager->getLocalInventory());
+    inventory.init((void*)memory.inventoryManager.getLocalInventory());
     inventory.hookAt(1, &soUpdated);
 
-    inventoryManager.init(memory.inventoryManager);
+    inventoryManager.init(memory.inventoryManager.getPOD());
     inventoryManager.hookAt(WIN32_LINUX(29, 30), &updateInventoryEquippedState);
 
     modelRender.init(globalContext->engineInterfaces->modelRender);
@@ -370,17 +368,17 @@ void Hooks::install(const Interfaces& interfaces, const Memory& memory) noexcept
     sound.init(globalContext->engineInterfaces->sound);
     sound.hookAt(WIN32_LINUX(5, 6), &emitSound);
 
-    surface.init(interfaces.surface);
+    surface.init(interfaces.getSurface().getPOD());
     surface.hookAt(WIN32_LINUX(15, 14), &setDrawColor);
     
-    svCheats.init(interfaces.cvar->findVar("sv_cheats"));
+    svCheats.init(interfaces.getCvar().findVar("sv_cheats"));
     svCheats.hookAt(WIN32_LINUX(13, 16), &svCheatsGetBool);
 
     viewRender.init(memory.viewRender);
     viewRender.hookAt(WIN32_LINUX(39, 40), &render2dEffectsPreHud);
     viewRender.hookAt(WIN32_LINUX(41, 42), &renderSmokeOverlay);
 
-#ifdef _WIN32
+#if IS_WIN32()
     if (DWORD oldProtection; VirtualProtect(memory.dispatchSound, 4, PAGE_EXECUTE_READWRITE, &oldProtection)) {
 #else
     if (const auto addressPageAligned = std::uintptr_t(memory.dispatchSound) - std::uintptr_t(memory.dispatchSound) % sysconf(_SC_PAGESIZE);
@@ -388,12 +386,12 @@ void Hooks::install(const Interfaces& interfaces, const Memory& memory) noexcept
 #endif
         originalDispatchSound = decltype(originalDispatchSound)(uintptr_t(memory.dispatchSound + 1) + *memory.dispatchSound);
         *memory.dispatchSound = uintptr_t(&dispatchSound) - uintptr_t(memory.dispatchSound + 1);
-#ifdef _WIN32
+#if IS_WIN32()
         VirtualProtect(memory.dispatchSound, 4, oldProtection, nullptr);
 #endif
     }
 
-#ifdef _WIN32
+#if IS_WIN32()
     surface.hookAt(67, &lockCursor);
 
     if constexpr (std::is_same_v<HookType, MinHook>)
@@ -401,7 +399,7 @@ void Hooks::install(const Interfaces& interfaces, const Memory& memory) noexcept
 #endif
 }
 
-#ifdef _WIN32
+#if IS_WIN32()
 
 extern "C" BOOL WINAPI _CRT_INIT(HMODULE moduleHandle, DWORD reason, LPVOID reserved);
 
@@ -409,7 +407,7 @@ static DWORD WINAPI unload(HMODULE moduleHandle) noexcept
 {
     Sleep(100);
 
-    interfaces->inputSystem->enableInput(true);
+    interfaces->getInputSystem().enableInput(true);
     globalContext->gameEventListener->remove();
 
     ImGui_ImplDX9_Shutdown();
@@ -423,12 +421,12 @@ static DWORD WINAPI unload(HMODULE moduleHandle) noexcept
 
 #endif
 
-void Hooks::uninstall(const Interfaces& interfaces, const Memory& memory) noexcept
+void Hooks::uninstall(const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory) noexcept
 {
-    Misc::updateEventListeners(*globalContext->clientInterfaces, *globalContext->engineInterfaces, interfaces, memory, true);
-    Visuals::updateEventListeners(*globalContext->engineInterfaces, *globalContext->clientInterfaces, interfaces, memory, true);
+    Misc::updateEventListeners(*globalContext->engineInterfaces, true);
+    globalContext->visuals->updateEventListeners(true);
 
-#ifdef _WIN32
+#if IS_WIN32()
     if constexpr (std::is_same_v<HookType, MinHook>) {
         MH_DisableHook(MH_ALL_HOOKS);
         MH_Uninitialize();
@@ -453,7 +451,7 @@ void Hooks::uninstall(const Interfaces& interfaces, const Memory& memory) noexce
     Glow::clearCustomObjects(memory);
     inventory_changer::InventoryChanger::instance(interfaces, memory).reset(interfaces, memory);
 
-#ifdef _WIN32
+#if IS_WIN32()
     keyValuesSystem.restore();
 
     SetWindowLongPtrW(window, GWLP_WNDPROC, LONG_PTR(originalWndProc));
@@ -478,7 +476,7 @@ void Hooks::callOriginalDrawModelExecute(void* ctx, void* state, const ModelRend
     modelRender.callOriginal<void, 21>(ctx, state, std::cref(info), customBoneToWorld);
 }
 
-#ifndef _WIN32
+#if !IS_WIN32()
 
 Hooks::Hooks() noexcept
     : sdlFunctions{ linux_platform::SharedObject{ linux_platform::DynamicLibraryWrapper{}, "libSDL2-2.0.so.0" }.getView() }

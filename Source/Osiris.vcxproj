@@ -266,8 +266,13 @@
     <ClInclude Include="JsonForward.h" />
     <ClInclude Include="Netvars.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="Platform\CallingConventions.h" />
+    <ClInclude Include="Platform\CallStack.h" />
     <ClInclude Include="Platform\DynamicLibraryView.h" />
+    <ClInclude Include="Platform\IsPlatform.h" />
+    <ClInclude Include="Platform\PlatformSpecific.h" />
     <ClInclude Include="Platform\RetSpoofInvoker.h" />
+    <ClInclude Include="Platform\Windows\DynamicLibrary.h" />
     <ClInclude Include="Platform\Windows\DynamicLibraryView.h" />
     <ClInclude Include="Platform\Windows\DynamicLibraryWrapper.h" />
     <ClInclude Include="Platform\Windows\RetSpoofInvoker.h" />
@@ -281,6 +286,7 @@
     <ClInclude Include="SDK\Client.h" />
     <ClInclude Include="SDK\ClientMode.h" />
     <ClInclude Include="SDK\Constants\ClassId.h" />
+    <ClInclude Include="SDK\Constants\EconItemFlags.h" />
     <ClInclude Include="SDK\Constants\FrameStage.h" />
     <ClInclude Include="SDK\Constants\ItemId.h" />
     <ClInclude Include="SDK\Constants\PaintkitConditionChances.h" />
@@ -292,6 +298,7 @@
     <ClInclude Include="SDK\Constants\TournamentTeam.h" />
     <ClInclude Include="SDK\Constants\UserMessages.h" />
     <ClInclude Include="SDK\ConVar.h" />
+    <ClInclude Include="SDK\CSPlayerInventory.h" />
     <ClInclude Include="SDK\EconItemView.h" />
     <ClInclude Include="SDK\EngineTrace.h" />
     <ClInclude Include="SDK\Entity.h" />
@@ -306,7 +313,6 @@
     <ClInclude Include="SDK\FileSystem.h" />
     <ClInclude Include="SDK\GameEvent.h" />
     <ClInclude Include="SDK\GameMovement.h" />
-    <ClInclude Include="SDK\GameUI.h" />
     <ClInclude Include="SDK\GlobalVars.h" />
     <ClInclude Include="SDK\GlowObjectManager.h" />
     <ClInclude Include="SDK\Inconstructible.h" />
@@ -324,7 +330,6 @@
     <ClInclude Include="SDK\ModelRender.h" />
     <ClInclude Include="SDK\MoveHelper.h" />
     <ClInclude Include="SDK\NetworkChannel.h" />
-    <ClInclude Include="SDK\NetworkStringTable.h" />
     <ClInclude Include="SDK\Pad.h" />
     <ClInclude Include="SDK\Panorama.h" />
     <ClInclude Include="SDK\PanoramaMarshallHelper.h" />
@@ -332,10 +337,12 @@
     <ClInclude Include="SDK\PlantedC4.h" />
     <ClInclude Include="SDK\Platform.h" />
     <ClInclude Include="SDK\PlayerResource.h" />
+    <ClInclude Include="SDK\PODs\ConVar.h" />
+    <ClInclude Include="SDK\PODs\EconItem.h" />
+    <ClInclude Include="SDK\PODs\ItemSchema.h" />
+    <ClInclude Include="SDK\PODs\PaintKit.h" />
     <ClInclude Include="SDK\Prediction.h" />
     <ClInclude Include="SDK\Recv.h" />
-    <ClInclude Include="SDK\RenderContext.h" />
-    <ClInclude Include="SDK\RenderView.h" />
     <ClInclude Include="SDK\Sound.h" />
     <ClInclude Include="SDK\SoundEmitter.h" />
     <ClInclude Include="SDK\SoundInfo.h" />
@@ -359,6 +366,7 @@
     <ClInclude Include="SmallVariant.h" />
     <ClInclude Include="SortFilter.h" />
     <ClInclude Include="Texture.h" />
+    <ClInclude Include="Utils\FlagsBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shaders\default_vs.hlsl">

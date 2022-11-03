@@ -2,13 +2,17 @@
 
 #include <cstdint>
 
-#ifdef _WIN32
+#include <Platform/IsPlatform.h>
+
+#if IS_WIN32()
 #include <Windows.h>
 #else
 #include <SDL2/SDL.h>
 #endif
 #include "Config.h"
 #include "EventListener.h"
+
+#include "Hacks/Visuals.h"
 
 struct DemoPlaybackParameters;
 class matrix3x4;
@@ -32,6 +36,7 @@ public:
     void drawModelExecuteHook(void* ctx, void* state, const ModelRenderInfo& info, matrix3x4* customBoneToWorld);
     bool svCheatsGetBoolHook(void* _this, std::uintptr_t returnAddress);
     void frameStageNotifyHook(csgo::FrameStage stage);
+    int emitSoundHook(void* filter, int entityIndex, int channel, const char* soundEntry, unsigned int soundEntryHash, const char* sample, float volume, int seed, int soundLevel, int flags, int pitch, const Vector& origin, const Vector& direction, void* utlVecOrigins, bool updatePositions, float soundtime, int speakerentity, void* soundParams);
     bool shouldDrawFogHook(std::uintptr_t returnAddress);
     bool shouldDrawViewModelHook();
     void lockCursorHook();
@@ -42,7 +47,7 @@ public:
     const DemoPlaybackParameters* getDemoPlaybackParametersHook(std::uintptr_t returnAddress);
     bool dispatchUserMessageHook(csgo::UserMessageType type, int passthroughFlags, int size, const void* data);
 
-#ifdef _WIN32
+#if IS_WIN32()
     LRESULT wndProcHook(HWND window, UINT msg, WPARAM wParam, LPARAM lParam);
     HRESULT presentHook(IDirect3DDevice9* device, const RECT* src, const RECT* dest, HWND windowOverride, const RGNDATA* dirtyRegion);
 #else
@@ -52,10 +57,13 @@ public:
 
     void viewModelSequenceNetvarHook(recvProxyData& data, void* outStruct, void* arg3);
 
+    void fireGameEventCallback(csgo::pod::GameEvent* eventPointer);
+
     std::optional<EventListener> gameEventListener;
 
-    std::optional<ClientInterfaces> clientInterfaces; // TODO: make private
     std::optional<EngineInterfaces> engineInterfaces; // TODO: make private
+
+    std::optional<Visuals> visuals;
 
 private:
     void renderFrame();
@@ -69,6 +77,8 @@ private:
     State state = State::NotInitialized;
 
     std::optional<Config> config;
+    std::optional<ClientInterfaces> clientInterfaces;
+
 };
 
 inline std::optional<GlobalContext> globalContext;

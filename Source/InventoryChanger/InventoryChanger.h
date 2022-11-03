@@ -23,18 +23,18 @@ namespace inventory_changer
 class InventoryChanger {
 public:
     InventoryChanger(game_items::Lookup gameItemLookup, game_items::CrateLootLookup crateLootLookup)
-        : gameItemLookup{ std::move(gameItemLookup) }, crateLootLookup{ std::move(crateLootLookup) }, backend{ this->gameItemLookup, this->crateLootLookup } {}
+        : backend{ std::move(gameItemLookup), std::move(crateLootLookup) } {}
 
     static InventoryChanger& instance(const Interfaces& interfaces, const Memory& memory);
 
     [[nodiscard]] const game_items::Lookup& getGameItemLookup() const noexcept
     {
-        return gameItemLookup;
+        return backend.getGameItemLookup();
     }
 
     [[nodiscard]] const game_items::CrateLootLookup& getCrateLootLookup() const noexcept
     {
-        return crateLootLookup;
+        return backend.getCrateLootLookup();
     }
 
     [[nodiscard]] const backend::BackendSimulator& getBackend() const noexcept
@@ -48,16 +48,16 @@ public:
     }
 
     void getArgAsNumberHook(const InventoryChangerReturnAddresses& returnAddresses, int number, std::uintptr_t returnAddress);
-    void onRoundMVP(Engine& engine, GameEvent& event);
-    void updateStatTrak(Engine& engine, GameEvent& event);
-    void overrideHudIcon(Engine& engine, const Memory& memory, GameEvent& event);
+    void onRoundMVP(const Engine& engine, const GameEvent& event);
+    void updateStatTrak(const Engine& engine, const GameEvent& event);
+    void overrideHudIcon(const Engine& engine, const Memory& memory, const GameEvent& event);
     void getArgAsStringHook(const InventoryChangerReturnAddresses& returnAddresses, const Memory& memory, const char* string, std::uintptr_t returnAddress, void* params);
     void getNumArgsHook(const InventoryChangerReturnAddresses& returnAddresses, unsigned numberOfArgs, std::uintptr_t returnAddress, void* params);
     int setResultIntHook(const InventoryChangerReturnAddresses& returnAddresses, std::uintptr_t returnAddress, void* params, int result);
     void onUserTextMsg(const Memory& memory, const void*& data, int& size);
     void onItemEquip(csgo::Team team, int slot, std::uint64_t& itemID);
     void acknowledgeItem(const Memory& memory, std::uint64_t itemID);
-    void fixKnifeAnimation(Entity* viewModelWeapon, long& sequence);
+    void fixKnifeAnimation(const Entity& viewModelWeapon, long& sequence);
 
     void reset(const Interfaces& interfaces, const Memory& memory);
 
@@ -65,7 +65,7 @@ public:
 
     void run(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory, csgo::FrameStage frameStage) noexcept;
     void scheduleHudUpdate(const Interfaces& interfaces) noexcept;
-    void onSoUpdated(SharedObject* object) noexcept;
+    void onSoUpdated(const SharedObject& object) noexcept;
 
 private:
     void placePickEmPick(csgo::Tournament tournament, std::uint16_t group, std::uint8_t indexInGroup, csgo::StickerId stickerID);
@@ -75,8 +75,6 @@ private:
         return backend::RequestBuilder{ requestBuilderParams, backend.getItemIDMap(), backend.getRequestHandler(), backend.getStorageUnitHandler(), backend.getXRayScannerHandler(), backend.getItemActivationHandler() };
     }
 
-    game_items::Lookup gameItemLookup;
-    game_items::CrateLootLookup crateLootLookup;
     backend::BackendSimulator backend;
     backend::RequestBuilderParams requestBuilderParams;
     bool panoramaCodeInXrayScanner = false;

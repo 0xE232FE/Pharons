@@ -69,6 +69,12 @@
     <Filter Include="Platform\Windows">
       <UniqueIdentifier>{9d72c449-86f4-4c33-8e45-d88047d888eb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SDK\PODs">
+      <UniqueIdentifier>{57f076f9-b8f5-4962-8356-64f7584047f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utils">
+      <UniqueIdentifier>{861c156a-293c-443e-aaab-2ca4847b6143}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GUI.cpp">
@@ -367,9 +373,6 @@
     <ClInclude Include="Hacks\Chams.h">
       <Filter>Hacks</Filter>
     </ClInclude>
-    <ClInclude Include="SDK\RenderView.h">
-      <Filter>SDK</Filter>
-    </ClInclude>
     <ClInclude Include="Hacks\Aimbot.h">
       <Filter>Hacks</Filter>
     </ClInclude>
@@ -415,9 +418,6 @@
     <ClInclude Include="SDK\Surface.h">
       <Filter>SDK</Filter>
     </ClInclude>
-    <ClInclude Include="SDK\GameUI.h">
-      <Filter>SDK</Filter>
-    </ClInclude>
     <ClInclude Include="Hacks\Backtrack.h">
       <Filter>Hacks</Filter>
     </ClInclude>
@@ -457,9 +457,6 @@
     <ClInclude Include="SDK\matrix3x4.h">
       <Filter>SDK</Filter>
     </ClInclude>
-    <ClInclude Include="SDK\RenderContext.h">
-      <Filter>SDK</Filter>
-    </ClInclude>
     <ClInclude Include="imguiCustom.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -497,9 +494,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SDK\WeaponSystem.h">
-      <Filter>SDK</Filter>
-    </ClInclude>
-    <ClInclude Include="SDK\NetworkStringTable.h">
       <Filter>SDK</Filter>
     </ClInclude>
     <ClInclude Include="Hooks\VmtSwap.h">
@@ -876,6 +870,42 @@
     </ClInclude>
     <ClInclude Include="SafeAddress.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\CSPlayerInventory.h">
+      <Filter>SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Windows\DynamicLibrary.h">
+      <Filter>Platform\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\IsPlatform.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\PlatformSpecific.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\CallingConventions.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\CallStack.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\PODs\ConVar.h">
+      <Filter>SDK\PODs</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\PODs\EconItem.h">
+      <Filter>SDK\PODs</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\PODs\ItemSchema.h">
+      <Filter>SDK\PODs</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\PODs\PaintKit.h">
+      <Filter>SDK\PODs</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Constants\EconItemFlags.h">
+      <Filter>SDK\Constants</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\FlagsBuilder.h">
+      <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

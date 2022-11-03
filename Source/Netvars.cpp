@@ -26,14 +26,14 @@
 
 static void CDECL_CONV spottedHook(recvProxyData& data, void* outStruct, void* arg3) noexcept
 {
-    const auto entity = reinterpret_cast<Entity*>(outStruct);
+    const Entity entity{ retSpoofGadgets.client, std::uintptr_t(outStruct) };
 
     if (Misc::isRadarHackOn()) {
         data.value._int = 1;
 
         if (localPlayer) {
-            if (const auto index = localPlayer->index(); index > 0 && index <= 32)
-                entity->spottedByMask() |= 1 << (index - 1);
+            if (const auto index = localPlayer.get().getNetworkable().index(); index > 0 && index <= 32)
+                entity.spottedByMask() |= 1 << (index - 1);
         }
     }
 
@@ -83,7 +83,7 @@ static void walkTable(const char* networkName, RecvTable* recvTable, const std::
     }
 }
 
-void Netvars::init(Client& client) noexcept
+void Netvars::init(const Client& client) noexcept
 {
     for (auto clientClass = client.getAllClasses(); clientClass; clientClass = clientClass->next)
         walkTable(clientClass->networkName, clientClass->recvTable);

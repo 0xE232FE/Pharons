@@ -3,6 +3,8 @@
 #include <InventoryChanger/GameItems/CrateLoot.h>
 #include <InventoryChanger/GameItems/Lookup.h>
 
+#include <SDK/PODs/ItemSchema.h>
+
 namespace inventory_changer::game_integration
 {
 
@@ -10,12 +12,12 @@ void CrateLoot::getLoot(game_items::CrateLoot& crateLoot)
 {
     rebuildMissingLootList(crateLoot);
 
-    for (const auto& revolvingLootList : itemSchema.revolvingLootLists) {
+    for (const auto& revolvingLootList : itemSchema.getPOD()->revolvingLootLists) {
         const auto lootListName = revolvingLootList.value;
 
         if (const auto lootList = itemSchema.getLootList(lootListName)) {
             crateLoot.nextLootList(revolvingLootList.key);
-            fillLootFromLootList(*lootList, crateLoot);
+            fillLootFromLootList(EconLootListDefinition::from(retSpoofGadgets.client, lootList), crateLoot);
         }
     }
 }
@@ -31,7 +33,7 @@ const game_items::Item* CrateLoot::findStickerlikeItem(WeaponId weaponID, int st
     }
 }
 
-void CrateLoot::fillLootFromLootList(EconLootListDefinition& lootList, game_items::CrateLoot& crateLoot)
+void CrateLoot::fillLootFromLootList(const EconLootListDefinition& lootList, game_items::CrateLoot& crateLoot)
 {
     if (lootList.willProduceStatTrak())
         crateLoot.setWillProduceStatTrak();
@@ -46,7 +48,7 @@ void CrateLoot::fillLootFromLootList(EconLootListDefinition& lootList, game_item
                 crateLoot.addItem(*idx);
         } else if (contents[j].isNestedList) {
             if (const auto nestedLootList = itemSchema.getLootList(contents[j].itemDef))
-                fillLootFromLootList(*nestedLootList, crateLoot);
+                fillLootFromLootList(EconLootListDefinition::from(retSpoofGadgets.client, nestedLootList), crateLoot);
         } else if (contents[j].itemDef != 0) {
             if (contents[j].paintKit != 0) {
                 if (const auto idx = gameItemLookup.findItem(contents[j].weaponId(), contents[j].paintKit))
@@ -67,7 +69,7 @@ void CrateLoot::rebuildMissingLootList(game_items::CrateLoot& crateLoot)
     static constexpr auto dreamHack2013Collections = std::array{ "set_dust_2", "set_italy", "set_lake", "set_mirage", "set_safehouse", "set_train" }; // https://blog.counter-strike.net/index.php/2013/11/8199/
     for (const auto collection : dreamHack2013Collections) {
         if (const auto lootList = itemSchema.getLootList(collection)) [[likely]]
-            fillLootFromLootList(*lootList, crateLoot);
+            fillLootFromLootList(EconLootListDefinition::from(retSpoofGadgets.client, lootList), crateLoot);
     }
 
     crateLoot.nextLootListFromPrevious(13); // crate_ems14_promo

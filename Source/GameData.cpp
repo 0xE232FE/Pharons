@@ -59,10 +59,10 @@ static auto playerByHandleWritable(int handle) noexcept
     return it != playerData.end() ? &(*it) : nullptr;
 }
 
-static void updateNetLatency(Engine& engine) noexcept
+static void updateNetLatency(const Engine& engine) noexcept
 {
     if (const auto networkChannel = engine.getNetworkChannel())
-        netOutgoingLatency = (std::max)(static_cast<int>(networkChannel->getLatency(0) * 1000.0f), 0);
+        netOutgoingLatency = (std::max)(static_cast<int>(NetworkChannel::from(retSpoofGadgets.client, networkChannel).getLatency(0) * 1000.0f), 0);
     else
         netOutgoingLatency = 0;
 }
@@ -82,7 +82,7 @@ void GameData::update(const ClientInterfaces& clientInterfaces, const EngineInte
         return;
     lastFrame = memory.globalVars->framecount;
 
-    updateNetLatency(*engineInterfaces.engine);
+    updateNetLatency(engineInterfaces.getEngine());
 
     Lock lock;
     observerData.clear();
@@ -91,7 +91,7 @@ void GameData::update(const ClientInterfaces& clientInterfaces, const EngineInte
     lootCrateData.clear();
     infernoData.clear();
 
-    localPlayerData.update(*engineInterfaces.engine);
+    localPlayerData.update(engineInterfaces.getEngine());
     bombData.update(memory);
 
     if (!localPlayer) {
@@ -100,42 +100,42 @@ void GameData::update(const ClientInterfaces& clientInterfaces, const EngineInte
         return;
     }
 
-    viewMatrix = engineInterfaces.engine->worldToScreenMatrix();
+    viewMatrix = engineInterfaces.getEngine().worldToScreenMatrix();
 
-    const auto observerTarget = localPlayer->getObserverMode() == ObsMode::InEye ? localPlayer->getObserverTarget() : nullptr;
+    const Entity observerTarget{ retSpoofGadgets.client, localPlayer.get().getObserverMode() == ObsMode::InEye ? localPlayer.get().getObserverTarget() : 0 };
 
-    const auto highestEntityIndex = clientInterfaces.entityList->getHighestEntityIndex();
+    const auto highestEntityIndex = clientInterfaces.getEntityList().getHighestEntityIndex();
     for (int i = 1; i <= highestEntityIndex; ++i) {
-        const auto entity = clientInterfaces.entityList->getEntity(i);
-        if (!entity)
+        const auto entity = Entity{ retSpoofGadgets.client, clientInterfaces.getEntityList().getEntity(i) };
+        if (entity.getThis() == 0)
             continue;
 
-        if (entity->isPlayer()) {
-            if (entity == localPlayer.get() || entity == observerTarget)
+        if (entity.isPlayer()) {
+            if (entity.getThis() == localPlayer.get().getThis() || entity.getThis() == observerTarget.getThis())
                 continue;
 
-            if (const auto player = playerByHandleWritable(entity->handle())) {
+            if (const auto player = playerByHandleWritable(entity.handle())) {
                 player->update(engineInterfaces, interfaces, memory, entity);
             } else {
                 playerData.emplace_back(engineInterfaces, interfaces, memory, entity);
             }
 
-            if (!entity->isDormant() && !entity->isAlive()) {
-                if (const auto obs = entity->getObserverTarget())
-                    observerData.emplace_back(entity, obs, obs == localPlayer.get());
+            if (!entity.getNetworkable().isDormant() && !entity.isAlive()) {
+                if (const Entity obs{ retSpoofGadgets.client, entity.getObserverTarget() }; obs.getThis() != 0)
+                    observerData.emplace_back(entity, obs, obs.getThis() == localPlayer.get().getThis());
             }
         } else {
-            if (entity->isDormant())
+            if (entity.getNetworkable().isDormant())
                 continue;
 
-            if (entity->isWeapon()) {
-                if (entity->ownerEntity() == -1)
+            if (entity.isWeapon()) {
+                if (entity.ownerEntity() == -1)
                     weaponData.emplace_back(interfaces, entity);
             } else {
-                switch (entity->getClientClass()->classId) {
+                switch (entity.getNetworkable().getClientClass()->classId) {
                 case ClassId::BaseCSGrenadeProjectile:
-                    if (!entity->shouldDraw()) {
-                        if (const auto it = std::ranges::find(projectileData, entity->handle(), &ProjectileData::handle); it != projectileData.end())
+                    if (!entity.shouldDraw()) {
+                        if (const auto it = std::ranges::find(projectileData, entity.handle(), &ProjectileData::handle); it != projectileData.end())
                             it->exploded = true;
                         break;
                     }
@@ -147,13 +147,13 @@ void GameData::update(const ClientInterfaces& clientInterfaces, const EngineInte
                 case ClassId::SensorGrenadeProjectile:
                 case ClassId::SmokeGrenadeProjectile:
                 case ClassId::SnowballProjectile:
-                    if (const auto it = std::ranges::find(projectileData, entity->handle(), &ProjectileData::handle); it != projectileData.end())
+                    if (const auto it = std::ranges::find(projectileData, entity.handle(), &ProjectileData::handle); it != projectileData.end())
                         it->update(memory, entity);
                     else
                         projectileData.emplace_front(clientInterfaces, memory, entity);
                     break;
                 case ClassId::DynamicProp:
-                    if (const auto model = entity->getModel(); !model || !std::strstr(model->name, "challenge_coin"))
+                    if (const auto model = entity.getRenderable().getModel(); !model || !std::strstr(model->name, "challenge_coin"))
                         break;
                     [[fallthrough]];
                 case ClassId::EconEntity:
@@ -186,14 +186,14 @@ void GameData::update(const ClientInterfaces& clientInterfaces, const EngineInte
     std::sort(lootCrateData.begin(), lootCrateData.end());
 
     std::ranges::for_each(projectileData, [&clientInterfaces](auto& projectile) {
-        if (clientInterfaces.entityList->getEntityFromHandle(projectile.handle) == nullptr)
+        if (clientInterfaces.getEntityList().getEntityFromHandle(projectile.handle) == 0)
             projectile.exploded = true;
     });
 
-    std::erase_if(projectileData, [&memory, &clientInterfaces](const auto& projectile) { return clientInterfaces.entityList->getEntityFromHandle(projectile.handle) == nullptr
+    std::erase_if(projectileData, [&memory, &clientInterfaces](const auto& projectile) { return clientInterfaces.getEntityList().getEntityFromHandle(projectile.handle) == 0
         && (projectile.trajectory.size() < 1 || projectile.trajectory[projectile.trajectory.size() - 1].first + 60.0f < memory.globalVars->realtime); });
 
-    std::erase_if(playerData, [&clientInterfaces](const auto& player) { return clientInterfaces.entityList->getEntityFromHandle(player.handle) == nullptr; });
+    std::erase_if(playerData, [&clientInterfaces](const auto& player) { return clientInterfaces.getEntityList().getEntityFromHandle(player.handle) == 0; });
 
     if (shouldUpdatePlayerVisibility(memory))
         nextPlayerVisibilityUpdateTime = memory.globalVars->realtime + playerVisibilityUpdateDelay;
@@ -289,7 +289,7 @@ const std::vector<InfernoData>& GameData::infernos() noexcept
     return infernoData;
 }
 
-void LocalPlayerData::update(Engine& engine) noexcept
+void LocalPlayerData::update(const Engine& engine) noexcept
 {
     if (!localPlayer) {
         exists = false;
@@ -297,49 +297,47 @@ void LocalPlayerData::update(Engine& engine) noexcept
     }
 
     exists = true;
-    alive = localPlayer->isAlive();
+    alive = localPlayer.get().isAlive();
 
-    if (const auto activeWeapon = localPlayer->getActiveWeapon()) {
-        inReload = activeWeapon->isInReload();
-        shooting = localPlayer->shotsFired() > 1;
-        noScope = activeWeapon->isSniperRifle() && !localPlayer->isScoped();
-        usesSniperRifel = activeWeapon->isSniperRifle();
-        isScoped = localPlayer->isScoped();
-        nextWeaponAttack = activeWeapon->nextPrimaryAttack();
+    if (const Entity activeWeapon{ retSpoofGadgets.client, localPlayer.get().getActiveWeapon() }; activeWeapon.getThis() != 0) {
+        inReload = activeWeapon.isInReload();
+        shooting = localPlayer.get().shotsFired() > 1;
+        noScope = activeWeapon.isSniperRifle() && !localPlayer.get().isScoped();
+        nextWeaponAttack = activeWeapon.nextPrimaryAttack();
     }
-    fov = localPlayer->fov() ? localPlayer->fov() : localPlayer->defaultFov();
-    handle = localPlayer->handle();
-    flashDuration = localPlayer->flashDuration();
+    fov = localPlayer.get().fov() ? localPlayer.get().fov() : localPlayer.get().defaultFov();
+    handle = localPlayer.get().handle();
+    flashDuration = localPlayer.get().flashDuration();
 
-    aimPunch = localPlayer->getEyePosition() + Vector::fromAngle(engine.getViewAngles() + localPlayer->getAimPunch()) * 1000.0f;
+    aimPunch = localPlayer.get().getEyePosition() + Vector::fromAngle(engine.getViewAngles() + localPlayer.get().getAimPunch()) * 1000.0f;
 
-    const auto obsMode = localPlayer->getObserverMode();
-    if (const auto obs = localPlayer->getObserverTarget(); obs && obsMode != ObsMode::Roaming && obsMode != ObsMode::Deathcam)
-        origin = obs->getAbsOrigin();
+    const auto obsMode = localPlayer.get().getObserverMode();
+    if (const Entity obs{ retSpoofGadgets.client, localPlayer.get().getObserverTarget() }; obs.getThis() != 0 && obsMode != ObsMode::Roaming && obsMode != ObsMode::Deathcam)
+        origin = obs.getAbsOrigin();
     else
-        origin = localPlayer->getAbsOrigin();
+        origin = localPlayer.get().getAbsOrigin();
 }
 
-BaseData::BaseData(Entity* entity) noexcept
+BaseData::BaseData(const Entity& entity) noexcept
 {
-    distanceToLocal = entity->getAbsOrigin().distTo(localPlayerData.origin);
+    distanceToLocal = entity.getAbsOrigin().distTo(localPlayerData.origin);
  
-    if (entity->isPlayer()) {
-        const auto collideable = entity->getCollideable();
-        obbMins = collideable->obbMins();
-        obbMaxs = collideable->obbMaxs();
-    } else if (const auto model = entity->getModel()) {
+    if (entity.isPlayer()) {
+        const Collideable collideable{ retSpoofGadgets.client, entity.getCollideable() };
+        obbMins = collideable.obbMins();
+        obbMaxs = collideable.obbMaxs();
+    } else if (const auto model = entity.getRenderable().getModel()) {
         obbMins = model->mins;
         obbMaxs = model->maxs;
     }
 
-    coordinateFrame = entity->toWorldTransform();
+    coordinateFrame = entity.getRenderable().toWorldTransform();
 }
 
-EntityData::EntityData(Entity* entity) noexcept : BaseData{ entity }
+EntityData::EntityData(const Entity& entity) noexcept : BaseData{ entity }
 {
-    name = [](Entity* entity) {
-        switch (entity->getClientClass()->classId) {
+    name = [](const Entity& entity) {
+        switch (entity.getNetworkable().getClientClass()->classId) {
         case ClassId::EconEntity: return "Defuse Kit";
         case ClassId::Chicken: return "Chicken";
         case ClassId::PlantedC4: return "Planted C4";
@@ -355,12 +353,12 @@ EntityData::EntityData(Entity* entity) noexcept : BaseData{ entity }
     }(entity);
 }
 
-ProjectileData::ProjectileData(const ClientInterfaces& clientInterfaces, const Memory& memory, Entity* projectile) noexcept : BaseData { projectile }
+ProjectileData::ProjectileData(const ClientInterfaces& clientInterfaces, const Memory& memory, const Entity& projectile) noexcept : BaseData { projectile }
 {
-    name = [](Entity* projectile) {
-        switch (projectile->getClientClass()->classId) {
+    name = [](const Entity& projectile) {
+        switch (projectile.getNetworkable().getClientClass()->classId) {
         case ClassId::BaseCSGrenadeProjectile:
-            if (const auto model = projectile->getModel(); model && strstr(model->name, "flashbang"))
+            if (const auto model = projectile.getRenderable().getModel(); model && strstr(model->name, "flashbang"))
                 return "Flashbang";
             else
                 return "HE Grenade";
@@ -375,62 +373,62 @@ ProjectileData::ProjectileData(const ClientInterfaces& clientInterfaces, const M
         }
     }(projectile);
 
-    if (const auto thrower = clientInterfaces.entityList->getEntityFromHandle(projectile->thrower()); thrower && localPlayer) {
-        if (thrower == localPlayer.get())
+    if (const Entity thrower{ retSpoofGadgets.client, clientInterfaces.getEntityList().getEntityFromHandle(projectile.thrower()) }; thrower.getThis() != 0 && localPlayer) {
+        if (thrower.getThis() == localPlayer.get().getThis())
             thrownByLocalPlayer = true;
         else
-            thrownByEnemy = localPlayer->isOtherEnemy(memory, thrower);
+            thrownByEnemy = localPlayer.get().isOtherEnemy(memory, thrower);
     }
 
-    handle = projectile->handle();
+    handle = projectile.handle();
 }
 
-void ProjectileData::update(const Memory& memory, Entity* projectile) noexcept
+void ProjectileData::update(const Memory& memory, const Entity& projectile) noexcept
 {
     static_cast<BaseData&>(*this) = { projectile };
 
-    if (const auto& pos = projectile->getAbsOrigin(); trajectory.size() < 1 || trajectory[trajectory.size() - 1].second != pos)
+    if (const auto& pos = projectile.getAbsOrigin(); trajectory.size() < 1 || trajectory[trajectory.size() - 1].second != pos)
         trajectory.emplace_back(memory.globalVars->realtime, pos);
 }
 
-PlayerData::PlayerData(const EngineInterfaces& engineInterfaces, const Interfaces& interfaces, const Memory& memory, Entity* entity) noexcept : BaseData{ entity }, handle{ entity->handle() }
+PlayerData::PlayerData(const EngineInterfaces& engineInterfaces, const Interfaces& interfaces, const Memory& memory, const Entity& entity) noexcept : BaseData{ entity }, handle{ entity.handle() }
 {
-    if (const auto steamID = entity->getSteamId(*engineInterfaces.engine)) {
-        const auto ctx = engineInterfaces.engine->getSteamAPIContext();
-        const auto avatar = ctx->steamFriends->getSmallFriendAvatar(steamID);
+    if (const auto steamID = entity.getSteamId(engineInterfaces.getEngine())) {
+        const auto ctx = engineInterfaces.getEngine().getSteamAPIContext();
+        const auto avatar = SteamFriends::from(retSpoofGadgets.client, ctx->steamFriends).getSmallFriendAvatar(steamID);
         constexpr auto rgbaDataSize = 4 * 32 * 32;
 
         PlayerAvatar playerAvatar;
         playerAvatar.rgba = std::make_unique<std::uint8_t[]>(rgbaDataSize);
-        if (ctx->steamUtils->getImageRGBA(avatar, playerAvatar.rgba.get(), rgbaDataSize))
+        if (SteamUtils::from(retSpoofGadgets.client, ctx->steamUtils).getImageRGBA(avatar, playerAvatar.rgba.get(), rgbaDataSize))
             playerAvatars[handle] = std::move(playerAvatar);
     }
 
     update(engineInterfaces, interfaces, memory, entity);
 }
 
-void PlayerData::update(const EngineInterfaces& engineInterfaces, const Interfaces& interfaces, const Memory& memory, Entity* entity) noexcept
+void PlayerData::update(const EngineInterfaces& engineInterfaces, const Interfaces& interfaces, const Memory& memory, const Entity& entity) noexcept
 {
-    name = entity->getPlayerName(interfaces, memory);
+    name = entity.getPlayerName(interfaces, memory);
 
-    dormant = entity->isDormant();
+    dormant = entity.getNetworkable().isDormant();
     if (dormant)
         return;
 
-    team = entity->getTeamNumber();
+    team = entity.getTeamNumber();
     static_cast<BaseData&>(*this) = { entity };
-    origin = entity->getAbsOrigin();
-    inViewFrustum = !engineInterfaces.engine->cullBox(obbMins + origin, obbMaxs + origin);
-    alive = entity->isAlive();
+    origin = entity.getAbsOrigin();
+    inViewFrustum = !engineInterfaces.getEngine().cullBox(obbMins + origin, obbMaxs + origin);
+    alive = entity.isAlive();
     lastContactTime = alive ? memory.globalVars->realtime : 0.0f;
 
     if (localPlayer) {
-        enemy = localPlayer->isOtherEnemy(memory, entity);
+        enemy = localPlayer.get().isOtherEnemy(memory, entity);
 
         if (!inViewFrustum || !alive)
             visible = false;
         else if (shouldUpdatePlayerVisibility(memory))
-            visible = entity->visibleTo(engineInterfaces, memory, localPlayer.get());
+            visible = entity.visibleTo(engineInterfaces, memory, localPlayer.get());
     }
 
     auto isEntityAudible = [&memory](int entityIndex) noexcept {
@@ -440,31 +438,31 @@ void PlayerData::update(const EngineInterfaces& engineInterfaces, const Interfac
         return false;
     };
 
-    audible = isEntityAudible(entity->index());
-    spotted = entity->spotted();
-    health = entity->health();
-    immune = entity->gunGameImmunity();
-    flashDuration = entity->flashDuration();
+    audible = isEntityAudible(entity.getNetworkable().index());
+    spotted = entity.spotted();
+    health = entity.health();
+    immune = entity.gunGameImmunity();
+    flashDuration = entity.flashDuration();
 
-    if (const auto weapon = entity->getActiveWeapon()) {
-        audible = audible || isEntityAudible(weapon->index());
-        if (const auto weaponInfo = weapon->getWeaponData())
-            activeWeapon = interfaces.localize->findAsUTF8(weaponInfo->name);
+    if (const Entity weapon{ retSpoofGadgets.client, entity.getActiveWeapon() }; weapon.getThis() != 0) {
+        audible = audible || isEntityAudible(weapon.getNetworkable().index());
+        if (const auto weaponInfo = weapon.getWeaponData())
+            activeWeapon = interfaces.getLocalize().findAsUTF8(weaponInfo->name);
     }
 
     if (!alive || !inViewFrustum)
         return;
 
-    const auto model = entity->getModel();
+    const auto model = entity.getRenderable().getModel();
     if (!model)
         return;
 
-    const auto studioModel = engineInterfaces.modelInfo->getStudioModel(model);
+    const auto studioModel = engineInterfaces.getModelInfo().getStudioModel(model);
     if (!studioModel)
         return;
 
     matrix3x4 boneMatrices[MAXSTUDIOBONES];
-    if (!entity->setupBones(memory, boneMatrices, MAXSTUDIOBONES, BONE_USED_BY_HITBOX, memory.globalVars->currenttime))
+    if (!entity.setupBones(memory, boneMatrices, MAXSTUDIOBONES, BONE_USED_BY_HITBOX, memory.globalVars->currenttime))
         return;
 
     bones.clear();
@@ -479,7 +477,7 @@ void PlayerData::update(const EngineInterfaces& engineInterfaces, const Interfac
         bones.emplace_back(boneMatrices[i].origin(), boneMatrices[bone->parent].origin());
     }
 
-    const auto set = studioModel->getHitboxSet(entity->hitboxSet());
+    const auto set = studioModel->getHitboxSet(entity.hitboxSet());
     if (!set)
         return;
 
@@ -551,12 +549,12 @@ float PlayerData::fadingAlpha(const Memory& memory) const noexcept
     return std::clamp(1.0f - (memory.globalVars->realtime - lastContactTime - 0.25f) / fadeTime, 0.0f, 1.0f);
 }
 
-WeaponData::WeaponData(const Interfaces& interfaces, Entity* entity) noexcept : BaseData{ entity }
+WeaponData::WeaponData(const Interfaces& interfaces, const Entity& entity) noexcept : BaseData{ entity }
 {
-    clip = entity->clip();
-    reserveAmmo = entity->reserveAmmoCount();
+    clip = entity.clip();
+    reserveAmmo = entity.reserveAmmoCount();
 
-    if (const auto weaponInfo = entity->getWeaponData()) {
+    if (const auto weaponInfo = entity.getWeaponData()) {
         group = [](WeaponType type, WeaponId weaponId) {
             switch (type) {
             case WeaponType::Pistol: return "Pistols";
@@ -578,7 +576,7 @@ WeaponData::WeaponData(const Interfaces& interfaces, Entity* entity) noexcept : 
                 default: return "All";
                 }
             }
-        }(weaponInfo->type, entity->itemDefinitionIndex());
+        }(weaponInfo->type, entity.itemDefinitionIndex());
         name = [](WeaponId weaponId) {
             switch (weaponId) {
             default: return "All";
@@ -645,15 +643,15 @@ WeaponData::WeaponData(const Interfaces& interfaces, Entity* entity) noexcept : 
             case WeaponId::ZoneRepulsor: return "Zone Repulsor";
             case WeaponId::Shield: return "Shield";
             }
-        }(entity->itemDefinitionIndex());
+        }(entity.itemDefinitionIndex());
 
-        displayName = interfaces.localize->findAsUTF8(weaponInfo->name);
+        displayName = interfaces.getLocalize().findAsUTF8(weaponInfo->name);
     }
 }
 
-LootCrateData::LootCrateData(Entity* entity) noexcept : BaseData{ entity }
+LootCrateData::LootCrateData(const Entity& entity) noexcept : BaseData{ entity }
 {
-    const auto model = entity->getModel();
+    const auto model = entity.getRenderable().getModel();
     if (!model)
         return;
 
@@ -670,11 +668,11 @@ LootCrateData::LootCrateData(Entity* entity) noexcept : BaseData{ entity }
     }(model->name);
 }
 
-ObserverData::ObserverData(Entity* entity, Entity* obs, bool targetIsLocalPlayer) noexcept : playerHandle{ entity->handle() }, targetHandle{ obs->handle() }, targetIsLocalPlayer{ targetIsLocalPlayer } {}
+ObserverData::ObserverData(const Entity& entity, const Entity& obs, bool targetIsLocalPlayer) noexcept : playerHandle{ entity.handle() }, targetHandle{ obs.handle() }, targetIsLocalPlayer{ targetIsLocalPlayer } {}
 
 void BombData::update(const Memory& memory) noexcept
 {
-    if (memory.plantedC4s->size > 0 && (!*memory.gameRules || (*memory.gameRules)->mapHasBombTarget())) {
+    if (memory.plantedC4s->size > 0 && (!*memory.gameRules || Entity{ retSpoofGadgets.client, *memory.gameRules }.mapHasBombTarget())) {
         if (const auto bomb = (*memory.plantedC4s)[0]; bomb && bomb->c4Ticking()) {
             blowTime = bomb->c4BlowTime();
             timerLength = bomb->c4TimerLength();
@@ -694,13 +692,13 @@ void BombData::update(const Memory& memory) noexcept
     blowTime = 0.0f;
 }
 
-InfernoData::InfernoData(Entity* inferno) noexcept
+InfernoData::InfernoData(const Entity& inferno) noexcept
 {
-    const auto& origin = inferno->getAbsOrigin();
+    const auto& origin = inferno.getAbsOrigin();
 
-    points.reserve(inferno->fireCount());
-    for (int i = 0; i < inferno->fireCount(); ++i) {
-        if (inferno->fireIsBurning()[i])
-            points.emplace_back(inferno->fireXDelta()[i] + origin.x, inferno->fireYDelta()[i] + origin.y, inferno->fireZDelta()[i] + origin.z);
+    points.reserve(inferno.fireCount());
+    for (int i = 0; i < inferno.fireCount(); ++i) {
+        if (inferno.fireIsBurning()[i])
+            points.emplace_back(inferno.fireXDelta()[i] + origin.x, inferno.fireYDelta()[i] + origin.y, inferno.fireZDelta()[i] + origin.z);
     }
 }
