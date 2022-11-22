@@ -12,6 +12,7 @@
 #include "VirtualMethod.h"
 
 #include "Constants/ItemId.h"
+#include "Helpers/EconItemFunctions.h"
 
 enum class WeaponId : short;
 
@@ -68,14 +69,14 @@ namespace csgo::pod { struct EconItemDefinition; }
 
 class EconItemDefinition : public VirtualCallableFromPOD<EconItemDefinition, csgo::pod::EconItemDefinition> {
 public:
-    VIRTUAL_METHOD2(WeaponId, getWeaponId, 0, (), ())
-    VIRTUAL_METHOD2(const char*, getItemBaseName, 2, (), ())
-    VIRTUAL_METHOD2(const char*, getItemTypeName, 3, (), ())
-    VIRTUAL_METHOD2(const char*, getInventoryImage, 5, (), ())
-    VIRTUAL_METHOD2(const char*, getPlayerDisplayModel, 6, (), ())
-    VIRTUAL_METHOD2(const char*, getWorldDisplayModel, 7, (), ())
-    VIRTUAL_METHOD2(std::uint8_t, getRarity, 12, (), ())
-    VIRTUAL_METHOD2_V(int, getNumberOfSupportedStickerSlots, 44, (), ())
+    VIRTUAL_METHOD(WeaponId, getWeaponId, 0, (), ())
+    VIRTUAL_METHOD(const char*, getItemBaseName, 2, (), ())
+    VIRTUAL_METHOD(const char*, getItemTypeName, 3, (), ())
+    VIRTUAL_METHOD(const char*, getInventoryImage, 5, (), ())
+    VIRTUAL_METHOD(const char*, getPlayerDisplayModel, 6, (), ())
+    VIRTUAL_METHOD(const char*, getWorldDisplayModel, 7, (), ())
+    VIRTUAL_METHOD(std::uint8_t, getRarity, 12, (), ())
+    VIRTUAL_METHOD_V(int, getNumberOfSupportedStickerSlots, 44, (), ())
 
     std::uint8_t getQuality() const noexcept
     {
@@ -189,8 +190,8 @@ namespace csgo::pod { struct EconLootListDefinition; }
 
 class EconLootListDefinition : public VirtualCallableFromPOD<EconLootListDefinition, csgo::pod::EconLootListDefinition> {
 public:
-    VIRTUAL_METHOD2(const char*, getName, 0, (), ())
-    VIRTUAL_METHOD2(const UtlVector<ItemListEntry>&, getLootListContents, 1, (), ())
+    VIRTUAL_METHOD(const char*, getName, 0, (), ())
+    VIRTUAL_METHOD(const UtlVector<ItemListEntry>&, getLootListContents, 1, (), ())
 
     bool willProduceStatTrak() const noexcept
     {
@@ -229,14 +230,14 @@ namespace csgo::pod { struct ItemSchema; }
 
 class ItemSchema : public VirtualCallableFromPOD<ItemSchema, csgo::pod::ItemSchema> {
 public:
-    VIRTUAL_METHOD2(csgo::pod::EconItemDefinition*, getItemDefinitionInterface, 4, (int id), (id))
-    VIRTUAL_METHOD2(const char*, getRarityName, 19, (uint8_t rarity), (rarity))
-    VIRTUAL_METHOD2(EconItemAttributeDefinition*, getAttributeDefinitionInterface, 27, (int index), (index))
-    VIRTUAL_METHOD2(int, getItemSetCount, 28, (), ())
-    VIRTUAL_METHOD2(csgo::pod::EconLootListDefinition*, getLootList, 31, (const char* name, int* index = nullptr), (name, index))
-    VIRTUAL_METHOD2(csgo::pod::EconLootListDefinition*, getLootList, 32, (int index), (index))
-    VIRTUAL_METHOD2(int, getLootListCount, 34, (), ())
-    VIRTUAL_METHOD2(csgo::pod::EconItemDefinition*, getItemDefinitionByName, 42, (const char* name), (name))
+    VIRTUAL_METHOD(csgo::pod::EconItemDefinition*, getItemDefinitionInterface, 4, (int id), (id))
+    VIRTUAL_METHOD(const char*, getRarityName, 19, (uint8_t rarity), (rarity))
+    VIRTUAL_METHOD(EconItemAttributeDefinition*, getAttributeDefinitionInterface, 27, (int index), (index))
+    VIRTUAL_METHOD(int, getItemSetCount, 28, (), ())
+    VIRTUAL_METHOD(csgo::pod::EconLootListDefinition*, getLootList, 31, (const char* name, int* index = nullptr), (name, index))
+    VIRTUAL_METHOD(csgo::pod::EconLootListDefinition*, getLootList, 32, (int index), (index))
+    VIRTUAL_METHOD(int, getLootListCount, 34, (), ())
+    VIRTUAL_METHOD(csgo::pod::EconItemDefinition*, getItemDefinitionByName, 42, (const char* name), (name))
 
     auto getItemDefinitionInterface(WeaponId id) const noexcept
     {
@@ -248,38 +249,43 @@ namespace csgo::pod { struct ItemSystem; }
 
 class ItemSystem : public VirtualCallableFromPOD<ItemSystem, csgo::pod::ItemSystem> {
 public:
-    VIRTUAL_METHOD2(csgo::pod::ItemSchema*, getItemSchema, 0, (), ())
+    VIRTUAL_METHOD(csgo::pod::ItemSchema*, getItemSchema, 0, (), ())
 };
 
 namespace csgo::pod { struct EconItem; }
 
 class EconItem : private VirtualCallable {
 public:
-    EconItem(RetSpoofInvoker invoker, csgo::pod::EconItem* pod, std::uintptr_t setDynamicAttributeValueFn, std::uintptr_t removeDynamicAttributeFn)
-        : VirtualCallable{ invoker, std::uintptr_t(pod) }, setDynamicAttributeValueFn{ setDynamicAttributeValueFn }, removeDynamicAttributeFn{ removeDynamicAttributeFn }
+    EconItem(RetSpoofInvoker invoker, csgo::pod::EconItem* pod, const EconItemFunctions& econItemFunctions)
+        : VirtualCallable{ invoker, std::uintptr_t(pod) }, functions{ econItemFunctions }
     {
     }
 
     using VirtualCallable::getThis;
 
 #if IS_WIN32()
-    VIRTUAL_METHOD2(void, destructor, 0, (), (true))
+    VIRTUAL_METHOD(void, destructor, 0, (), (true))
 #else
-    VIRTUAL_METHOD2(void, destructor, 1, (), ())
+    VIRTUAL_METHOD(void, destructor, 1, (), ())
 #endif
 
     void setDynamicAttributeValue(EconItemAttributeDefinition* attribute, void* value) const noexcept
     {
 #if IS_WIN32()
-        getInvoker().invokeThiscall<void>(getThis(), setDynamicAttributeValueFn, attribute, value);
+        getInvoker().invokeThiscall<void>(getThis(), functions.setDynamicAttributeValue, attribute, value);
 #else
-        getInvoker().invokeCdecl<void>(setDynamicAttributeValueFn, nullptr, getThis(), attribute, value);
+        getInvoker().invokeCdecl<void>(functions.setDynamicAttributeValue, nullptr, getThis(), attribute, value);
 #endif
     }
 
     void removeDynamicAttribute(EconItemAttributeDefinition* attribute) const noexcept
     {
-        getInvoker().invokeThiscall<void>(getThis(), removeDynamicAttributeFn, attribute);
+        getInvoker().invokeThiscall<void>(getThis(), functions.removeDynamicAttribute, attribute);
+    }
+
+    void setCustomName(const char* name) const noexcept
+    {
+        getInvoker().invokeThiscall<void>(getThis(), functions.setCustomName, name);
     }
 
     [[nodiscard]] csgo::pod::EconItem* getPOD() const noexcept
@@ -288,8 +294,7 @@ public:
     }
 
 private:
-    std::uintptr_t setDynamicAttributeValueFn;
-    std::uintptr_t removeDynamicAttributeFn;
+    const EconItemFunctions& functions;
 };
 
 class EconItemAttributeSetter {
@@ -350,29 +355,17 @@ private:
     ItemSchema itemSchema;
 };
 
-namespace csgo::pod
-{
-    struct SharedObject;
-
-    struct SharedObjectTypeCache {
-        PAD(sizeof(std::uintptr_t))
-        csgo::pod::SharedObject** objects;
-        PAD(WIN32_LINUX(16, 24))
-        int objectCount;
-        PAD(WIN32_LINUX(4, 12))
-        int classID; // https://github.com/perilouswithadollarsign/cstrike15_src/blob/f82112a2388b841d72cb62ca48ab1846dfcc11c8/game/shared/econ/econ_item_constants.h#L39
-    };
-}
-
+namespace csgo::pod { struct SharedObject; }
 class SharedObject : public VirtualCallableFromPOD<SharedObject, csgo::pod::SharedObject> {
 public:
-    VIRTUAL_METHOD2_V(int, getTypeID, 1, (), ())
+    VIRTUAL_METHOD_V(int, getTypeID, 1, (), ())
 };
 
+namespace csgo::pod { struct SharedObjectTypeCache; }
 class SharedObjectTypeCache : public VirtualCallableFromPOD<SharedObjectTypeCache, csgo::pod::SharedObjectTypeCache> {
 public:
-    VIRTUAL_METHOD2_V(void, addObject, 1, (csgo::pod::SharedObject* object), (object))
-    VIRTUAL_METHOD2_V(void, removeObject, 3, (csgo::pod::SharedObject* object), (object))
+    VIRTUAL_METHOD_V(void, addObject, 1, (csgo::pod::SharedObject* object), (object))
+    VIRTUAL_METHOD_V(void, removeObject, 3, (csgo::pod::SharedObject* object), (object))
 };
 
 class ClientSharedObjectCache : private VirtualCallable {
@@ -394,10 +387,11 @@ private:
 };
 
 namespace csgo::pod { struct InventoryManager; }
+namespace csgo::pod { struct CSPlayerInventory; }
 
 class InventoryManager : public VirtualCallableFromPOD<InventoryManager, csgo::pod::InventoryManager> {
 public:
-    VIRTUAL_METHOD2_V(bool, equipItemInSlot, 20, (csgo::Team team, int slot, csgo::ItemId itemID, bool swap = false), (team, slot, itemID, swap))
-    VIRTUAL_METHOD2_V(std::uintptr_t, getLocalInventory, 23, (), ())
-    VIRTUAL_METHOD2_V(void, updateInventoryEquippedState, 29, (std::uintptr_t inventory, csgo::ItemId itemID, csgo::Team team, int slot, bool swap), (inventory, itemID, team, slot, swap))
+    VIRTUAL_METHOD_V(bool, equipItemInSlot, 20, (csgo::Team team, int slot, csgo::ItemId itemID, bool swap = false), (team, slot, itemID, swap))
+    VIRTUAL_METHOD_V(csgo::pod::CSPlayerInventory*, getLocalInventory, 23, (), ())
+    VIRTUAL_METHOD_V(void, updateInventoryEquippedState, 29, (csgo::pod::CSPlayerInventory* inventory, csgo::ItemId itemID, csgo::Team team, int slot, bool swap), (inventory, itemID, team, slot, swap))
 };

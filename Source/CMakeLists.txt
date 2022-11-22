@@ -16,6 +16,8 @@ target_sources(OsirisOBJ PRIVATE
 )
 
 add_subdirectory(Hacks)
+add_subdirectory(Helpers)
 add_subdirectory(Hooks)
 add_subdirectory(InventoryChanger)
 add_subdirectory(SDK)
+add_subdirectory(Utils)

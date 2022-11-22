@@ -31,7 +31,6 @@
 #include "GameData.h"
 #include "GUI.h"
 #include "Hooks.h"
-#include "Interfaces.h"
 #include "Memory.h"
 
 #include "Hacks/Aimbot.h"
@@ -48,6 +47,7 @@
 
 #include "InventoryChanger/InventoryChanger.h"
 
+#include "SDK/PODs/RenderableInfo.h"
 #include "SDK/ClientClass.h"
 #include "SDK/Cvar.h"
 #include "SDK/Engine.h"
@@ -72,6 +72,7 @@
 #include "SDK/Constants/UserMessages.h"
 
 #include "GlobalContext.h"
+#include "Interfaces/ClientInterfaces.h"
 
 #if IS_WIN32()
 
@@ -82,10 +83,7 @@ static LRESULT __stdcall wndProc(HWND window, UINT msg, WPARAM wParam, LPARAM lP
 
 static HRESULT __stdcall reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params) noexcept
 {
-    ImGui_ImplDX9_InvalidateDeviceObjects();
-    InventoryChanger::clearItemIconTextures();
-    GameData::clearTextures();
-    return hooks->originalReset(device, params);
+    return globalContext->resetHook(device, params);
 }
 
 static HRESULT __stdcall present(IDirect3DDevice9* device, const RECT* src, const RECT* dest, HWND windowOverride, const RGNDATA* dirtyRegion) noexcept
@@ -167,28 +165,9 @@ static void STDCALL_CONV overrideView(LINUX_ARGS(void* thisptr,) ViewSetup* setu
     globalContext->overrideViewHook(setup);
 }
 
-struct RenderableInfo {
-    std::uintptr_t renderable;
-    std::byte pad[18];
-    uint16_t flags;
-    uint16_t flags2;
-};
-
 static int STDCALL_CONV listLeavesInBox(LINUX_ARGS(void* thisptr, ) const Vector& mins, const Vector& maxs, unsigned short* list, int listMax) noexcept
 {
-    if (Misc::shouldDisableModelOcclusion() && RETURN_ADDRESS() == memory->insertIntoTree) {
-        if (const auto info = *reinterpret_cast<RenderableInfo**>(FRAME_ADDRESS() + WIN32_LINUX(0x18, 0x10 + 0x948)); info && info->renderable) {
-            if (const auto ent = VirtualCallable{ retSpoofGadgets.client, std::uintptr_t(info->renderable) - sizeof(std::uintptr_t) }.call<std::uintptr_t, WIN32_LINUX(7, 8)>(); ent && Entity{ retSpoofGadgets.client, ent }.isPlayer()) {
-                constexpr float maxCoord = 16384.0f;
-                constexpr float minCoord = -maxCoord;
-                constexpr Vector min{ minCoord, minCoord, minCoord };
-                constexpr Vector max{ maxCoord, maxCoord, maxCoord };
-                return hooks->bspQuery.callOriginal<int, 6>(std::cref(min), std::cref(max), list, listMax);
-            }
-        }
-    }
-
-    return hooks->bspQuery.callOriginal<int, 6>(std::cref(mins), std::cref(maxs), list, listMax);
+    return globalContext->listLeavesInBoxHook(mins, maxs, list, listMax, RETURN_ADDRESS(), FRAME_ADDRESS());
 }
 
 static int FASTCALL_CONV dispatchSound(SoundInfo& soundInfo) noexcept
@@ -208,76 +187,52 @@ static const DemoPlaybackParameters* STDCALL_CONV getDemoPlaybackParameters(LINU
 
 static bool STDCALL_CONV isPlayingDemo(LINUX_ARGS(void* thisptr)) noexcept
 {
-    if (Misc::shouldRevealMoney() && RETURN_ADDRESS() == memory->demoOrHLTV && *reinterpret_cast<std::uintptr_t*>(FRAME_ADDRESS() + WIN32_LINUX(8, 24)) == memory->money)
-        return true;
-
-    return hooks->engine.callOriginal<bool, 82>();
+    return globalContext->isPlayingDemoHook(RETURN_ADDRESS(), FRAME_ADDRESS());
 }
 
 static void STDCALL_CONV updateColorCorrectionWeights(LINUX_ARGS(void* thisptr)) noexcept
 {
-    hooks->clientMode.callOriginal<void, WIN32_LINUX(58, 61)>();
-
-    globalContext->visuals->performColorCorrection();
-    if (globalContext->visuals->shouldRemoveScopeOverlay())
-        *memory->vignette = 0.0f;
+    globalContext->updateColorCorrectionWeightsHook();
 }
 
 static float STDCALL_CONV getScreenAspectRatio(LINUX_ARGS(void* thisptr,) int width, int height) noexcept
 {
-    if (Misc::aspectRatio() != 0.0f)
-        return Misc::aspectRatio();
-    return hooks->engine.callOriginal<float, 101>(width, height);
+    return globalContext->getScreenAspectRatioHook(width, height);
 }
 
 static void STDCALL_CONV renderSmokeOverlay(LINUX_ARGS(void* thisptr,) bool update) noexcept
 {
-    if (globalContext->visuals->shouldRemoveSmoke() || globalContext->visuals->isSmokeWireframe())
-        *reinterpret_cast<float*>(std::uintptr_t(memory->viewRender) + WIN32_LINUX(0x588, 0x648)) = 0.0f;
-    else
-        hooks->viewRender.callOriginal<void, WIN32_LINUX(41, 42)>(update);
+    globalContext->renderSmokeOverlayHook(update);
 }
 
 static double STDCALL_CONV getArgAsNumber(LINUX_ARGS(void* thisptr,) void* params, int index) noexcept
 {
-    const auto result = hooks->panoramaMarshallHelper.callOriginal<double, 5>(params, index);
-    inventory_changer::InventoryChanger::instance(*interfaces, *memory).getArgAsNumberHook(memory->inventoryChangerReturnAddresses, static_cast<int>(result), RETURN_ADDRESS());
-    return result;
+    return globalContext->getArgAsNumberHook(params, index, RETURN_ADDRESS());
 }
 
 static const char* STDCALL_CONV getArgAsString(LINUX_ARGS(void* thisptr,) void* params, int index) noexcept
 {
-    const auto result = hooks->panoramaMarshallHelper.callOriginal<const char*, 7>(params, index);
-
-    if (result)
-        inventory_changer::InventoryChanger::instance(*interfaces, *memory).getArgAsStringHook(memory->inventoryChangerReturnAddresses, *memory, result, RETURN_ADDRESS(), params);
-
-    return result;
+    return globalContext->getArgAsStringHook(params, index, RETURN_ADDRESS());
 }
 
 static void STDCALL_CONV setResultInt(LINUX_ARGS(void* thisptr, ) void* params, int result) noexcept
 {
-    result = inventory_changer::InventoryChanger::instance(*interfaces, *memory).setResultIntHook(memory->inventoryChangerReturnAddresses, RETURN_ADDRESS(), params, result);
-    hooks->panoramaMarshallHelper.callOriginal<void, WIN32_LINUX(14, 11)>(params, result);
+    return globalContext->setResultIntHook(params, result, RETURN_ADDRESS());
 }
 
 static unsigned STDCALL_CONV getNumArgs(LINUX_ARGS(void* thisptr, ) void* params) noexcept
 {
-    const auto result = hooks->panoramaMarshallHelper.callOriginal<unsigned, 1>(params);
-    inventory_changer::InventoryChanger::instance(*interfaces, *memory).getNumArgsHook(memory->inventoryChangerReturnAddresses, result, RETURN_ADDRESS(), params);
-    return result;
+    return globalContext->getNumArgsHook(params, RETURN_ADDRESS());
 }
 
-static void STDCALL_CONV updateInventoryEquippedState(LINUX_ARGS(void* thisptr, ) std::uintptr_t inventory, std::uint64_t itemID, csgo::Team team, int slot, bool swap) noexcept
+static void STDCALL_CONV updateInventoryEquippedState(LINUX_ARGS(void* thisptr, ) std::uintptr_t inventory, csgo::ItemId itemID, csgo::Team team, int slot, bool swap) noexcept
 {
-    inventory_changer::InventoryChanger::instance(*interfaces, *memory).onItemEquip(team, slot, itemID);
-    return hooks->inventoryManager.callOriginal<void, WIN32_LINUX(29, 30)>(inventory, itemID, team, slot, swap);
+    globalContext->updateInventoryEquippedStateHook(inventory, itemID, team, slot, swap);
 }
 
 static void STDCALL_CONV soUpdated(LINUX_ARGS(void* thisptr, ) SOID owner, csgo::pod::SharedObject* object, int event) noexcept
 {
-    inventory_changer::InventoryChanger::instance(*interfaces, *memory).onSoUpdated(SharedObject::from(retSpoofGadgets.client, object));
-    hooks->inventory.callOriginal<void, 1>(owner, object, event);
+    globalContext->soUpdatedHook(owner, object, event);
 }
 
 static bool STDCALL_CONV dispatchUserMessage(LINUX_ARGS(void* thisptr, ) csgo::UserMessageType type, int passthroughFlags, int size, const void* data) noexcept
@@ -289,9 +244,7 @@ static bool STDCALL_CONV dispatchUserMessage(LINUX_ARGS(void* thisptr, ) csgo::U
 
 static void* STDCALL_CONV allocKeyValuesMemory(LINUX_ARGS(void* thisptr, ) int size) noexcept
 {
-    if (const auto returnAddress = RETURN_ADDRESS(); returnAddress == memory->keyValuesAllocEngine || returnAddress == memory->keyValuesAllocClient)
-        return nullptr;
-    return hooks->keyValuesSystem.callOriginal<void*, 2>(size);
+    return globalContext->allocKeyValuesMemoryHook(size, RETURN_ADDRESS());
 }
 
 Hooks::Hooks(HMODULE moduleHandle) noexcept : moduleHandle{ moduleHandle }
@@ -307,7 +260,7 @@ Hooks::Hooks(HMODULE moduleHandle) noexcept : moduleHandle{ moduleHandle }
 
 #endif
 
-void Hooks::install(const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory) noexcept
+void Hooks::install(csgo::pod::Client* clientInterface, const OtherInterfaces& interfaces, const Memory& memory) noexcept
 {
 #if IS_WIN32()
     originalPresent = **reinterpret_cast<decltype(originalPresent)**>(memory.present);
@@ -325,10 +278,10 @@ void Hooks::install(const ClientInterfaces& clientInterfaces, const Interfaces& 
 
 #endif
     
-    bspQuery.init(globalContext->engineInterfaces->getEngine().getBSPTreeQuery());
+    bspQuery.init(globalContext->getEngineInterfaces().getEngine().getBSPTreeQuery());
     bspQuery.hookAt(6, &listLeavesInBox);
 
-    client.init((void*)clientInterfaces.getClientAddress());
+    client.init(clientInterface);
     client.hookAt(37, &frameStageNotify);
     client.hookAt(38, &dispatchUserMessage);
 
@@ -341,7 +294,7 @@ void Hooks::install(const ClientInterfaces& clientInterfaces, const Interfaces& 
     clientMode.hookAt(WIN32_LINUX(44, 45), &doPostScreenEffects);
     clientMode.hookAt(WIN32_LINUX(58, 61), &updateColorCorrectionWeights);
 
-    engine.init((void*)globalContext->engineInterfaces->getEngineAddress());
+    engine.init(globalContext->getEngineInterfaces().getEngine().getPOD());
     engine.hookAt(82, &isPlayingDemo);
     engine.hookAt(101, &getScreenAspectRatio);
 #if IS_WIN32()
@@ -356,7 +309,7 @@ void Hooks::install(const ClientInterfaces& clientInterfaces, const Interfaces& 
     inventoryManager.init(memory.inventoryManager.getPOD());
     inventoryManager.hookAt(WIN32_LINUX(29, 30), &updateInventoryEquippedState);
 
-    modelRender.init(globalContext->engineInterfaces->modelRender);
+    modelRender.init(globalContext->engineInterfacesPODs->modelRender);
     modelRender.hookAt(21, &drawModelExecute);
 
     panoramaMarshallHelper.init(memory.panoramaMarshallHelper);
@@ -365,7 +318,7 @@ void Hooks::install(const ClientInterfaces& clientInterfaces, const Interfaces& 
     panoramaMarshallHelper.hookAt(7, &getArgAsString);
     panoramaMarshallHelper.hookAt(WIN32_LINUX(14, 11), &setResultInt);
 
-    sound.init(globalContext->engineInterfaces->sound);
+    sound.init(globalContext->engineInterfacesPODs->sound);
     sound.hookAt(WIN32_LINUX(5, 6), &emitSound);
 
     surface.init(interfaces.getSurface().getPOD());
@@ -407,7 +360,7 @@ static DWORD WINAPI unload(HMODULE moduleHandle) noexcept
 {
     Sleep(100);
 
-    interfaces->getInputSystem().enableInput(true);
+    globalContext->getOtherInterfaces().getInputSystem().enableInput(true);
     globalContext->gameEventListener->remove();
 
     ImGui_ImplDX9_Shutdown();
@@ -421,9 +374,9 @@ static DWORD WINAPI unload(HMODULE moduleHandle) noexcept
 
 #endif
 
-void Hooks::uninstall(const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory) noexcept
+void Hooks::uninstall(const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory) noexcept
 {
-    Misc::updateEventListeners(*globalContext->engineInterfaces, true);
+    Misc::updateEventListeners(globalContext->getEngineInterfaces(), true);
     globalContext->visuals->updateEventListeners(true);
 
 #if IS_WIN32()

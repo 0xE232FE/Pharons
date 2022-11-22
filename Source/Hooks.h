@@ -19,12 +19,13 @@ union SDL_Event;
 
 #include "SDK/Platform.h"
 
-#include "Interfaces.h"
 #include "Memory.h"
 
 class matrix3x4;
 struct ModelRenderInfo;
 struct SoundInfo;
+class ClientInterfaces;
+class OtherInterfaces;
 
 #if IS_WIN32()
 // Easily switch hooking method for all hooks, choose between MinHook/VmtHook/VmtSwap
@@ -50,8 +51,8 @@ public:
     std::add_pointer_t<void(SDL_Window*)> swapWindow;
 #endif
 
-    void install(const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory) noexcept;
-    void uninstall(const ClientInterfaces& clientInterfaces, const Interfaces& interfaces, const Memory& memory) noexcept;
+    void install(csgo::pod::Client* clientInterface, const OtherInterfaces& interfaces, const Memory& memory) noexcept;
+    void uninstall(const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory) noexcept;
     void callOriginalDrawModelExecute(void* ctx, void* state, const ModelRenderInfo& info, matrix3x4* customBoneToWorld) noexcept;
 
     std::add_pointer_t<int FASTCALL_CONV(SoundInfo&)> originalDispatchSound;
