@@ -34,7 +34,6 @@
 #include "Memory.h"
 
 #include "Hacks/Aimbot.h"
-#include "Hacks/AntiAim.h"
 #include "Hacks/Backtrack.h"
 #include "Hacks/Chams.h"
 #include "Hacks/EnginePrediction.h"
@@ -62,7 +61,6 @@
 #include "SDK/LocalPlayer.h"
 #include "SDK/MaterialSystem.h"
 #include "SDK/ModelRender.h"
-#include "SDK/Platform.h"
 #include "SDK/SoundInfo.h"
 #include "SDK/SoundEmitter.h"
 #include "SDK/StudioRender.h"

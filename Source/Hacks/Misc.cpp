@@ -39,7 +39,6 @@
 #include "../SDK/LocalPlayer.h"
 #include "../SDK/NetworkChannel.h"
 #include "../SDK/Panorama.h"
-#include "../SDK/Platform.h"
 #include "../SDK/UserCmd.h"
 #include "../SDK/UtlVector.h"
 #include "../SDK/Vector.h"
@@ -102,7 +101,6 @@ struct MiscConfig {
     bool revealSuspect{ false };
     bool revealVotes{ false };
     bool fixAnimationLOD{ false };
-    bool fixBoneMatrix{ false };
     bool fixMovement{ false };
     bool disableModelOcclusion{ false };
     bool nameStealer{ false };
@@ -178,11 +176,6 @@ bool Misc::shouldRevealSuspect() noexcept
 bool Misc::shouldDisableModelOcclusion() noexcept
 {
     return miscConfig.disableModelOcclusion;
-}
-
-bool Misc::shouldFixBoneMatrix() noexcept
-{
-    return miscConfig.fixBoneMatrix;
 }
 
 bool Misc::isRadarHackOn() noexcept
@@ -1395,7 +1388,6 @@ void Misc::drawGUI(const Engine& engine, const ClientInterfaces& clientInterface
     }
     ImGui::PopID();
     ImGui::Checkbox("Fix animation LOD", &miscConfig.fixAnimationLOD);
-    ImGui::Checkbox("Fix bone matrix", &miscConfig.fixBoneMatrix);
     ImGui::Checkbox("Fix movement", &miscConfig.fixMovement);
     ImGui::Checkbox("Disable model occlusion", &miscConfig.disableModelOcclusion);
     ImGui::SliderFloat("Aspect Ratio", &miscConfig.aspectratio, 0.0f, 5.0f, "%.2f");
@@ -1604,7 +1596,6 @@ static void from_json(const json& j, MiscConfig& m)
     read<value_t::object>(j, "Watermark", m.watermark);
     read<value_t::object>(j, "Offscreen Enemies", m.offscreenEnemies);
     read(j, "Fix animation LOD", m.fixAnimationLOD);
-    read(j, "Fix bone matrix", m.fixBoneMatrix);
     read(j, "Fix movement", m.fixMovement);
     read(j, "Disable model occlusion", m.disableModelOcclusion);
     read(j, "Aspect Ratio", m.aspectratio);
@@ -1742,7 +1733,6 @@ static void to_json(json& j, const MiscConfig& o)
     WRITE("Watermark", watermark);
     WRITE("Offscreen Enemies", offscreenEnemies);
     WRITE("Fix animation LOD", fixAnimationLOD);
-    WRITE("Fix bone matrix", fixBoneMatrix);
     WRITE("Fix movement", fixMovement);
     WRITE("Disable model occlusion", disableModelOcclusion);
     WRITE("Aspect Ratio", aspectratio);

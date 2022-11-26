@@ -31,12 +31,12 @@
 #endif
 
 #include "Memory.h"
+#include "SDK/Constants/DllNames.h"
 #include "SDK/ItemSchema.h"
 #include "SDK/LocalPlayer.h"
 
-#include "SafeAddress.h"
-
 #include "Utils/PatternFinder.h"
+#include "Utils/SafeAddress.h"
 
 Memory::Memory(const helpers::PatternFinder& clientPatternFinder, const helpers::PatternFinder& enginePatternFinder, csgo::pod::Client* clientInterface, const RetSpoofGadgets& retSpoofGadgets) noexcept
 #if IS_WIN32()
@@ -79,6 +79,7 @@ Memory::Memory(const helpers::PatternFinder& clientPatternFinder, const helpers:
     const auto tier0 = GetModuleHandleW(L"tier0");
     debugMsg = reinterpret_cast<decltype(debugMsg)>(GetProcAddress(tier0, "Msg"));
     conColorMsg = reinterpret_cast<decltype(conColorMsg)>(GetProcAddress(tier0, "?ConColorMsg@@YAXABVColor@@PBDZZ"));
+    memAlloc = *reinterpret_cast<csgo::pod::MemAlloc**>(GetProcAddress(tier0, "g_pMemAlloc"));
     vignette = reinterpret_cast<float*>(clientPatternFinder("\x0F\x11\x05????\xF3\x0F\x7E\x87").add(3).deref().add(4).get());
     equipWearable = reinterpret_cast<decltype(equipWearable)>(clientPatternFinder("\x55\x8B\xEC\x83\xEC\x10\x53\x8B\x5D\x08\x57\x8B\xF9").get());
     predictionRandomSeed = reinterpret_cast<int*>(clientPatternFinder("\x8B\x0D????\xBA????\xE8????\x83\xC4\x04").add(2).deref().get());
@@ -106,8 +107,8 @@ Memory::Memory(const helpers::PatternFinder& clientPatternFinder, const helpers:
 
     findOrCreateEconItemViewForItemID = reinterpret_cast<decltype(findOrCreateEconItemViewForItemID)>(clientPatternFinder("\xE8????\x8B\xCE\x83\xC4\x08").add(1).relativeToAbsolute().get());
     createBaseTypeCache = clientPatternFinder("\xE8????\x8D\x4D\x0F").add(1).relativeToAbsolute().get();
-    uiComponentInventory = reinterpret_cast<void**>(clientPatternFinder("\xC6\x44\x24??\x83\x3D").add(7).deref().get());
-    setItemSessionPropertyValue = reinterpret_cast<decltype(setItemSessionPropertyValue)>(clientPatternFinder("\xE8????\x8B\x4C\x24\x2C\x46").add(1).relativeToAbsolute().get());
+    uiComponentInventory = reinterpret_cast<csgo::pod::UiComponentInventory**>(clientPatternFinder("\xC6\x44\x24??\x83\x3D").add(7).deref().get());
+    setItemSessionPropertyValue = clientPatternFinder("\xE8????\x8B\x4C\x24\x2C\x46").add(1).relativeToAbsolute().get();
 
     localPlayer.init(reinterpret_cast<csgo::pod::Entity**>(clientPatternFinder("\xA1????\x89\x45\xBC\x85\xC0").add(1).deref().get()));
 
@@ -117,7 +118,7 @@ Memory::Memory(const helpers::PatternFinder& clientPatternFinder, const helpers:
 
     shouldDrawFogReturnAddress = clientPatternFinder("\xE8????\x8B\x0D????\x0F\xB6\xD0").add(1).relativeToAbsolute().add(82).get();
 #else
-    const auto tier0 = dlopen(TIER0_DLL, RTLD_NOLOAD | RTLD_NOW);
+    const auto tier0 = dlopen(csgo::TIER0_DLL, RTLD_NOLOAD | RTLD_NOW);
     debugMsg = decltype(debugMsg)(dlsym(tier0, "Msg"));
     conColorMsg = decltype(conColorMsg)(dlsym(tier0, "_Z11ConColorMsgRK5ColorPKcz"));
     dlclose(tier0);
@@ -173,7 +174,7 @@ Memory::Memory(const helpers::PatternFinder& clientPatternFinder, const helpers:
     createBaseTypeCache = reinterpret_cast<decltype(createBaseTypeCache)>(clientPatternFinder("\xE8????\x48\x89\xDE\x5B\x48\x8B\x10").add(1).relativeToAbsolute().get());
     insertIntoTree = clientPatternFinder("\x74\x24\x4C\x8B\x10").add(31).get();
     uiComponentInventory = reinterpret_cast<decltype(uiComponentInventory)>(clientPatternFinder("\xE8????\x4C\x89\x3D????\x4C\x89\xFF\xEB\x9E").add(8).relativeToAbsolute().get());
-    setItemSessionPropertyValue = reinterpret_cast<decltype(setItemSessionPropertyValue)>(clientPatternFinder("\xE8????\x48\x8B\x85????\x41\x83\xC4\x01").add(1).relativeToAbsolute().get());
+    setItemSessionPropertyValue = clientPatternFinder("\xE8????\x48\x8B\x85????\x41\x83\xC4\x01").add(1).relativeToAbsolute().get();
 
     localPlayer.init(reinterpret_cast<csgo::pod::Entity**>(clientPatternFinder("\x83\xFF\xFF\x48\x8B\x05").add(6).relativeToAbsolute().get()));
 #endif

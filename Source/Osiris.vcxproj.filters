@@ -128,9 +128,6 @@
     <ClCompile Include="SDK\GlobalVars.cpp">
       <Filter>SDK</Filter>
     </ClCompile>
-    <ClCompile Include="Hacks\AntiAim.cpp">
-      <Filter>Hacks</Filter>
-    </ClCompile>
     <ClCompile Include="imguiCustom.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -463,9 +460,6 @@
     <ClInclude Include="SDK\AnimState.h">
       <Filter>SDK</Filter>
     </ClInclude>
-    <ClInclude Include="Hacks\AntiAim.h">
-      <Filter>Hacks</Filter>
-    </ClInclude>
     <ClInclude Include="SDK\matrix3x4.h">
       <Filter>SDK</Filter>
     </ClInclude>
@@ -530,9 +524,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SDK\Panorama.h">
-      <Filter>SDK</Filter>
-    </ClInclude>
-    <ClInclude Include="SDK\Platform.h">
       <Filter>SDK</Filter>
     </ClInclude>
     <ClInclude Include="InputUtil.h">
@@ -880,9 +871,6 @@
     <ClInclude Include="Platform\DynamicLibraryView.h">
       <Filter>Platform</Filter>
     </ClInclude>
-    <ClInclude Include="SafeAddress.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SDK\CSPlayerInventory.h">
       <Filter>SDK</Filter>
     </ClInclude>
@@ -972,6 +960,18 @@
     </ClInclude>
     <ClInclude Include="InventoryChanger\EconItemViewFunctions.h">
       <Filter>InventoryChanger</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Constants\DllNames.h">
+      <Filter>SDK\Constants</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\MemAlloc.h">
+      <Filter>SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\SafeAddress.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\UiComponentInventory.h">
+      <Filter>SDK</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

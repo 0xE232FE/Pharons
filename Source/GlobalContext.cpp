@@ -19,7 +19,6 @@
 #include "InventoryChanger/InventoryChanger.h"
 #include "Memory.h"
 #include "Hacks/Aimbot.h"
-#include "Hacks/AntiAim.h"
 #include "Hacks/Backtrack.h"
 #include "Hacks/Chams.h"
 #include "Hacks/EnginePrediction.h"
@@ -54,11 +53,11 @@
 GlobalContext::GlobalContext()
 {
 #if IS_WIN32()
-    const windows_platform::DynamicLibrary clientDLL{ windows_platform::DynamicLibraryWrapper{}, CLIENT_DLL };
-    const windows_platform::DynamicLibrary engineDLL{ windows_platform::DynamicLibraryWrapper{}, ENGINE_DLL };
+    const windows_platform::DynamicLibrary clientDLL{ windows_platform::DynamicLibraryWrapper{}, csgo::CLIENT_DLL };
+    const windows_platform::DynamicLibrary engineDLL{ windows_platform::DynamicLibraryWrapper{}, csgo::ENGINE_DLL };
 #elif IS_LINUX()
-    const linux_platform::SharedObject clientDLL{ linux_platform::DynamicLibraryWrapper{}, CLIENT_DLL };
-    const linux_platform::SharedObject engineDLL{ linux_platform::DynamicLibraryWrapper{}, ENGINE_DLL };
+    const linux_platform::SharedObject clientDLL{ linux_platform::DynamicLibraryWrapper{}, csgo::CLIENT_DLL };
+    const linux_platform::SharedObject engineDLL{ linux_platform::DynamicLibraryWrapper{}, csgo::ENGINE_DLL };
 #endif
 
     retSpoofGadgets.emplace(helpers::PatternFinder{ getCodeSection(clientDLL.getView()) }, helpers::PatternFinder{ getCodeSection(engineDLL.getView()) });
@@ -104,7 +103,7 @@ bool GlobalContext::createMoveHook(float inputSampleTime, UserCmd* cmd)
 
     EnginePrediction::run(ClientInterfaces{ retSpoofGadgets->client, *clientInterfaces }, *memory, cmd);
 
-    Aimbot::run(getEngineInterfaces(), ClientInterfaces{ retSpoofGadgets->client, *clientInterfaces }, getOtherInterfaces(), *config, *memory, cmd);
+    aimbot->run(getEngineInterfaces(), ClientInterfaces{ retSpoofGadgets->client, *clientInterfaces }, getOtherInterfaces(), *config, *memory, cmd);
     Triggerbot::run(getEngineInterfaces().engineTrace(), getOtherInterfaces(), *memory, *config, cmd);
     Backtrack::run(ClientInterfaces{ retSpoofGadgets->client, *clientInterfaces }, getEngineInterfaces(), getOtherInterfaces(), *memory, cmd);
     Misc::edgejump(cmd);
@@ -113,7 +112,6 @@ bool GlobalContext::createMoveHook(float inputSampleTime, UserCmd* cmd)
 
     if (!(cmd->buttons & (UserCmd::IN_ATTACK | UserCmd::IN_ATTACK2))) {
         Misc::chokePackets(getEngineInterfaces().getEngine(), sendPacket);
-        AntiAim::run(cmd, previousViewAngles, currentViewAngles, sendPacket);
     }
 
     auto viewAnglesDelta{ cmd->viewangles - previousViewAngles };
@@ -419,9 +417,9 @@ LRESULT GlobalContext::wndProcHook(HWND window, UINT msg, WPARAM wParam, LPARAM 
     } else if (state == GlobalContext::State::NotInitialized) {
         state = GlobalContext::State::Initializing;
 
-        const windows_platform::DynamicLibrary clientDLL{ windows_platform::DynamicLibraryWrapper{}, CLIENT_DLL };
+        const windows_platform::DynamicLibrary clientDLL{ windows_platform::DynamicLibraryWrapper{}, csgo::CLIENT_DLL };
         clientInterfaces = createClientInterfacesPODs(InterfaceFinderWithLog{ InterfaceFinder{ clientDLL.getView(), retSpoofGadgets->client } });
-        const windows_platform::DynamicLibrary engineDLL{ windows_platform::DynamicLibraryWrapper{}, ENGINE_DLL };
+        const windows_platform::DynamicLibrary engineDLL{ windows_platform::DynamicLibraryWrapper{}, csgo::ENGINE_DLL };
         engineInterfacesPODs = createEngineInterfacesPODs(InterfaceFinderWithLog{ InterfaceFinder{ engineDLL.getView(), retSpoofGadgets->client } });
         interfaces.emplace();
 
@@ -435,6 +433,7 @@ LRESULT GlobalContext::wndProcHook(HWND window, UINT msg, WPARAM wParam, LPARAM 
         visuals.emplace(*memory, getOtherInterfaces(), ClientInterfaces{ retSpoofGadgets->client, *clientInterfaces }, getEngineInterfaces(), helpers::PatternFinder{ getCodeSection(clientDLL.getView()) });
         config.emplace(*visuals, getOtherInterfaces(), *memory);
         gui.emplace();
+        aimbot.emplace();
         hooks->install(clientInterfaces->client, getOtherInterfaces(), *memory);
 
         state = GlobalContext::State::Initialized;
@@ -487,9 +486,9 @@ int GlobalContext::pollEventHook(SDL_Event* event)
     } else if (state == GlobalContext::State::NotInitialized) {
         state = GlobalContext::State::Initializing;
 
-        const linux_platform::SharedObject clientSo{ linux_platform::DynamicLibraryWrapper{}, CLIENT_DLL };
+        const linux_platform::SharedObject clientSo{ linux_platform::DynamicLibraryWrapper{}, csgo::CLIENT_DLL };
         clientInterfaces = createClientInterfacesPODs(InterfaceFinderWithLog{ InterfaceFinder{ clientSo.getView(), retSpoofGadgets->client } });
-        const linux_platform::SharedObject engineSo{ linux_platform::DynamicLibraryWrapper{}, ENGINE_DLL };
+        const linux_platform::SharedObject engineSo{ linux_platform::DynamicLibraryWrapper{}, csgo::ENGINE_DLL };
         engineInterfacesPODs = createEngineInterfacesPODs(InterfaceFinderWithLog{ InterfaceFinder{ engineSo.getView(), retSpoofGadgets->client } });
 
         interfaces.emplace();
@@ -503,6 +502,7 @@ int GlobalContext::pollEventHook(SDL_Event* event)
         config.emplace(*visuals, getOtherInterfaces(), *memory);
 
         gui.emplace();
+        aimbot.emplace();
         hooks->install(clientInterfaces->client, getOtherInterfaces(), *memory);
 
         state = GlobalContext::State::Initialized;
@@ -602,7 +602,7 @@ void GlobalContext::renderFrame()
         visuals->drawMolotovHull(ImGui::GetBackgroundDrawList());
         Misc::watermark(*memory);
 
-        Aimbot::updateInput(*config);
+        aimbot->updateInput(*config);
         visuals->updateInput();
         StreamProofESP::updateInput(*config);
         Misc::updateInput();

@@ -19,8 +19,6 @@
 #include <Interfaces/ClientInterfaces.h>
 #include <Interfaces/OtherInterfaces.h>
 
-#if OSIRIS_BACKTRACK()
-
 struct BacktrackConfig {
     bool enabled = false;
     bool ignoreSmoke = false;
@@ -70,7 +68,7 @@ void Backtrack::update(const EngineInterfaces& engineInterfaces, const ClientInt
             record.origin = entity.getAbsOrigin();
             record.simulationTime = entity.simulationTime();
 
-            entity.setupBones(memory, record.matrix, 256, 0x7FF00, memory.globalVars->currenttime);
+            entity.setupBones(record.matrix, 256, 0x7FF00, memory.globalVars->currenttime);
 
             records[i].push_front(record);
 
@@ -253,27 +251,3 @@ void Backtrack::resetConfig() noexcept
 {
     backtrackConfig = {};
 }
-
-#else
-
-namespace Backtrack
-{
-    void update(FrameStage) noexcept {}
-    void run(UserCmd*) noexcept {}
-
-    const std::deque<Record>* getRecords(std::size_t index) noexcept { return nullptr; }
-    bool valid(float simtime) noexcept { return false; }
-    void init() noexcept {}
-
-    // GUI
-    void menuBarItem() noexcept {}
-    void tabItem() noexcept {}
-    void drawGUI(bool contentOnly) noexcept {}
-
-    // Config
-    json toJson() noexcept { return {}; }
-    void fromJson(const json& j) noexcept {}
-    void resetConfig() noexcept {}
-}
-
-#endif

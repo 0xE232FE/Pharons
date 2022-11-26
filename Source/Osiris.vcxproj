@@ -116,7 +116,6 @@
     <ClCompile Include="GameData.cpp" />
     <ClCompile Include="GlobalContext.cpp" />
     <ClCompile Include="Hacks\Aimbot.cpp" />
-    <ClCompile Include="Hacks\AntiAim.cpp" />
     <ClCompile Include="Hacks\Backtrack.cpp" />
     <ClCompile Include="Hacks\Chams.cpp" />
     <ClCompile Include="Hacks\EnginePrediction.cpp" />
@@ -202,7 +201,6 @@
     <ClInclude Include="GameData.h" />
     <ClInclude Include="GlobalContext.h" />
     <ClInclude Include="Hacks\Aimbot.h" />
-    <ClInclude Include="Hacks\AntiAim.h" />
     <ClInclude Include="Hacks\Backtrack.h" />
     <ClInclude Include="Hacks\Chams.h" />
     <ClInclude Include="Hacks\EnginePrediction.h" />
@@ -298,11 +296,11 @@
     <ClInclude Include="Resources\avatar_tt.h" />
     <ClInclude Include="Resources\Resource.h" />
     <ClInclude Include="RetSpoofGadgets.h" />
-    <ClInclude Include="SafeAddress.h" />
     <ClInclude Include="SDK\AnimState.h" />
     <ClInclude Include="SDK\Client.h" />
     <ClInclude Include="SDK\ClientMode.h" />
     <ClInclude Include="SDK\Constants\ClassId.h" />
+    <ClInclude Include="SDK\Constants\DllNames.h" />
     <ClInclude Include="SDK\Constants\EconItemFlags.h" />
     <ClInclude Include="SDK\Constants\FrameStage.h" />
     <ClInclude Include="SDK\Constants\ItemId.h" />
@@ -344,6 +342,7 @@
     <ClInclude Include="SDK\Material.h" />
     <ClInclude Include="SDK\MaterialSystem.h" />
     <ClInclude Include="SDK\matrix3x4.h" />
+    <ClInclude Include="SDK\MemAlloc.h" />
     <ClInclude Include="SDK\ModelInfo.h" />
     <ClInclude Include="SDK\ModelRender.h" />
     <ClInclude Include="SDK\MoveHelper.h" />
@@ -353,7 +352,6 @@
     <ClInclude Include="SDK\PanoramaMarshallHelper.h" />
     <ClInclude Include="SDK\PhysicsSurfaceProps.h" />
     <ClInclude Include="SDK\PlantedC4.h" />
-    <ClInclude Include="SDK\Platform.h" />
     <ClInclude Include="SDK\PlayerResource.h" />
     <ClInclude Include="SDK\PODs\ConVar.h" />
     <ClInclude Include="SDK\PODs\EconItem.h" />
@@ -369,6 +367,7 @@
     <ClInclude Include="SDK\Steam.h" />
     <ClInclude Include="SDK\StudioRender.h" />
     <ClInclude Include="SDK\Surface.h" />
+    <ClInclude Include="SDK\UiComponentInventory.h" />
     <ClInclude Include="SDK\UserCmd.h" />
     <ClInclude Include="SDK\UtlMap.h" />
     <ClInclude Include="SDK\UtlMemory.h" />
@@ -388,6 +387,7 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Utils\FlagsBuilder.h" />
     <ClInclude Include="Utils\PatternFinder.h" />
+    <ClInclude Include="Utils\SafeAddress.h" />
     <ClInclude Include="Utils\TypeHint.h" />
   </ItemGroup>
   <ItemGroup>

@@ -5,7 +5,6 @@
 
 #include "AnimState.h"
 #include "Inconstructible.h"
-#include "Platform.h"
 #include "Vector.h"
 #include "VirtualMethod.h"
 #include "WeaponData.h"
@@ -15,6 +14,7 @@
 
 #include <Interfaces/EngineInterfaces.h>
 #include <Platform/IsPlatform.h>
+#include <Platform/PlatformSpecific.h>
 
 namespace csgo::pod { struct EconItemView; }
 
@@ -122,6 +122,9 @@ public:
     VIRTUAL_METHOD(void, setModelIndex, WIN32_LINUX(75, 111), (int index), (index))
     VIRTUAL_METHOD(bool, getAttachment, WIN32_LINUX(84, 122), (int index, Vector& origin), (index, std::ref(origin)))
     VIRTUAL_METHOD(csgo::Team, getTeamNumber, WIN32_LINUX(88, 128), (), ())
+#if IS_WIN32()
+    VIRTUAL_METHOD(bool, initializeAsClientEntity, 97, (const char* modelName, bool renderWithViewmodels), (modelName, renderWithViewmodels))
+#endif
     VIRTUAL_METHOD(int, health, WIN32_LINUX(122, 167), (), ())
     VIRTUAL_METHOD(bool, isAlive, WIN32_LINUX(156, 208), (), ())
     VIRTUAL_METHOD(bool, isPlayer, WIN32_LINUX(158, 210), (), ())
@@ -175,10 +178,10 @@ public:
         return false;
     }
 
-    bool setupBones(const Memory& memory, matrix3x4* out, int maxBones, int boneMask, float currentTime) const noexcept;
-    Vector getBonePosition(const Memory& memory, int bone) const noexcept;
+    bool setupBones(matrix3x4* out, int maxBones, int boneMask, float currentTime) const noexcept;
+    Vector getBonePosition(int bone) const noexcept;
 
-    bool isVisible(const EngineTrace& engineTrace, const Memory& memory, const Vector& position = { }) const noexcept;
+    bool isVisible(const EngineTrace& engineTrace, const Vector& position = { }) const noexcept;
     bool isOtherEnemy(const Memory& memory, const Entity& other) const noexcept;
 
     VarMap& getVarMap() const noexcept

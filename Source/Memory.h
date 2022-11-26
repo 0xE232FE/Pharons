@@ -9,11 +9,10 @@
 #include "SDK/ItemSchema.h"
 #include "SDK/MoveHelper.h"
 #include "SDK/PanoramaMarshallHelper.h"
-#include "SDK/Platform.h"
 #include "SDK/ViewRenderBeams.h"
 #include "SDK/WeaponSystem.h"
 
-#include "SafeAddress.h"
+#include "Utils/SafeAddress.h"
 #include "RetSpoofGadgets.h"
 #include "Helpers/PatternFinder.h"
 #include "Utils/TypeHint.h"
@@ -51,6 +50,8 @@ namespace csgo::pod
     struct Client;
     struct EconItem;
     struct ItemSystem;
+    struct MemAlloc;
+    struct UiComponentInventory;
 }
 
 class Memory {
@@ -62,6 +63,7 @@ public:
     std::uintptr_t reset;
 #endif
 
+    csgo::pod::MemAlloc* memAlloc;
     ClientMode* clientMode;
     Input* input;
     GlobalVars* globalVars;
@@ -110,8 +112,8 @@ public:
     csgo::pod::PanoramaMarshallHelper* panoramaMarshallHelper;
     std::add_pointer_t<csgo::pod::EconItemView* CDECL_CONV(std::uint64_t itemID)> findOrCreateEconItemViewForItemID;
     std::uintptr_t createBaseTypeCache;
-    void** uiComponentInventory;
-    void(THISCALL_CONV* setItemSessionPropertyValue)(void* thisptr, std::uint64_t itemID, const char* type, const char* value);
+    csgo::pod::UiComponentInventory** uiComponentInventory;
+    TypeHint<std::uintptr_t, void(THISCALL_CONV*)(csgo::pod::UiComponentInventory* thisptr, std::uint64_t itemID, const char* type, const char* value)> setItemSessionPropertyValue;
 
     short makePanoramaSymbol(const char* name) const noexcept
     {
