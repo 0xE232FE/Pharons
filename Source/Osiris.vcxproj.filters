@@ -84,6 +84,15 @@
     <Filter Include="SDK\Helpers">
       <UniqueIdentifier>{acb6732a-176f-40fa-b54a-7851139f9385}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Config">
+      <UniqueIdentifier>{571171a8-ca62-48a5-91c2-9b837e642a80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hacks\Visuals">
+      <UniqueIdentifier>{b06cfa86-3590-4502-9bed-468e781c19cd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RetSpoof">
+      <UniqueIdentifier>{17172044-e24f-46ec-90cf-e556a1d707aa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GUI.cpp">
@@ -322,6 +331,9 @@
     </ClCompile>
     <ClCompile Include="Helpers\PatternFinder.cpp">
       <Filter>Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="Endpoints.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -972,6 +984,54 @@
     </ClInclude>
     <ClInclude Include="SDK\UiComponentInventory.h">
       <Filter>SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Constants\ConVarNames.h">
+      <Filter>SDK\Constants</Filter>
+    </ClInclude>
+    <ClInclude Include="Config\ResetConfigurator.h">
+      <Filter>Config</Filter>
+    </ClInclude>
+    <ClInclude Include="Config\LoadConfigurator.h">
+      <Filter>Config</Filter>
+    </ClInclude>
+    <ClInclude Include="Config\SaveConfigurator.h">
+      <Filter>Config</Filter>
+    </ClInclude>
+    <ClInclude Include="Hacks\Visuals\ColorCorrection.h">
+      <Filter>Hacks\Visuals</Filter>
+    </ClInclude>
+    <ClInclude Include="Hacks\Visuals\SkyboxChanger.h">
+      <Filter>Hacks\Visuals</Filter>
+    </ClInclude>
+    <ClInclude Include="Config\Configurable.h">
+      <Filter>Config</Filter>
+    </ClInclude>
+    <ClInclude Include="Hacks\Visuals\PostProcessingDisabler.h">
+      <Filter>Hacks\Visuals</Filter>
+    </ClInclude>
+    <ClInclude Include="Hacks\Visuals\ScopeOverlayRemover.h">
+      <Filter>Hacks\Visuals</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\ReturnAddress.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Hacks\Features.h">
+      <Filter>Hacks</Filter>
+    </ClInclude>
+    <ClInclude Include="Endpoints.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RetSpoof\FastcallFunctionInvoker.h">
+      <Filter>RetSpoof</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\ViewRender.h">
+      <Filter>SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="SDK\Functions.h">
+      <Filter>SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="RetSpoof\FunctionInvoker.h">
+      <Filter>RetSpoof</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

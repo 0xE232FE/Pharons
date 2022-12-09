@@ -14,20 +14,24 @@
 #include "InputUtil.h"
 
 #include "Memory.h"
+#include "InventoryChanger/InventoryChanger.h"
 
 struct ImFont;
+class Backtrack;
+class Glow;
 class Visuals;
+class Misc;
 
 class Config {
 public:
-    Config(Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory) noexcept;
-    void load(Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory, std::size_t, bool incremental) noexcept;
-    void load(Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory, const char8_t* name, bool incremental) noexcept;
-    void save(Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory, std::size_t) const noexcept;
-    void add(Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory, const char8_t*) noexcept;
+    Config(Misc& misc, inventory_changer::InventoryChanger& inventoryChanger, Glow& glow, Backtrack& backtrack, Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory) noexcept;
+    void load(Misc& misc, inventory_changer::InventoryChanger& inventoryChanger, Glow& glow, Backtrack& backtrack, Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory, std::size_t, bool incremental) noexcept;
+    void load(Misc& misc, inventory_changer::InventoryChanger& inventoryChanger, Glow& glow, Backtrack& backtrack, Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory, const char8_t* name, bool incremental) noexcept;
+    void save(Misc& misc, inventory_changer::InventoryChanger& inventoryChanger, Glow& glow, Backtrack& backtrack, Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory, std::size_t) const noexcept;
+    void add(Misc& misc, inventory_changer::InventoryChanger& inventoryChanger, Glow& glow, Backtrack& backtrack, Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory, const char8_t*) noexcept;
     void remove(std::size_t) noexcept;
     void rename(std::size_t, std::u8string_view newName) noexcept;
-    void reset(Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory) noexcept;
+    void reset(Misc& misc, inventory_changer::InventoryChanger& inventoryChanger, Glow& glow, Backtrack& backtrack, Visuals& visuals, const OtherInterfaces& interfaces, const Memory& memory) noexcept;
     void listConfigs() noexcept;
     void createConfigDir() const noexcept;
     void openConfigDir() const noexcept;

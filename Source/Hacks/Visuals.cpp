@@ -17,44 +17,33 @@
 #include "Visuals.h"
 
 #include <SDK/PODs/ConVar.h>
-#include "../SDK/ConVar.h"
-#include "../SDK/Cvar.h"
-#include "../SDK/Engine.h"
-#include "../SDK/Entity.h"
-#include "../SDK/EntityList.h"
+#include <SDK/ConVar.h>
+#include <SDK/Cvar.h>
+#include <SDK/Engine.h>
+#include <SDK/Entity.h>
+#include <SDK/EntityList.h>
+#include <SDK/Constants/ConVarNames.h>
 #include <SDK/Constants/FrameStage.h>
-#include "../SDK/GameEvent.h"
-#include "../SDK/GlobalVars.h"
-#include "../SDK/Input.h"
-#include "../SDK/LocalPlayer.h"
-#include "../SDK/Material.h"
-#include "../SDK/MaterialSystem.h"
-#include "../SDK/ViewRenderBeams.h"
+#include <SDK/GameEvent.h>
+#include <SDK/GlobalVars.h>
+#include <SDK/Input.h>
+#include <SDK/LocalPlayer.h>
+#include <SDK/Material.h>
+#include <SDK/MaterialSystem.h>
+#include <SDK/ViewRender.h>
+#include <SDK/ViewRenderBeams.h>
 
 #include "../GlobalContext.h"
 #include <Interfaces/ClientInterfaces.h>
+#include <Config/LoadConfigurator.h>
+#include <Config/ResetConfigurator.h>
+#include <Config/SaveConfigurator.h>
 
 struct BulletTracers : ColorToggle {
     BulletTracers() : ColorToggle{ 0.0f, 0.75f, 1.0f, 1.0f } {}
 };
 
 struct VisualsConfig {
-    bool disablePostProcessing{ false };
-    bool inverseRagdollGravity{ false };
-    bool noFog{ false };
-    bool no3dSky{ false };
-    bool noAimPunch{ false };
-    bool noViewPunch{ false };
-    bool noHands{ false };
-    bool noSleeves{ false };
-    bool noWeapons{ false };
-    bool noSmoke{ false };
-    bool noBlur{ false };
-    bool noScopeOverlay{ false };
-    bool noGrass{ false };
-    bool noShadows{ false };
-    bool wireframeSmoke{ false };
-    bool zoom{ false };
     KeyBindToggle zoomKey;
     bool thirdperson{ false };
     KeyBindToggle thirdpersonKey;
@@ -64,7 +53,6 @@ struct VisualsConfig {
     int farZ{ 0 };
     int flashReduction{ 0 };
     float brightness{ 0.0f };
-    int skybox{ 0 };
     ColorToggle3 world;
     ColorToggle3 sky;
     bool deagleSpinner{ false };
@@ -75,31 +63,7 @@ struct VisualsConfig {
     float hitMarkerTime{ 0.6f };
     BulletTracers bulletTracers;
     ColorToggle molotovHull{ 1.0f, 0.27f, 0.0f, 0.3f };
-
-    struct ColorCorrection {
-        bool enabled = false;
-        float blue = 0.0f;
-        float red = 0.0f;
-        float mono = 0.0f;
-        float saturation = 0.0f;
-        float ghost = 0.0f;
-        float green = 0.0f;
-        float yellow = 0.0f;
-    } colorCorrection;
 } visualsConfig;
-
-
-static void from_json(const json& j, VisualsConfig::ColorCorrection& c)
-{
-    read(j, "Enabled", c.enabled);
-    read(j, "Blue", c.blue);
-    read(j, "Red", c.red);
-    read(j, "Mono", c.mono);
-    read(j, "Saturation", c.saturation);
-    read(j, "Ghost", c.ghost);
-    read(j, "Green", c.green);
-    read(j, "Yellow", c.yellow);
-}
 
 static void from_json(const json& j, BulletTracers& o)
 {
@@ -108,22 +72,6 @@ static void from_json(const json& j, BulletTracers& o)
 
 static void from_json(const json& j, VisualsConfig& v)
 {
-    read(j, "Disable post-processing", v.disablePostProcessing);
-    read(j, "Inverse ragdoll gravity", v.inverseRagdollGravity);
-    read(j, "No fog", v.noFog);
-    read(j, "No 3d sky", v.no3dSky);
-    read(j, "No aim punch", v.noAimPunch);
-    read(j, "No view punch", v.noViewPunch);
-    read(j, "No hands", v.noHands);
-    read(j, "No sleeves", v.noSleeves);
-    read(j, "No weapons", v.noWeapons);
-    read(j, "No smoke", v.noSmoke);
-    read(j, "No blur", v.noBlur);
-    read(j, "No scope overlay", v.noScopeOverlay);
-    read(j, "No grass", v.noGrass);
-    read(j, "No shadows", v.noShadows);
-    read(j, "Wireframe smoke", v.wireframeSmoke);
-    read(j, "Zoom", v.zoom);
     read(j, "Zoom key", v.zoomKey);
     read(j, "Thirdperson", v.thirdperson);
     read(j, "Thirdperson key", v.thirdpersonKey);
@@ -133,7 +81,6 @@ static void from_json(const json& j, VisualsConfig& v)
     read(j, "Far Z", v.farZ);
     read(j, "Flash reduction", v.flashReduction);
     read(j, "Brightness", v.brightness);
-    read(j, "Skybox", v.skybox);
     read<value_t::object>(j, "World", v.world);
     read<value_t::object>(j, "Sky", v.sky);
     read(j, "Deagle spinner", v.deagleSpinner);
@@ -142,21 +89,8 @@ static void from_json(const json& j, VisualsConfig& v)
     read(j, "Hit effect time", v.hitEffectTime);
     read(j, "Hit marker", v.hitMarker);
     read(j, "Hit marker time", v.hitMarkerTime);
-    read<value_t::object>(j, "Color correction", v.colorCorrection);
     read<value_t::object>(j, "Bullet Tracers", v.bulletTracers);
     read<value_t::object>(j, "Molotov Hull", v.molotovHull);
-}
-
-static void to_json(json& j, const VisualsConfig::ColorCorrection& o, const VisualsConfig::ColorCorrection& dummy)
-{
-    WRITE("Enabled", enabled);
-    WRITE("Blue", blue);
-    WRITE("Red", red);
-    WRITE("Mono", mono);
-    WRITE("Saturation", saturation);
-    WRITE("Ghost", ghost);
-    WRITE("Green", green);
-    WRITE("Yellow", yellow);
 }
 
 static void to_json(json& j, const BulletTracers& o, const BulletTracers& dummy = {})
@@ -164,26 +98,10 @@ static void to_json(json& j, const BulletTracers& o, const BulletTracers& dummy 
     to_json(j, static_cast<const ColorToggle&>(o), dummy);
 }
 
-static void to_json(json& j, const VisualsConfig& o)
+static void to_json(json& j, VisualsConfig& o)
 {
     const VisualsConfig dummy;
 
-    WRITE("Disable post-processing", disablePostProcessing);
-    WRITE("Inverse ragdoll gravity", inverseRagdollGravity);
-    WRITE("No fog", noFog);
-    WRITE("No 3d sky", no3dSky);
-    WRITE("No aim punch", noAimPunch);
-    WRITE("No view punch", noViewPunch);
-    WRITE("No hands", noHands);
-    WRITE("No sleeves", noSleeves);
-    WRITE("No weapons", noWeapons);
-    WRITE("No smoke", noSmoke);
-    WRITE("No blur", noBlur);
-    WRITE("No scope overlay", noScopeOverlay);
-    WRITE("No grass", noGrass);
-    WRITE("No shadows", noShadows);
-    WRITE("Wireframe smoke", wireframeSmoke);
-    WRITE("Zoom", zoom);
     WRITE("Zoom key", zoomKey);
     WRITE("Thirdperson", thirdperson);
     WRITE("Thirdperson key", thirdpersonKey);
@@ -193,7 +111,6 @@ static void to_json(json& j, const VisualsConfig& o)
     WRITE("Far Z", farZ);
     WRITE("Flash reduction", flashReduction);
     WRITE("Brightness", brightness);
-    WRITE("Skybox", skybox);
     WRITE("World", world);
     WRITE("Sky", sky);
     WRITE("Deagle spinner", deagleSpinner);
@@ -202,24 +119,13 @@ static void to_json(json& j, const VisualsConfig& o)
     WRITE("Hit effect time", hitEffectTime);
     WRITE("Hit marker", hitMarker);
     WRITE("Hit marker time", hitMarkerTime);
-    WRITE("Color correction", colorCorrection);
     WRITE("Bullet Tracers", bulletTracers);
     WRITE("Molotov Hull", molotovHull);
 }
 
-bool Visuals::isThirdpersonOn() noexcept
-{
-    return visualsConfig.thirdperson;
-}
-
 bool Visuals::isZoomOn() noexcept
 {
-    return visualsConfig.zoom;
-}
-
-bool Visuals::isSmokeWireframe() noexcept
-{
-    return visualsConfig.wireframeSmoke;
+    return zoom;
 }
 
 bool Visuals::isDeagleSpinnerOn() noexcept
@@ -229,17 +135,7 @@ bool Visuals::isDeagleSpinnerOn() noexcept
 
 bool Visuals::shouldRemoveFog() noexcept
 {
-    return visualsConfig.noFog;
-}
-
-bool Visuals::shouldRemoveScopeOverlay() noexcept
-{
-    return visualsConfig.noScopeOverlay;
-}
-
-bool Visuals::shouldRemoveSmoke() noexcept
-{
-    return visualsConfig.noSmoke;
+    return noFog;
 }
 
 float Visuals::viewModelFov() noexcept
@@ -257,23 +153,10 @@ float Visuals::farZ() noexcept
     return static_cast<float>(visualsConfig.farZ);
 }
 
-void Visuals::performColorCorrection() noexcept
-{
-    if (const auto& cfg = visualsConfig.colorCorrection; cfg.enabled) {
-        *reinterpret_cast<float*>(std::uintptr_t(memory.clientMode) + WIN32_LINUX(0x49C, 0x908)) = cfg.blue;
-        *reinterpret_cast<float*>(std::uintptr_t(memory.clientMode) + WIN32_LINUX(0x4A4, 0x918)) = cfg.red;
-        *reinterpret_cast<float*>(std::uintptr_t(memory.clientMode) + WIN32_LINUX(0x4AC, 0x928)) = cfg.mono;
-        *reinterpret_cast<float*>(std::uintptr_t(memory.clientMode) + WIN32_LINUX(0x4B4, 0x938)) = cfg.saturation;
-        *reinterpret_cast<float*>(std::uintptr_t(memory.clientMode) + WIN32_LINUX(0x4C4, 0x958)) = cfg.ghost;
-        *reinterpret_cast<float*>(std::uintptr_t(memory.clientMode) + WIN32_LINUX(0x4CC, 0x968)) = cfg.green;
-        *reinterpret_cast<float*>(std::uintptr_t(memory.clientMode) + WIN32_LINUX(0x4D4, 0x978)) = cfg.yellow;
-    }
-}
-
 void Visuals::inverseRagdollGravity() noexcept
 {
-    static auto ragdollGravity = interfaces.getCvar().findVar("cl_ragdoll_gravity");
-    ConVar::from(retSpoofGadgets->client, ragdollGravity).setValue(visualsConfig.inverseRagdollGravity ? -600 : 600);
+    static auto ragdollGravity = interfaces.getCvar().findVar(csgo::cl_ragdoll_gravity);
+    ConVar::from(retSpoofGadgets->client, ragdollGravity).setValue(inverseRagdollGravity_ ? -600 : 600);
 }
 
 void Visuals::colorWorld() noexcept
@@ -308,7 +191,7 @@ void Visuals::modifySmoke(csgo::FrameStage stage) noexcept
     if (stage != csgo::FrameStage::RENDER_START && stage != csgo::FrameStage::RENDER_END)
         return;
 
-    constexpr std::array smokeMaterials{
+    static constexpr std::array smokeMaterials{
         "particle/vistasmokev1/vistasmokev1_emods",
         "particle/vistasmokev1/vistasmokev1_emods_impactdust",
         "particle/vistasmokev1/vistasmokev1_fire",
@@ -317,8 +200,8 @@ void Visuals::modifySmoke(csgo::FrameStage stage) noexcept
 
     for (const auto mat : smokeMaterials) {
         const auto material = Material::from(retSpoofGadgets->client, interfaces.getMaterialSystem().findMaterial(mat));
-        material.setMaterialVarFlag(MaterialVarFlag::NO_DRAW, stage == csgo::FrameStage::RENDER_START && visualsConfig.noSmoke);
-        material.setMaterialVarFlag(MaterialVarFlag::WIREFRAME, stage == csgo::FrameStage::RENDER_START && visualsConfig.wireframeSmoke);
+        material.setMaterialVarFlag(MaterialVarFlag::NO_DRAW, stage == csgo::FrameStage::RENDER_START && noSmoke);
+        material.setMaterialVarFlag(MaterialVarFlag::WIREFRAME, stage == csgo::FrameStage::RENDER_START && wireframeSmoke);
     }
 }
 
@@ -343,10 +226,10 @@ void Visuals::removeVisualRecoil(csgo::FrameStage stage) noexcept
         aimPunch = localPlayer.get().aimPunchAngle();
         viewPunch = localPlayer.get().viewPunchAngle();
 
-        if (visualsConfig.noAimPunch)
+        if (noAimPunch)
             localPlayer.get().aimPunchAngle() = Vector{ };
 
-        if (visualsConfig.noViewPunch)
+        if (noViewPunch)
             localPlayer.get().viewPunchAngle() = Vector{ };
 
     } else if (stage == csgo::FrameStage::RENDER_END) {
@@ -361,12 +244,12 @@ void Visuals::removeBlur(csgo::FrameStage stage) noexcept
         return;
 
     static auto blur = Material::from(retSpoofGadgets->client, interfaces.getMaterialSystem().findMaterial("dev/scope_bluroverlay"));
-    blur.setMaterialVarFlag(MaterialVarFlag::NO_DRAW, stage == csgo::FrameStage::RENDER_START && visualsConfig.noBlur);
+    blur.setMaterialVarFlag(MaterialVarFlag::NO_DRAW, stage == csgo::FrameStage::RENDER_START && noBlur);
 }
 
 void Visuals::updateBrightness() noexcept
 {
-    static auto brightness = interfaces.getCvar().findVar("mat_force_tonemap_scale");
+    static auto brightness = interfaces.getCvar().findVar(csgo::mat_force_tonemap_scale);
     ConVar::from(retSpoofGadgets->client, brightness).setValue(visualsConfig.brightness);
 }
 
@@ -388,24 +271,24 @@ void Visuals::removeGrass(csgo::FrameStage stage) noexcept
     };
 
     if (const auto grassMaterialName = getGrassMaterialName())
-        Material::from(retSpoofGadgets->client, interfaces.getMaterialSystem().findMaterial(grassMaterialName)).setMaterialVarFlag(MaterialVarFlag::NO_DRAW, stage == csgo::FrameStage::RENDER_START && visualsConfig.noGrass);
+        Material::from(retSpoofGadgets->client, interfaces.getMaterialSystem().findMaterial(grassMaterialName)).setMaterialVarFlag(MaterialVarFlag::NO_DRAW, stage == csgo::FrameStage::RENDER_START && noGrass);
 }
 
 void Visuals::remove3dSky() noexcept
 {
-    static auto sky = interfaces.getCvar().findVar("r_3dsky");
-    ConVar::from(retSpoofGadgets->client, sky).setValue(!visualsConfig.no3dSky);
+    static auto sky = interfaces.getCvar().findVar(csgo::r_3dsky);
+    ConVar::from(retSpoofGadgets->client, sky).setValue(!no3dSky);
 }
 
 void Visuals::removeShadows() noexcept
 {
-    static auto shadows = interfaces.getCvar().findVar("cl_csm_enabled");
-    ConVar::from(retSpoofGadgets->client, shadows).setValue(!visualsConfig.noShadows);
+    static auto shadows = interfaces.getCvar().findVar(csgo::cl_csm_enabled);
+    ConVar::from(retSpoofGadgets->client, shadows).setValue(!noShadows);
 }
 
 void Visuals::applyZoom(csgo::FrameStage stage) noexcept
 {
-    if (visualsConfig.zoom && localPlayer) {
+    if (zoom && localPlayer) {
         if (stage == csgo::FrameStage::RENDER_START && (localPlayer.get().fov() == 90 || localPlayer.get().fovStart() == 90)) {
             if (visualsConfig.zoomKey.isToggled()) {
                 localPlayer.get().fov() = 40;
@@ -546,10 +429,7 @@ void Visuals::hitMarker(const GameEvent* event, ImDrawList* drawList) noexcept
 
 void Visuals::disablePostProcessing(csgo::FrameStage stage) noexcept
 {
-    if (stage != csgo::FrameStage::RENDER_START && stage != csgo::FrameStage::RENDER_END)
-        return;
-
-    *disablePostProcessingPtr = stage == csgo::FrameStage::RENDER_START && visualsConfig.disablePostProcessing;
+    postProcessingDisabler.run(stage);
 }
 
 void Visuals::reduceFlashEffect() noexcept
@@ -560,32 +440,24 @@ void Visuals::reduceFlashEffect() noexcept
 
 bool Visuals::removeHands(const char* modelName) noexcept
 {
-    return visualsConfig.noHands && std::strstr(modelName, "arms") && !std::strstr(modelName, "sleeve");
+    return noHands && std::strstr(modelName, "arms") && !std::strstr(modelName, "sleeve");
 }
 
 bool Visuals::removeSleeves(const char* modelName) noexcept
 {
-    return visualsConfig.noSleeves && std::strstr(modelName, "sleeve");
+    return noSleeves && std::strstr(modelName, "sleeve");
 }
 
 bool Visuals::removeWeapons(const char* modelName) noexcept
 {
-    return visualsConfig.noWeapons && std::strstr(modelName, "models/weapons/v_")
+    return noWeapons && std::strstr(modelName, "models/weapons/v_")
         && !std::strstr(modelName, "arms") && !std::strstr(modelName, "tablet")
         && !std::strstr(modelName, "parachute") && !std::strstr(modelName, "fists");
 }
 
 void Visuals::skybox(csgo::FrameStage stage) noexcept
 {
-    if (stage != csgo::FrameStage::RENDER_START && stage != csgo::FrameStage::RENDER_END)
-        return;
-
-    if (stage == csgo::FrameStage::RENDER_START && visualsConfig.skybox > 0 && static_cast<std::size_t>(visualsConfig.skybox) < skyboxList.size()) {
-        memory.loadSky(skyboxList[visualsConfig.skybox]);
-    } else {
-        static const auto sv_skyname = interfaces.getCvar().findVar("sv_skyname");
-        memory.loadSky(sv_skyname->string);
-    }
+    skyboxChanger.run(stage);
 }
 
 void Visuals::bulletTracer(const GameEvent& event) noexcept
@@ -700,14 +572,34 @@ void Visuals::drawMolotovHull(ImDrawList* drawList) noexcept
     }
 }
 
+void Visuals::setDrawColorHook(ReturnAddress hookReturnAddress, int& alpha) const noexcept
+{
+    scopeOverlayRemover.setDrawColorHook(hookReturnAddress, alpha);
+}
+
+void Visuals::updateColorCorrectionWeightsHook() const noexcept
+{
+    colorCorrection.run(memory.clientMode);
+    scopeOverlayRemover.updateColorCorrectionWeightsHook();
+}
+
+bool Visuals::svCheatsGetBoolHook(ReturnAddress hookReturnAddress) const noexcept
+{
+    return visualsConfig.thirdperson && hookReturnAddress == cameraThink;
+}
+
+bool Visuals::renderSmokeOverlayHook() const noexcept
+{
+    if (noSmoke || wireframeSmoke) {
+        memory.viewRender->smokeOverlayAmount = 0.0f;
+        return true;
+    }
+    return false;
+}
+
 void Visuals::updateEventListeners(bool forceRemove) noexcept
 {
-    class ImpactEventListener : public GameEventListener {
-    public:
-        void fireGameEvent(csgo::pod::GameEvent* eventPointer) override { globalContext->fireGameEventCallback(eventPointer); }
-    };
-
-    static ImpactEventListener listener;
+    static DefaultEventListener listener;
     static bool listenerRegistered = false;
 
     if (visualsConfig.bulletTracers.enabled && !listenerRegistered) {
@@ -755,23 +647,23 @@ void Visuals::drawGUI(bool contentOnly) noexcept
     }
     ImGui::Columns(2, nullptr, false);
     ImGui::SetColumnOffset(1, 280.0f);
-    ImGui::Checkbox("Disable post-processing", &visualsConfig.disablePostProcessing);
-    ImGui::Checkbox("Inverse ragdoll gravity", &visualsConfig.inverseRagdollGravity);
-    ImGui::Checkbox("No fog", &visualsConfig.noFog);
-    ImGui::Checkbox("No 3d sky", &visualsConfig.no3dSky);
-    ImGui::Checkbox("No aim punch", &visualsConfig.noAimPunch);
-    ImGui::Checkbox("No view punch", &visualsConfig.noViewPunch);
-    ImGui::Checkbox("No hands", &visualsConfig.noHands);
-    ImGui::Checkbox("No sleeves", &visualsConfig.noSleeves);
-    ImGui::Checkbox("No weapons", &visualsConfig.noWeapons);
-    ImGui::Checkbox("No smoke", &visualsConfig.noSmoke);
-    ImGui::Checkbox("No blur", &visualsConfig.noBlur);
-    ImGui::Checkbox("No scope overlay", &visualsConfig.noScopeOverlay);
-    ImGui::Checkbox("No grass", &visualsConfig.noGrass);
-    ImGui::Checkbox("No shadows", &visualsConfig.noShadows);
-    ImGui::Checkbox("Wireframe smoke", &visualsConfig.wireframeSmoke);
+    ImGui::Checkbox("Disable post-processing", &postProcessingDisabler.enabled);
+    ImGui::Checkbox("Inverse ragdoll gravity", &inverseRagdollGravity_);
+    ImGui::Checkbox("No fog", &noFog);
+    ImGui::Checkbox("No 3d sky", &no3dSky);
+    ImGui::Checkbox("No aim punch", &noAimPunch);
+    ImGui::Checkbox("No view punch", &noViewPunch);
+    ImGui::Checkbox("No hands", &noHands);
+    ImGui::Checkbox("No sleeves", &noSleeves);
+    ImGui::Checkbox("No weapons", &noWeapons);
+    ImGui::Checkbox("No smoke", &noSmoke);
+    ImGui::Checkbox("No blur", &noBlur);
+    ImGui::Checkbox("No scope overlay", &scopeOverlayRemover.enabled);
+    ImGui::Checkbox("No grass", &noGrass);
+    ImGui::Checkbox("No shadows", &noShadows);
+    ImGui::Checkbox("Wireframe smoke", &wireframeSmoke);
     ImGui::NextColumn();
-    ImGui::Checkbox("Zoom", &visualsConfig.zoom);
+    ImGui::Checkbox("Zoom", &zoom);
     ImGui::SameLine();
     ImGui::PushID("Zoom Key");
     ImGui::hotkey("", visualsConfig.zoomKey);
@@ -801,7 +693,7 @@ void Visuals::drawGUI(bool contentOnly) noexcept
     ImGui::SliderFloat("", &visualsConfig.brightness, 0.0f, 1.0f, "Brightness: %.2f");
     ImGui::PopID();
     ImGui::PopItemWidth();
-    ImGui::Combo("Skybox", &visualsConfig.skybox, Visuals::skyboxList.data(), Visuals::skyboxList.size());
+    ImGui::Combo("Skybox", &skyboxChanger.skybox, SkyboxChanger::skyboxList.data(), SkyboxChanger::skyboxList.size());
     ImGuiCustom::colorPicker("World color", visualsConfig.world);
     ImGuiCustom::colorPicker("Sky color", visualsConfig.sky);
     ImGui::Checkbox("Deagle spinner", &visualsConfig.deagleSpinner);
@@ -813,20 +705,20 @@ void Visuals::drawGUI(bool contentOnly) noexcept
     ImGuiCustom::colorPicker("Bullet Tracers", visualsConfig.bulletTracers.asColor4().color.data(), &visualsConfig.bulletTracers.asColor4().color[3], nullptr, nullptr, &visualsConfig.bulletTracers.enabled);
     ImGuiCustom::colorPicker("Molotov Hull", visualsConfig.molotovHull);
 
-    ImGui::Checkbox("Color correction", &visualsConfig.colorCorrection.enabled);
+    ImGui::Checkbox("Color correction", &colorCorrection.enabled);
     ImGui::SameLine();
 
     if (bool ccPopup = ImGui::Button("Edit"))
         ImGui::OpenPopup("##popup");
 
     if (ImGui::BeginPopup("##popup")) {
-        ImGui::VSliderFloat("##1", { 40.0f, 160.0f }, &visualsConfig.colorCorrection.blue, 0.0f, 1.0f, "Blue\n%.3f"); ImGui::SameLine();
-        ImGui::VSliderFloat("##2", { 40.0f, 160.0f }, &visualsConfig.colorCorrection.red, 0.0f, 1.0f, "Red\n%.3f"); ImGui::SameLine();
-        ImGui::VSliderFloat("##3", { 40.0f, 160.0f }, &visualsConfig.colorCorrection.mono, 0.0f, 1.0f, "Mono\n%.3f"); ImGui::SameLine();
-        ImGui::VSliderFloat("##4", { 40.0f, 160.0f }, &visualsConfig.colorCorrection.saturation, 0.0f, 1.0f, "Sat\n%.3f"); ImGui::SameLine();
-        ImGui::VSliderFloat("##5", { 40.0f, 160.0f }, &visualsConfig.colorCorrection.ghost, 0.0f, 1.0f, "Ghost\n%.3f"); ImGui::SameLine();
-        ImGui::VSliderFloat("##6", { 40.0f, 160.0f }, &visualsConfig.colorCorrection.green, 0.0f, 1.0f, "Green\n%.3f"); ImGui::SameLine();
-        ImGui::VSliderFloat("##7", { 40.0f, 160.0f }, &visualsConfig.colorCorrection.yellow, 0.0f, 1.0f, "Yellow\n%.3f"); ImGui::SameLine();
+        ImGui::VSliderFloat("##1", { 40.0f, 160.0f }, &colorCorrection.blue, 0.0f, 1.0f, "Blue\n%.3f"); ImGui::SameLine();
+        ImGui::VSliderFloat("##2", { 40.0f, 160.0f }, &colorCorrection.red, 0.0f, 1.0f, "Red\n%.3f"); ImGui::SameLine();
+        ImGui::VSliderFloat("##3", { 40.0f, 160.0f }, &colorCorrection.mono, 0.0f, 1.0f, "Mono\n%.3f"); ImGui::SameLine();
+        ImGui::VSliderFloat("##4", { 40.0f, 160.0f }, &colorCorrection.saturation, 0.0f, 1.0f, "Sat\n%.3f"); ImGui::SameLine();
+        ImGui::VSliderFloat("##5", { 40.0f, 160.0f }, &colorCorrection.ghost, 0.0f, 1.0f, "Ghost\n%.3f"); ImGui::SameLine();
+        ImGui::VSliderFloat("##6", { 40.0f, 160.0f }, &colorCorrection.green, 0.0f, 1.0f, "Green\n%.3f"); ImGui::SameLine();
+        ImGui::VSliderFloat("##7", { 40.0f, 160.0f }, &colorCorrection.yellow, 0.0f, 1.0f, "Yellow\n%.3f"); ImGui::SameLine();
         ImGui::EndPopup();
     }
     ImGui::Columns(1);
@@ -837,17 +729,38 @@ void Visuals::drawGUI(bool contentOnly) noexcept
 
 json Visuals::toJson() noexcept
 {
+    // old way
     json j;
     to_json(j, visualsConfig);
+    
+    // new way
+    SaveConfigurator saveConfigurator;
+    configure(saveConfigurator);
+    if (const auto saveJson = saveConfigurator.getJson(); saveJson.is_object())
+        j.update(saveJson);
+
+    // temporary, until skyboxChanger is saved as a json object
+    SaveConfigurator skyboxChangerConfigurator;
+    skyboxChanger.configure(skyboxChangerConfigurator);
+    if (const auto skyboxJson = skyboxChangerConfigurator.getJson(); skyboxJson.is_object())
+        j.update(skyboxJson);
     return j;
 }
 
 void Visuals::fromJson(const json& j) noexcept
 {
     from_json(j, visualsConfig);
+
+    LoadConfigurator configurator{ j };
+    skyboxChanger.configure(configurator);
+    configure(configurator);
 }
 
 void Visuals::resetConfig() noexcept
 {
     visualsConfig = {};
+    ResetConfigurator resetConfigurator;
+    configure(resetConfigurator);
+
+    skyboxChanger.configure(resetConfigurator);
 }

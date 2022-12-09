@@ -112,6 +112,7 @@
     <ClCompile Include="AntiDetection.cpp" />
     <ClCompile Include="Config.cpp" />
     <ClCompile Include="ConfigStructs.cpp" />
+    <ClCompile Include="Endpoints.cpp" />
     <ClCompile Include="EventListener.cpp" />
     <ClCompile Include="GameData.cpp" />
     <ClCompile Include="GlobalContext.cpp" />
@@ -197,6 +198,11 @@
     <ClInclude Include="AntiDetection.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="ConfigStructs.h" />
+    <ClInclude Include="Config\Configurable.h" />
+    <ClInclude Include="Config\LoadConfigurator.h" />
+    <ClInclude Include="Config\ResetConfigurator.h" />
+    <ClInclude Include="Config\SaveConfigurator.h" />
+    <ClInclude Include="Endpoints.h" />
     <ClInclude Include="EventListener.h" />
     <ClInclude Include="GameData.h" />
     <ClInclude Include="GlobalContext.h" />
@@ -204,12 +210,17 @@
     <ClInclude Include="Hacks\Backtrack.h" />
     <ClInclude Include="Hacks\Chams.h" />
     <ClInclude Include="Hacks\EnginePrediction.h" />
+    <ClInclude Include="Hacks\Features.h" />
     <ClInclude Include="Hacks\Glow.h" />
     <ClInclude Include="Hacks\Misc.h" />
     <ClInclude Include="Hacks\Sound.h" />
     <ClInclude Include="Hacks\StreamProofESP.h" />
     <ClInclude Include="Hacks\Triggerbot.h" />
     <ClInclude Include="Hacks\Visuals.h" />
+    <ClInclude Include="Hacks\Visuals\ColorCorrection.h" />
+    <ClInclude Include="Hacks\Visuals\PostProcessingDisabler.h" />
+    <ClInclude Include="Hacks\Visuals\ScopeOverlayRemover.h" />
+    <ClInclude Include="Hacks\Visuals\SkyboxChanger.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="Helpers\PatternFinder.h" />
     <ClInclude Include="Hooks\MinHook.h" />
@@ -296,10 +307,13 @@
     <ClInclude Include="Resources\avatar_tt.h" />
     <ClInclude Include="Resources\Resource.h" />
     <ClInclude Include="RetSpoofGadgets.h" />
+    <ClInclude Include="RetSpoof\FastcallFunctionInvoker.h" />
+    <ClInclude Include="RetSpoof\FunctionInvoker.h" />
     <ClInclude Include="SDK\AnimState.h" />
     <ClInclude Include="SDK\Client.h" />
     <ClInclude Include="SDK\ClientMode.h" />
     <ClInclude Include="SDK\Constants\ClassId.h" />
+    <ClInclude Include="SDK\Constants\ConVarNames.h" />
     <ClInclude Include="SDK\Constants\DllNames.h" />
     <ClInclude Include="SDK\Constants\EconItemFlags.h" />
     <ClInclude Include="SDK\Constants\FrameStage.h" />
@@ -325,6 +339,7 @@
     <ClInclude Include="Hooks.h" />
     <ClInclude Include="Memory.h" />
     <ClInclude Include="SDK\FileSystem.h" />
+    <ClInclude Include="SDK\Functions.h" />
     <ClInclude Include="SDK\GameEvent.h" />
     <ClInclude Include="SDK\GameMovement.h" />
     <ClInclude Include="SDK\GlobalVars.h" />
@@ -376,6 +391,7 @@
     <ClInclude Include="SDK\VarMapping.h" />
     <ClInclude Include="SDK\Vector.h" />
     <ClInclude Include="SDK\Utils.h" />
+    <ClInclude Include="SDK\ViewRender.h" />
     <ClInclude Include="SDK\ViewRenderBeams.h" />
     <ClInclude Include="SDK\ViewSetup.h" />
     <ClInclude Include="SDK\VirtualMethod.h" />
@@ -387,6 +403,7 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Utils\FlagsBuilder.h" />
     <ClInclude Include="Utils\PatternFinder.h" />
+    <ClInclude Include="Utils\ReturnAddress.h" />
     <ClInclude Include="Utils\SafeAddress.h" />
     <ClInclude Include="Utils\TypeHint.h" />
   </ItemGroup>
