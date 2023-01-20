@@ -9,7 +9,7 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "Platform/IsPlatform.h"
+#include "Platform/Macros/IsPlatform.h"
 
 #if IS_WIN32()
 #include <Windows.h>
@@ -21,8 +21,8 @@
 #include "GameData.h"
 #include "Helpers.h"
 #include "Memory.h"
-#include "SDK/GlobalVars.h"
-#include "SDK/Engine.h"
+#include "CSGO/GlobalVars.h"
+#include "CSGO/Engine.h"
 
 static auto rainbowColor(float time, float speed, float alpha) noexcept
 {
@@ -169,7 +169,7 @@ std::size_t Helpers::calculateVmtLength(const std::uintptr_t* vmt) noexcept
     return length;
 }
 
-static bool transformWorldPositionToScreenPosition(const Matrix4x4& matrix, const Vector& worldPosition, ImVec2& screenPosition) noexcept
+static bool transformWorldPositionToScreenPosition(const csgo::Matrix4x4& matrix, const csgo::Vector& worldPosition, ImVec2& screenPosition) noexcept
 {
     const auto w = matrix._41 * worldPosition.x + matrix._42 * worldPosition.y + matrix._43 * worldPosition.z + matrix._44;
     if (w < 0.001f)
@@ -181,12 +181,12 @@ static bool transformWorldPositionToScreenPosition(const Matrix4x4& matrix, cons
     return true;
 }
 
-bool Helpers::worldToScreen(const Vector& worldPosition, ImVec2& screenPosition) noexcept
+bool Helpers::worldToScreen(const csgo::Vector& worldPosition, ImVec2& screenPosition) noexcept
 {
     return transformWorldPositionToScreenPosition(GameData::toScreenMatrix(), worldPosition, screenPosition);
 }
 
-bool Helpers::worldToScreenPixelAligned(const Vector& worldPosition, ImVec2& screenPosition) noexcept
+bool Helpers::worldToScreenPixelAligned(const csgo::Vector& worldPosition, ImVec2& screenPosition) noexcept
 {
     const bool onScreen = transformWorldPositionToScreenPosition(GameData::toScreenMatrix(), worldPosition, screenPosition);
     screenPosition = ImFloor(screenPosition);

@@ -3,13 +3,16 @@
 #include "../JsonForward.h"
 #include <Interfaces/ClientInterfaces.h>
 #include <Interfaces/OtherInterfaces.h>
-#include <Platform/IsPlatform.h>
+#include <Platform/Macros/IsPlatform.h>
 #include <Config/ResetConfigurator.h>
 #include <Utils/ReturnAddress.h>
 #include "Visuals/ColorCorrection.h"
 #include "Visuals/SkyboxChanger.h"
 #include "Visuals/PostProcessingDisabler.h"
 #include "Visuals/ScopeOverlayRemover.h"
+#include <CSGO/Functions.h>
+#include <CSGO/Recv.h>
+#include <CSGO/ViewRenderBeams.h>
 
 namespace csgo { enum class FrameStage; }
 class GameEvent;
@@ -19,7 +22,13 @@ class EngineInterfaces;
 class Visuals {
 public:
     Visuals(const Memory& memory, OtherInterfaces interfaces, ClientInterfaces clientInterfaces, EngineInterfaces engineInterfaces, const helpers::PatternFinder& clientPatternFinder, const helpers::PatternFinder& enginePatternFinder)
-        : memory{ memory }, interfaces{ interfaces }, clientInterfaces{ clientInterfaces }, engineInterfaces{ engineInterfaces }, skyboxChanger{ createSkyboxChanger(interfaces.getCvar(), enginePatternFinder) }, postProcessingDisabler{ createPostProcessingDisabler(clientPatternFinder) }, scopeOverlayRemover{ createScopeOverlayRemover(clientPatternFinder) }
+        : memory{ memory }, interfaces{ interfaces }, clientInterfaces{ clientInterfaces }, engineInterfaces{ engineInterfaces }, skyboxChanger{ createSkyboxChanger(interfaces.getCvar(), enginePatternFinder) }, postProcessingDisabler{ createPostProcessingDisabler(clientPatternFinder) }, scopeOverlayRemover{ createScopeOverlayRemover(clientPatternFinder) },
+#if IS_WIN32()
+        viewRenderBeams{ csgo::ViewRenderBeams::from(retSpoofGadgets->client, clientPatternFinder("\xB9????\x0F\x11\x44\x24?\xC7\x44\x24?????\xF3\x0F\x10\x84\x24").add(1).deref().as<csgo::ViewRenderBeamsPOD*>()) },
+        maxFlashAlphaProxy{ retSpoofGadgets->client, clientPatternFinder("\x55\x8B\xEC\x8B\x4D\x0C\x8B\x45\x08\x81\xC1").get() }
+#elif IS_LINUX()
+        viewRenderBeams{ csgo::ViewRenderBeams::from(retSpoofGadgets->client, clientPatternFinder("\x4C\x89\xF6\x4C\x8B\x25????\x48\x8D\x05").add(6).relativeToAbsolute().deref<2>().as<csgo::ViewRenderBeamsPOD*>()) }
+#endif
     {
 #if IS_WIN32()
         cameraThink = ReturnAddress{ clientPatternFinder("\x85\xC0\x75\x30\x38\x87").get() };
@@ -49,15 +58,15 @@ public:
     void removeShadows() noexcept;
     void applyZoom(csgo::FrameStage stage) noexcept;
     void applyScreenEffects() noexcept;
-    void hitEffect(const GameEvent* event = nullptr) noexcept;
-    void hitMarker(const GameEvent* event, ImDrawList* drawList = nullptr) noexcept;
+    void hitEffect(const csgo::GameEvent* event = nullptr) noexcept;
+    void hitMarker(const csgo::GameEvent* event, ImDrawList* drawList = nullptr) noexcept;
     void disablePostProcessing(csgo::FrameStage stage) noexcept;
     void reduceFlashEffect() noexcept;
     bool removeHands(const char* modelName) noexcept;
     bool removeSleeves(const char* modelName) noexcept;
     bool removeWeapons(const char* modelName) noexcept;
     void skybox(csgo::FrameStage stage) noexcept;
-    void bulletTracer(const GameEvent& event) noexcept;
+    void bulletTracer(const csgo::GameEvent& event) noexcept;
     void drawMolotovHull(ImDrawList* drawList) noexcept;
 
     void setDrawColorHook(ReturnAddress hookReturnAddress, int& alpha) const noexcept;
@@ -110,6 +119,11 @@ private:
     PostProcessingDisabler postProcessingDisabler;
     ScopeOverlayRemover scopeOverlayRemover;
     ReturnAddress cameraThink;
+    csgo::ViewRenderBeams viewRenderBeams;
+
+#if IS_WIN32()
+    FunctionInvoker<csgo::RecvProxy> maxFlashAlphaProxy;
+#endif
 
     bool inverseRagdollGravity_;
     bool noFog;

@@ -5,20 +5,24 @@
 #include <optional>
 #include <type_traits>
 
-#include "SDK/EconItemView.h"
-#include "SDK/ItemSchema.h"
-#include "SDK/MoveHelper.h"
-#include "SDK/PanoramaMarshallHelper.h"
-#include "SDK/ViewRenderBeams.h"
-#include "SDK/WeaponSystem.h"
+#include "CSGO/Functions.h"
+#include "CSGO/ItemSchema.h"
+#include "CSGO/MoveHelper.h"
+#include "CSGO/WeaponSystem.h"
 
 #include "Utils/ReturnAddress.h"
 #include "Utils/SafeAddress.h"
-#include "RetSpoofGadgets.h"
+#include "RetSpoof/RetSpoofGadgets.h"
 #include "Helpers/PatternFinder.h"
 #include "Utils/TypeHint.h"
 
-#include "Platform/CallingConventions.h"
+#include "Platform/Macros/CallingConventions.h"
+#include "RetSpoof/FunctionInvoker.h"
+
+class KeyValues;
+
+namespace csgo
+{
 
 struct ClientMode;
 class ClientSharedObjectCache;
@@ -29,9 +33,8 @@ class Entity;
 class GameEventDescriptor;
 class GameEventManager;
 class Input;
-class KeyValues;
 class MoveData;
-class PlantedC4;
+struct PlantedC4POD;
 class PlayerResource;
 template <typename Key, typename Value>
 struct UtlMap;
@@ -44,68 +47,66 @@ struct GlobalVars;
 struct GlowObjectManager;
 struct PanoramaEventRegistration;
 struct Vector;
+struct EconItemPOD;
+struct UiComponentInventoryPOD;
+struct ClientPOD;
+struct PanoramaMarshallHelperPOD;
+
+}
 
 namespace csgo { struct ViewRender; }
 
-namespace csgo::pod
+namespace csgo
 {
-    struct Client;
-    struct EconItem;
-    struct ItemSystem;
-    struct MemAlloc;
-    struct UiComponentInventory;
+    struct ItemSystemPOD;
+    struct MemAllocPOD;
 }
 
 class Memory {
 public:
-    Memory(const helpers::PatternFinder& clientPatternFinder, const helpers::PatternFinder& enginePatternFinder, csgo::pod::Client* clientInterface, const RetSpoofGadgets& retSpoofGadgets) noexcept;
+    Memory(const helpers::PatternFinder& clientPatternFinder, const helpers::PatternFinder& enginePatternFinder, csgo::ClientPOD* clientInterface, const RetSpoofGadgets& retSpoofGadgets) noexcept;
 
 #if IS_WIN32()
     std::uintptr_t present;
     std::uintptr_t reset;
 #endif
 
-    csgo::pod::MemAlloc* memAlloc;
-    ClientMode* clientMode;
-    Input* input;
-    GlobalVars* globalVars;
-    GlowObjectManager* glowObjectManager;
-    UtlVector<PlantedC4*>* plantedC4s;
-    UtlMap<short, PanoramaEventRegistration>* registeredPanoramaEvents;
+    csgo::MemAllocPOD* memAlloc;
+    csgo::ClientMode* clientMode;
+    csgo::Input* input;
+    csgo::GlobalVars* globalVars;
+    csgo::UtlVector<csgo::PlantedC4POD*>* plantedC4s;
+    csgo::UtlMap<short, csgo::PanoramaEventRegistration>* registeredPanoramaEvents;
 
-    std::add_pointer_t<bool CDECL_CONV(Vector, Vector, short)> lineGoesThroughSmoke;
+    FunctionInvoker<csgo::LineGoesThroughSmoke> lineGoesThroughSmoke;
     bool(THISCALL_CONV* isOtherEnemy)(std::uintptr_t, std::uintptr_t);
     std::uintptr_t hud;
     int*(THISCALL_CONV* findHudElement)(std::uintptr_t, const char*);
     int(THISCALL_CONV* clearHudWeapon)(int*, int);
-    void(THISCALL_CONV* setAbsOrigin)(std::uintptr_t, const Vector&);
+    void(THISCALL_CONV* setAbsOrigin)(std::uintptr_t, const csgo::Vector&);
     int* dispatchSound;
     std::uintptr_t traceToExit;
     csgo::ViewRender* viewRender;
-    ViewRenderBeams viewRenderBeams;
     std::uintptr_t drawScreenEffectMaterial;
     std::add_pointer_t<void CDECL_CONV(const char* msg, ...)> debugMsg;
     std::add_pointer_t<void CDECL_CONV(const std::array<std::uint8_t, 4>& color, const char* msg, ...)> conColorMsg;
-    int(THISCALL_CONV* equipWearable)(csgo::pod::Entity* wearable, csgo::pod::Entity* player);
+    int(THISCALL_CONV* equipWearable)(csgo::EntityPOD* wearable, csgo::EntityPOD* player);
     int* predictionRandomSeed;
-    MoveData* moveData;
+    csgo::MoveData* moveData;
     std::uintptr_t keyValuesFromString;
     KeyValues*(THISCALL_CONV* keyValuesFindKey)(KeyValues* keyValues, const char* keyName, bool create);
     void(THISCALL_CONV* keyValuesSetString)(KeyValues* keyValues, const char* value);
-    WeaponSystem weaponSystem;
-    TypeHint<std::uintptr_t, GameEventDescriptor*(THISCALL_CONV*)(csgo::pod::GameEventManager* thisptr, const char* name, int* cookie)> getEventDescriptor;
-    ActiveChannels* activeChannels;
-    Channel* channels;
-    PlayerResource** playerResource;
-    const wchar_t*(THISCALL_CONV* getDecoratedPlayerName)(PlayerResource* pr, int index, wchar_t* buffer, int buffsize, int flags);
-    csgo::pod::Entity** gameRules;
-    InventoryManager inventoryManager;
-    std::add_pointer_t<csgo::pod::EconItem* STDCALL_CONV()> createEconItemSharedObject;
-    csgo::pod::PanoramaMarshallHelper* panoramaMarshallHelper;
-    std::add_pointer_t<csgo::pod::EconItemView* CDECL_CONV(std::uint64_t itemID)> findOrCreateEconItemViewForItemID;
-    std::uintptr_t createBaseTypeCache;
-    csgo::pod::UiComponentInventory** uiComponentInventory;
-    TypeHint<std::uintptr_t, void(THISCALL_CONV*)(csgo::pod::UiComponentInventory* thisptr, std::uint64_t itemID, const char* type, const char* value)> setItemSessionPropertyValue;
+    csgo::WeaponSystem weaponSystem;
+    csgo::GetEventDescriptor getEventDescriptor;
+    csgo::ActiveChannels* activeChannels;
+    csgo::Channel* channels;
+    csgo::PlayerResource** playerResource;
+    const wchar_t*(THISCALL_CONV* getDecoratedPlayerName)(csgo::PlayerResource* pr, int index, wchar_t* buffer, int buffsize, int flags);
+    csgo::EntityPOD** gameRules;
+    csgo::InventoryManager inventoryManager;
+    csgo::PanoramaMarshallHelperPOD* panoramaMarshallHelper;
+    FunctionInvoker<csgo::FindOrCreateEconItemViewForItemID> findOrCreateEconItemViewForItemID;
+    csgo::CreateBaseTypeCache createBaseTypeCache;
 
     short makePanoramaSymbol(const char* name) const noexcept
     {
@@ -114,23 +115,14 @@ public:
         return symbol;
     }
 
-    bool submitReport(const char* xuid, const char* report) const noexcept
+    [[nodiscard]] csgo::ItemSystem itemSystem() const noexcept
     {
-#if IS_WIN32()
-        return reinterpret_cast<bool(__stdcall*)(const char*, const char*)>(submitReportFunction)(xuid, report);
-#else
-        return reinterpret_cast<bool(*)(void*, const char*, const char*)>(submitReportFunction)(nullptr, xuid, report);
-#endif
+        return csgo::ItemSystem::from(retSpoofGadgets->client, itemSystemFn());
     }
 
-    [[nodiscard]] ItemSystem itemSystem() const noexcept
+    [[nodiscard]] csgo::MoveHelper moveHelper() const noexcept
     {
-        return ItemSystem::from(retSpoofGadgets->client, itemSystemFn());
-    }
-
-    [[nodiscard]] MoveHelper moveHelper() const noexcept
-    {
-        return MoveHelper::from(retSpoofGadgets->client, moveHelperPtr);
+        return csgo::MoveHelper::from(retSpoofGadgets->client, moveHelperPtr);
     }
 
 #if IS_WIN32()
@@ -142,11 +134,8 @@ public:
 #endif
 
 private:
-    void(THISCALL_CONV* makePanoramaSymbolFn)(short* symbol, const char* name);
-    std::add_pointer_t<csgo::pod::ItemSystem* CDECL_CONV()> itemSystemFn;
+    FunctionInvoker<csgo::MakePanoramaSymbol> makePanoramaSymbolFn;
+    std::add_pointer_t<csgo::ItemSystemPOD* CDECL_CONV()> itemSystemFn;
 
-    std::uintptr_t submitReportFunction;
-    csgo::pod::MoveHelper* moveHelperPtr;
+    csgo::MoveHelperPOD* moveHelperPtr;
 };
-
-inline std::optional<const Memory> memory;

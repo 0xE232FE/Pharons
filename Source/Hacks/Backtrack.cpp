@@ -5,17 +5,17 @@
 #include "Backtrack.h"
 #include "../ConfigStructs.h"
 #include "../Memory.h"
-#include "../SDK/Cvar.h"
-#include "../SDK/ConVar.h"
-#include "../SDK/Engine.h"
-#include "../SDK/Entity.h"
-#include "../SDK/EntityList.h"
-#include <SDK/Constants/ConVarNames.h>
-#include <SDK/Constants/FrameStage.h>
-#include "../SDK/GlobalVars.h"
-#include "../SDK/LocalPlayer.h"
-#include "../SDK/NetworkChannel.h"
-#include "../SDK/UserCmd.h"
+#include <CSGO/Cvar.h>
+#include <CSGO/ConVar.h>
+#include <CSGO/Engine.h>
+#include <CSGO/Entity.h>
+#include <CSGO/EntityList.h>
+#include <CSGO/Constants/ConVarNames.h>
+#include <CSGO/Constants/FrameStage.h>
+#include <CSGO/GlobalVars.h>
+#include <CSGO/LocalPlayer.h>
+#include <CSGO/NetworkChannel.h>
+#include <CSGO/UserCmd.h>
 
 #include <Interfaces/ClientInterfaces.h>
 #include <Interfaces/OtherInterfaces.h>
@@ -26,14 +26,14 @@ static auto timeToTicks(const Memory& memory, float time) noexcept
     return static_cast<int>(0.5f + time / memory.globalVars->intervalPerTick);
 }
 
-Backtrack::Backtrack(const Cvar& cvar) : cvars{
-        .updateRate = ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::cl_updaterate)),
-        .maxUpdateRate = ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::sv_maxupdaterate)),
-        .interp = ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::cl_interp)),
-        .interpRatio = ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::cl_interp_ratio)),
-        .minInterpRatio = ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::sv_client_min_interp_ratio)),
-        .maxInterpRatio = ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::sv_client_max_interp_ratio)),
-        .maxUnlag = ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::sv_maxunlag)) }
+Backtrack::Backtrack(const csgo::Cvar& cvar) : cvars{
+        .updateRate = csgo::ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::cl_updaterate)),
+        .maxUpdateRate = csgo::ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::sv_maxupdaterate)),
+        .interp = csgo::ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::cl_interp)),
+        .interpRatio = csgo::ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::cl_interp_ratio)),
+        .minInterpRatio = csgo::ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::sv_client_min_interp_ratio)),
+        .maxInterpRatio = csgo::ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::sv_client_max_interp_ratio)),
+        .maxUnlag = csgo::ConVar::from(retSpoofGadgets->client, cvar.findVar(csgo::sv_maxunlag)) }
 {
     ResetConfigurator configurator;
     configure(configurator);
@@ -49,7 +49,7 @@ void Backtrack::update(const EngineInterfaces& engineInterfaces, const ClientInt
         }
 
         for (int i = 1; i <= engineInterfaces.getEngine().getMaxClients(); i++) {
-            const auto entity =  Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
+            const auto entity = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
             if (entity.getPOD() == nullptr || entity.getPOD() == localPlayer.get().getPOD() || entity.getNetworkable().isDormant() || !entity.isAlive() || !entity.isOtherEnemy(memory, localPlayer.get())) {
                 records[i].clear();
                 continue;
@@ -81,12 +81,12 @@ float Backtrack::getLerp() noexcept
     return (std::max)(cvars.interp.getFloat(), (ratio / ((cvars.maxUpdateRate.getPOD() != nullptr) ? cvars.maxUpdateRate.getFloat() : cvars.updateRate.getFloat())));
 }
 
-void Backtrack::run(const ClientInterfaces& clientInterfaces, const EngineInterfaces& engineInterfaces, const OtherInterfaces& interfaces, const Memory& memory, UserCmd* cmd) noexcept
+void Backtrack::run(const ClientInterfaces& clientInterfaces, const EngineInterfaces& engineInterfaces, const OtherInterfaces& interfaces, const Memory& memory, csgo::UserCmd* cmd) noexcept
 {
     if (!enabled)
         return;
 
-    if (!(cmd->buttons & UserCmd::IN_ATTACK))
+    if (!(cmd->buttons & csgo::UserCmd::IN_ATTACK))
         return;
 
     if (!localPlayer)
@@ -95,22 +95,22 @@ void Backtrack::run(const ClientInterfaces& clientInterfaces, const EngineInterf
     auto localPlayerEyePosition = localPlayer.get().getEyePosition();
 
     auto bestFov{ 255.f };
-    csgo::pod::Entity* bestTarget{ };
+    csgo::EntityPOD* bestTarget{ };
     int bestTargetIndex{ };
-    Vector bestTargetOrigin{ };
+    csgo::Vector bestTargetOrigin{ };
     int bestRecord{ };
 
     const auto aimPunch = localPlayer.get().getAimPunch();
 
     for (int i = 1; i <= engineInterfaces.getEngine().getMaxClients(); i++) {
-        const auto entity = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
+        const auto entity = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
         if (entity.getPOD() == nullptr || entity.getPOD() == localPlayer.get().getPOD() || entity.getNetworkable().isDormant() || !entity.isAlive()
             || !entity.isOtherEnemy(memory, localPlayer.get()))
             continue;
 
         const auto& origin = entity.getAbsOrigin();
 
-        auto angle = Aimbot::calculateRelativeAngle(localPlayerEyePosition, origin, cmd->viewangles + (recoilBasedFov ? aimPunch : Vector{ }));
+        auto angle = Aimbot::calculateRelativeAngle(localPlayerEyePosition, origin, cmd->viewangles + (recoilBasedFov ? aimPunch : csgo::Vector{ }));
         auto fov = std::hypotf(angle.x, angle.y);
         if (fov < bestFov) {
             bestFov = fov;
@@ -131,7 +131,7 @@ void Backtrack::run(const ClientInterfaces& clientInterfaces, const EngineInterf
             if (!valid(engineInterfaces.getEngine(), memory, record.simulationTime))
                 continue;
 
-            auto angle = Aimbot::calculateRelativeAngle(localPlayerEyePosition, record.origin, cmd->viewangles + (recoilBasedFov ? aimPunch : Vector{ }));
+            auto angle = Aimbot::calculateRelativeAngle(localPlayerEyePosition, record.origin, cmd->viewangles + (recoilBasedFov ? aimPunch : csgo::Vector{ }));
             auto fov = std::hypotf(angle.x, angle.y);
             if (fov < bestFov) {
                 bestFov = fov;
@@ -154,13 +154,13 @@ const std::deque<Backtrack::Record>* Backtrack::getRecords(std::size_t index) no
     return &records[index];
 }
 
-bool Backtrack::valid(const Engine& engine, const Memory& memory, float simtime) noexcept
+bool Backtrack::valid(const csgo::Engine& engine, const Memory& memory, float simtime) noexcept
 {
     const auto network = engine.getNetworkChannel();
     if (!network)
         return false;
 
-    auto delta = std::clamp(NetworkChannel::from(retSpoofGadgets->client, network).getLatency(0) + NetworkChannel::from(retSpoofGadgets->client, network).getLatency(1) + getLerp(), 0.f, cvars.maxUnlag.getFloat()) - (memory.globalVars->serverTime() - simtime);
+    auto delta = std::clamp(csgo::NetworkChannel::from(retSpoofGadgets->client, network).getLatency(0) + csgo::NetworkChannel::from(retSpoofGadgets->client, network).getLatency(1) + getLerp(), 0.f, cvars.maxUnlag.getFloat()) - (memory.globalVars->serverTime() - simtime);
     return std::abs(delta) <= 0.2f;
 }
 

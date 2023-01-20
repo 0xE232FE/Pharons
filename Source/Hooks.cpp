@@ -4,8 +4,8 @@
 
 #include "imgui/imgui.h"
 
-#include "Platform/CallStack.h"
-#include "Platform/IsPlatform.h"
+#include "Platform/Macros/CallStack.h"
+#include "Platform/Macros/IsPlatform.h"
 
 #if IS_WIN32()
 #include <intrin.h>
@@ -46,29 +46,29 @@
 
 #include "InventoryChanger/InventoryChanger.h"
 
-#include "SDK/PODs/RenderableInfo.h"
-#include "SDK/ClientClass.h"
-#include "SDK/Cvar.h"
-#include "SDK/Engine.h"
-#include "SDK/Entity.h"
-#include "SDK/EntityList.h"
-#include "SDK/Constants/ConVarNames.h"
-#include "SDK/Constants/FrameStage.h"
-#include "SDK/CSPlayerInventory.h"
-#include "SDK/GameEvent.h"
-#include "SDK/GlobalVars.h"
-#include "SDK/InputSystem.h"
-#include "SDK/ItemSchema.h"
-#include "SDK/LocalPlayer.h"
-#include "SDK/MaterialSystem.h"
-#include "SDK/ModelRender.h"
-#include "SDK/SoundInfo.h"
-#include "SDK/SoundEmitter.h"
-#include "SDK/StudioRender.h"
-#include "SDK/Surface.h"
-#include "SDK/UserCmd.h"
-#include "SDK/ViewSetup.h"
-#include "SDK/Constants/UserMessages.h"
+#include "CSGO/PODs/RenderableInfo.h"
+#include "CSGO/ClientClass.h"
+#include "CSGO/Cvar.h"
+#include "CSGO/Engine.h"
+#include "CSGO/Entity.h"
+#include "CSGO/EntityList.h"
+#include "CSGO/Constants/ConVarNames.h"
+#include "CSGO/Constants/FrameStage.h"
+#include "CSGO/CSPlayerInventory.h"
+#include "CSGO/GameEvent.h"
+#include "CSGO/GlobalVars.h"
+#include "CSGO/InputSystem.h"
+#include "CSGO/ItemSchema.h"
+#include "CSGO/LocalPlayer.h"
+#include "CSGO/MaterialSystem.h"
+#include "CSGO/ModelRender.h"
+#include "CSGO/SoundInfo.h"
+#include "CSGO/SoundEmitter.h"
+#include "CSGO/StudioRender.h"
+#include "CSGO/Surface.h"
+#include "CSGO/UserCmd.h"
+#include "CSGO/ViewSetup.h"
+#include "CSGO/Constants/UserMessages.h"
 
 #include "GlobalContext.h"
 #include "Interfaces/ClientInterfaces.h"
@@ -89,7 +89,7 @@ Hooks::Hooks(HMODULE moduleHandle) noexcept : moduleHandle{ moduleHandle }
 
 #endif
 
-void Hooks::install(csgo::pod::Client* clientInterface, const EngineInterfaces& engineInterfaces, const OtherInterfaces& interfaces, const Memory& memory) noexcept
+void Hooks::install(csgo::ClientPOD* clientInterface, const EngineInterfaces& engineInterfaces, const OtherInterfaces& interfaces, const Memory& memory) noexcept
 {
 #if IS_WIN32()
     originalPresent = **reinterpret_cast<decltype(originalPresent)**>(memory.present);
@@ -208,8 +208,8 @@ void Hooks::uninstall(Misc& misc, Glow& glow, const EngineInterfaces& engineInte
 
     Netvars::restore();
 
-    glow.clearCustomObjects(memory);
-    inventoryChanger.reset(interfaces, memory);
+    glow.clearCustomObjects();
+    inventoryChanger.reset(memory);
 
 #if IS_WIN32()
     keyValuesSystem.restore();
@@ -231,9 +231,9 @@ void Hooks::uninstall(Misc& misc, Glow& glow, const EngineInterfaces& engineInte
 #endif
 }
 
-void Hooks::callOriginalDrawModelExecute(void* ctx, void* state, const ModelRenderInfo& info, matrix3x4* customBoneToWorld) noexcept
+void Hooks::callOriginalDrawModelExecute(void* ctx, void* state, const csgo::ModelRenderInfo& info, csgo::matrix3x4* customBoneToWorld) noexcept
 {
-    modelRender.callOriginal<void, 21>(ctx, state, std::cref(info), customBoneToWorld);
+    modelRender.callOriginal<void, 21>(ctx, state, &info, customBoneToWorld);
 }
 
 #if !IS_WIN32()

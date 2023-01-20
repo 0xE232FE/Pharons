@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Helpers/PatternFinder.h>
-#include <Platform/IsPlatform.h>
+#include <Platform/Macros/IsPlatform.h>
 #include <Utils/ReturnAddress.h>
 
 class ScopeOverlayRemover {
@@ -21,7 +21,7 @@ public:
 
     void updateColorCorrectionWeightsHook() const noexcept
     {
-        if (enabled)
+        if (enabled && vignette)
             *vignette = 0.0f;
     }
 

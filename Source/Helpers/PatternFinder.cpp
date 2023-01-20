@@ -6,7 +6,7 @@
 
 #include "PatternFinder.h"
 
-#include <Platform/IsPlatform.h>
+#include <Platform/Macros/IsPlatform.h>
 
 [[nodiscard]] static std::string patternToString(std::string_view pattern)
 {
@@ -34,6 +34,18 @@ namespace helpers
 SafeAddress PatternFinder::operator()(std::string_view pattern) const noexcept
 {
     if (const auto found = ::PatternFinder::operator()(pattern))
+        return SafeAddress{ std::uintptr_t(found) };
+
+    assert(false && "Pattern needs to be updated!");
+#if IS_WIN32()
+    MessageBoxA(nullptr, ("Failed to find pattern:\n" + patternToString(pattern)).c_str(), "Osiris", MB_OK | MB_ICONWARNING);
+#endif
+    return SafeAddress{ 0 };
+}
+
+SafeAddress PatternFinder::operator()(std::string_view pattern, OffsetHint offsetHint) const noexcept
+{
+    if (const auto found = ::PatternFinder::operator()(pattern, offsetHint))
         return SafeAddress{ std::uintptr_t(found) };
 
     assert(false && "Pattern needs to be updated!");

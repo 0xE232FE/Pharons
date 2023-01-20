@@ -20,34 +20,35 @@
 #include "EnginePrediction.h"
 #include "Misc.h"
 
-#include <SDK/PODs/ConVar.h>
-#include <SDK/Constants/ClassId.h>
-#include "../SDK/Client.h"
-#include "../SDK/ClientClass.h"
-#include "../SDK/ClientMode.h"
-#include "../SDK/ConVar.h"
-#include "../SDK/Cvar.h"
-#include "../SDK/Engine.h"
-#include "../SDK/EngineTrace.h"
-#include "../SDK/Entity.h"
-#include "../SDK/EntityList.h"
-#include <SDK/Constants/ConVarNames.h>
-#include <SDK/Constants/FrameStage.h>
-#include <SDK/Constants/UserMessages.h>
-#include "../SDK/GameEvent.h"
-#include "../SDK/GlobalVars.h"
-#include "../SDK/ItemSchema.h"
-#include "../SDK/Localize.h"
-#include "../SDK/LocalPlayer.h"
-#include "../SDK/NetworkChannel.h"
-#include "../SDK/Panorama.h"
-#include "../SDK/UserCmd.h"
-#include "../SDK/UtlVector.h"
-#include "../SDK/Vector.h"
-#include "../SDK/WeaponData.h"
-#include "../SDK/WeaponId.h"
-#include "../SDK/WeaponSystem.h"
-#include <SDK/PODs/RenderableInfo.h>
+#include <CSGO/PODs/ConVar.h>
+#include <CSGO/Constants/ClassId.h>
+#include <CSGO/Client.h>
+#include <CSGO/ClientClass.h>
+#include <CSGO/ClientMode.h>
+#include <CSGO/ConVar.h>
+#include <CSGO/Cvar.h>
+#include <CSGO/Engine.h>
+#include <CSGO/EngineTrace.h>
+#include <CSGO/Entity.h>
+#include <CSGO/EntityList.h>
+#include <CSGO/Constants/ConVarNames.h>
+#include <CSGO/Constants/FrameStage.h>
+#include <CSGO/Constants/GameEventNames.h>
+#include <CSGO/Constants/UserMessages.h>
+#include <CSGO/GameEvent.h>
+#include <CSGO/GlobalVars.h>
+#include <CSGO/ItemSchema.h>
+#include <CSGO/Localize.h>
+#include <CSGO/LocalPlayer.h>
+#include <CSGO/NetworkChannel.h>
+#include <CSGO/Panorama.h>
+#include <CSGO/UserCmd.h>
+#include <CSGO/UtlVector.h>
+#include <CSGO/Vector.h>
+#include <CSGO/WeaponData.h>
+#include <CSGO/WeaponId.h>
+#include <CSGO/WeaponSystem.h>
+#include <CSGO/PODs/RenderableInfo.h>
 
 #include "../GUI.h"
 #include "../Helpers.h"
@@ -57,6 +58,7 @@
 
 #include "../imguiCustom.h"
 #include <Interfaces/ClientInterfaces.h>
+#include <RetSpoof/FunctionInvoker.h>
 
 struct PreserveKillfeed {
     bool enabled = false;
@@ -186,7 +188,7 @@ float Misc::aspectRatio() noexcept
     return miscConfig.aspectratio;
 }
 
-void Misc::edgejump(UserCmd* cmd) noexcept
+void Misc::edgejump(csgo::UserCmd* cmd) noexcept
 {
     if (!miscConfig.edgejump || !miscConfig.edgejumpkey.isDown())
         return;
@@ -198,10 +200,10 @@ void Misc::edgejump(UserCmd* cmd) noexcept
         return;
 
     if ((EnginePrediction::getFlags() & 1) && !localPlayer.get().isOnGround())
-        cmd->buttons |= UserCmd::IN_JUMP;
+        cmd->buttons |= csgo::UserCmd::IN_JUMP;
 }
 
-void Misc::slowwalk(UserCmd* cmd) noexcept
+void Misc::slowwalk(csgo::UserCmd* cmd) noexcept
 {
     if (!miscConfig.slowwalk || !miscConfig.slowwalkKey.isDown())
         return;
@@ -209,7 +211,7 @@ void Misc::slowwalk(UserCmd* cmd) noexcept
     if (!localPlayer || !localPlayer.get().isAlive())
         return;
 
-    const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
+    const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
     if (activeWeapon.getPOD() == nullptr)
         return;
 
@@ -396,54 +398,54 @@ void Misc::watermark() noexcept
     ImGui::End();
 }
 
-void Misc::prepareRevolver(const Engine& engine, UserCmd* cmd) noexcept
+void Misc::prepareRevolver(const csgo::Engine& engine, csgo::UserCmd* cmd) noexcept
 {
     auto timeToTicks = [this](float time) {  return static_cast<int>(0.5f + time / memory.globalVars->intervalPerTick); };
     constexpr float revolverPrepareTime{ 0.234375f };
 
     static float readyTime;
     if (miscConfig.prepareRevolver && localPlayer && (!miscConfig.prepareRevolverKey.isSet() || miscConfig.prepareRevolverKey.isDown())) {
-        const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
+        const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
         if (activeWeapon.getPOD() != nullptr && activeWeapon.itemDefinitionIndex() == WeaponId::Revolver) {
             if (!readyTime) readyTime = memory.globalVars->serverTime() + revolverPrepareTime;
-            auto ticksToReady = timeToTicks(readyTime - memory.globalVars->serverTime() - NetworkChannel::from(retSpoofGadgets->client, engine.getNetworkChannel()).getLatency(0));
+            auto ticksToReady = timeToTicks(readyTime - memory.globalVars->serverTime() - csgo::NetworkChannel::from(retSpoofGadgets->client, engine.getNetworkChannel()).getLatency(0));
             if (ticksToReady > 0 && ticksToReady <= timeToTicks(revolverPrepareTime))
-                cmd->buttons |= UserCmd::IN_ATTACK;
+                cmd->buttons |= csgo::UserCmd::IN_ATTACK;
             else
                 readyTime = 0.0f;
         }
     }
 }
 
-void Misc::fastPlant(const EngineTrace& engineTrace, UserCmd* cmd) noexcept
+void Misc::fastPlant(const csgo::EngineTrace& engineTrace, csgo::UserCmd* cmd) noexcept
 {
     if (!miscConfig.fastPlant)
         return;
 
-    if (static auto plantAnywhere = ConVar::from(retSpoofGadgets->client, interfaces.getCvar().findVar(csgo::mp_plant_c4_anywhere)); plantAnywhere.getInt())
+    if (static auto plantAnywhere = csgo::ConVar::from(retSpoofGadgets->client, interfaces.getCvar().findVar(csgo::mp_plant_c4_anywhere)); plantAnywhere.getInt())
         return;
 
     if (!localPlayer || !localPlayer.get().isAlive() || (localPlayer.get().inBombZone() && localPlayer.get().isOnGround()))
         return;
 
-    if (const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon()); activeWeapon.getPOD() == nullptr || activeWeapon.getNetworkable().getClientClass()->classId != ClassId::C4)
+    if (const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon()); activeWeapon.getPOD() == nullptr || activeWeapon.getNetworkable().getClientClass()->classId != ClassId::C4)
         return;
 
-    cmd->buttons &= ~UserCmd::IN_ATTACK;
+    cmd->buttons &= ~csgo::UserCmd::IN_ATTACK;
 
     constexpr auto doorRange = 200.0f;
 
-    Trace trace;
+    csgo::Trace trace;
     const auto startPos = localPlayer.get().getEyePosition();
-    const auto endPos = startPos + Vector::fromAngle(cmd->viewangles) * doorRange;
+    const auto endPos = startPos + csgo::Vector::fromAngle(cmd->viewangles) * doorRange;
     engineTrace.traceRay({ startPos, endPos }, 0x46004009, localPlayer.get().getPOD(), trace);
 
-    const auto entity = Entity::from(retSpoofGadgets->client, trace.entity);
+    const auto entity = csgo::Entity::from(retSpoofGadgets->client, trace.entity);
     if (entity.getPOD() == nullptr || entity.getNetworkable().getClientClass()->classId != ClassId::PropDoorRotating)
-        cmd->buttons &= ~UserCmd::IN_USE;
+        cmd->buttons &= ~csgo::UserCmd::IN_USE;
 }
 
-void Misc::fastStop(UserCmd* cmd) noexcept
+void Misc::fastStop(csgo::UserCmd* cmd) noexcept
 {
     if (!miscConfig.fastStop)
         return;
@@ -451,10 +453,10 @@ void Misc::fastStop(UserCmd* cmd) noexcept
     if (!localPlayer || !localPlayer.get().isAlive())
         return;
 
-    if (localPlayer.get().moveType() == MoveType::NOCLIP || localPlayer.get().moveType() == MoveType::LADDER || !localPlayer.get().isOnGround() || cmd->buttons & UserCmd::IN_JUMP)
+    if (localPlayer.get().moveType() == MoveType::NOCLIP || localPlayer.get().moveType() == MoveType::LADDER || !localPlayer.get().isOnGround() || cmd->buttons & csgo::UserCmd::IN_JUMP)
         return;
 
-    if (cmd->buttons & (UserCmd::IN_MOVELEFT | UserCmd::IN_MOVERIGHT | UserCmd::IN_FORWARD | UserCmd::IN_BACK))
+    if (cmd->buttons & (csgo::UserCmd::IN_MOVELEFT | csgo::UserCmd::IN_MOVERIGHT | csgo::UserCmd::IN_FORWARD | csgo::UserCmd::IN_BACK))
         return;
     
     const auto velocity = localPlayer.get().velocity();
@@ -462,10 +464,10 @@ void Misc::fastStop(UserCmd* cmd) noexcept
     if (speed < 15.0f)
         return;
     
-    Vector direction = velocity.toAngle();
+    csgo::Vector direction = velocity.toAngle();
     direction.y = cmd->viewangles.y - direction.y;
 
-    const auto negatedDirection = Vector::fromAngle(direction) * -speed;
+    const auto negatedDirection = csgo::Vector::fromAngle(direction) * -speed;
     cmd->forwardmove = negatedDirection.x;
     cmd->sidemove = negatedDirection.y;
 }
@@ -532,7 +534,7 @@ void Misc::drawBombTimer() noexcept
     ImGui::End();
 }
 
-void Misc::stealNames(const Engine& engine) noexcept
+void Misc::stealNames(const csgo::Engine& engine) noexcept
 {
     if (!miscConfig.nameStealer)
         return;
@@ -544,12 +546,12 @@ void Misc::stealNames(const Engine& engine) noexcept
 
     for (int i = 1; i <= memory.globalVars->maxClients; ++i) {
         const auto entityPtr = clientInterfaces.getEntityList().getEntity(i);
-        const auto entity = Entity::from(retSpoofGadgets->client, entityPtr);
+        const auto entity = csgo::Entity::from(retSpoofGadgets->client, entityPtr);
 
         if (entity.getPOD() == nullptr || entity.getPOD() == localPlayer.get().getPOD())
             continue;
 
-        PlayerInfo playerInfo;
+        csgo::PlayerInfo playerInfo;
         if (!engine.getPlayerInfo(entity.getNetworkable().index(), playerInfo))
             continue;
 
@@ -567,13 +569,13 @@ void Misc::stealNames(const Engine& engine) noexcept
 void Misc::disablePanoramablur() noexcept
 {
     static auto blur = interfaces.getCvar().findVar(csgo::panorama_disable_blur);
-    ConVar::from(retSpoofGadgets->client, blur).setValue(miscConfig.disablePanoramablur);
+    csgo::ConVar::from(retSpoofGadgets->client, blur).setValue(miscConfig.disablePanoramablur);
 }
 
-void Misc::quickReload(UserCmd* cmd) noexcept
+void Misc::quickReload(csgo::UserCmd* cmd) noexcept
 {
     if (miscConfig.quickReload) {
-        static csgo::pod::Entity* reloadedWeapon = 0;
+        static csgo::EntityPOD* reloadedWeapon = nullptr;
 
         if (reloadedWeapon) {
             for (auto weaponHandle : localPlayer.get().weapons()) {
@@ -581,22 +583,22 @@ void Misc::quickReload(UserCmd* cmd) noexcept
                     break;
 
                 if (clientInterfaces.getEntityList().getEntityFromHandle(weaponHandle) == reloadedWeapon) {
-                    cmd->weaponselect = Entity::from(retSpoofGadgets->client, reloadedWeapon).getNetworkable().index();
-                    cmd->weaponsubtype = Entity::from(retSpoofGadgets->client, reloadedWeapon).getWeaponSubType();
+                    cmd->weaponselect = csgo::Entity::from(retSpoofGadgets->client, reloadedWeapon).getNetworkable().index();
+                    cmd->weaponsubtype = csgo::Entity::from(retSpoofGadgets->client, reloadedWeapon).getWeaponSubType();
                     break;
                 }
             }
-            reloadedWeapon = 0;
+            reloadedWeapon = nullptr;
         }
 
-        if (const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon()); activeWeapon.getPOD() != nullptr && activeWeapon.isInReload() && activeWeapon.clip() == activeWeapon.getWeaponData()->maxClip) {
+        if (const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon()); activeWeapon.getPOD() != nullptr && activeWeapon.isInReload() && activeWeapon.clip() == activeWeapon.getWeaponData()->maxClip) {
             reloadedWeapon = activeWeapon.getPOD();
 
             for (auto weaponHandle : localPlayer.get().weapons()) {
                 if (weaponHandle == -1)
                     break;
 
-                if (const auto weapon = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(weaponHandle)); weapon.getPOD() && weapon.getPOD() != reloadedWeapon) {
+                if (const auto weapon = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(weaponHandle)); weapon.getPOD() && weapon.getPOD() != reloadedWeapon) {
                     cmd->weaponselect = weapon.getNetworkable().index();
                     cmd->weaponsubtype = weapon.getWeaponSubType();
                     break;
@@ -606,7 +608,7 @@ void Misc::quickReload(UserCmd* cmd) noexcept
     }
 }
 
-bool Misc::changeName(const Engine& engine, bool reconnect, const char* newName, float delay) noexcept
+bool Misc::changeName(const csgo::Engine& engine, bool reconnect, const char* newName, float delay) noexcept
 {
     static auto exploitInitialized{ false };
 
@@ -618,24 +620,24 @@ bool Misc::changeName(const Engine& engine, bool reconnect, const char* newName,
     }
 
     if (!exploitInitialized && engine.isInGame()) {
-        if (PlayerInfo playerInfo; localPlayer && engine.getPlayerInfo(localPlayer.get().getNetworkable().index(), playerInfo) && (!strcmp(playerInfo.name, "?empty") || !strcmp(playerInfo.name, "\n\xAD\xAD\xAD"))) {
+        if (csgo::PlayerInfo playerInfo; localPlayer && engine.getPlayerInfo(localPlayer.get().getNetworkable().index(), playerInfo) && (!strcmp(playerInfo.name, "?empty") || !strcmp(playerInfo.name, "\n\xAD\xAD\xAD"))) {
             exploitInitialized = true;
         } else {
             name->onChangeCallbacks.size = 0;
-            ConVar::from(retSpoofGadgets->client, name).setValue("\n\xAD\xAD\xAD");
+            csgo::ConVar::from(retSpoofGadgets->client, name).setValue("\n\xAD\xAD\xAD");
             return false;
         }
     }
 
     if (static auto nextChangeTime = 0.0f; nextChangeTime <= memory.globalVars->realtime) {
-        ConVar::from(retSpoofGadgets->client, name).setValue(newName);
+        csgo::ConVar::from(retSpoofGadgets->client, name).setValue(newName);
         nextChangeTime = memory.globalVars->realtime + delay;
         return true;
     }
     return false;
 }
 
-void Misc::bunnyHop(UserCmd* cmd) noexcept
+void Misc::bunnyHop(csgo::UserCmd* cmd) noexcept
 {
     if (!localPlayer)
         return;
@@ -643,12 +645,12 @@ void Misc::bunnyHop(UserCmd* cmd) noexcept
     static auto wasLastTimeOnGround{ localPlayer.get().isOnGround() };
 
     if (miscConfig.bunnyHop && !localPlayer.get().isOnGround() && localPlayer.get().moveType() != MoveType::LADDER && !wasLastTimeOnGround)
-        cmd->buttons &= ~UserCmd::IN_JUMP;
+        cmd->buttons &= ~csgo::UserCmd::IN_JUMP;
 
     wasLastTimeOnGround = localPlayer.get().isOnGround();
 }
 
-void Misc::fakeBan(const Engine& engine, bool set) noexcept
+void Misc::fakeBan(const csgo::Engine& engine, bool set) noexcept
 {
     static bool shouldSet = false;
 
@@ -664,18 +666,18 @@ void Misc::nadePredict() noexcept
     static auto nadeVar{ interfaces.getCvar().findVar(csgo::cl_grenadepreview) };
 
     nadeVar->onChangeCallbacks.size = 0;
-    ConVar::from(retSpoofGadgets->client, nadeVar).setValue(miscConfig.nadePredict);
+    csgo::ConVar::from(retSpoofGadgets->client, nadeVar).setValue(miscConfig.nadePredict);
 }
 
 void Misc::fixTabletSignal() noexcept
 {
     if (miscConfig.fixTabletSignal && localPlayer) {
-        if (const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon()); activeWeapon.getPOD() != nullptr && activeWeapon.getNetworkable().getClientClass()->classId == ClassId::Tablet)
+        if (const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon()); activeWeapon.getPOD() != nullptr && activeWeapon.getNetworkable().getClientClass()->classId == ClassId::Tablet)
             activeWeapon.tabletReceptionIsBlocked() = false;
     }
 }
 
-void Misc::killMessage(const Engine& engine, const GameEvent& event) noexcept
+void Misc::killMessage(const csgo::Engine& engine, const csgo::GameEvent& event) noexcept
 {
     if (!miscConfig.killMessage)
         return;
@@ -692,7 +694,7 @@ void Misc::killMessage(const Engine& engine, const GameEvent& event) noexcept
     engine.clientCmdUnrestricted(cmd.c_str());
 }
 
-void Misc::fixMovement(UserCmd* cmd, float yaw) noexcept
+void Misc::fixMovement(csgo::UserCmd* cmd, float yaw) noexcept
 {
     if (miscConfig.fixMovement) {
         float oldYaw = yaw + (yaw < 0.0f ? 360.0f : 0.0f);
@@ -707,13 +709,13 @@ void Misc::fixMovement(UserCmd* cmd, float yaw) noexcept
     }
 }
 
-void Misc::antiAfkKick(UserCmd* cmd) noexcept
+void Misc::antiAfkKick(csgo::UserCmd* cmd) noexcept
 {
     if (miscConfig.antiAfkKick && cmd->commandNumber % 2)
         cmd->buttons |= 1 << 27;
 }
 
-void Misc::fixAnimationLOD(const Engine& engine, csgo::FrameStage stage) noexcept
+void Misc::fixAnimationLOD(const csgo::Engine& engine, csgo::FrameStage stage) noexcept
 {
 #if IS_WIN32()
     if (miscConfig.fixAnimationLOD && stage == csgo::FrameStage::RENDER_START) {
@@ -721,7 +723,7 @@ void Misc::fixAnimationLOD(const Engine& engine, csgo::FrameStage stage) noexcep
             return;
 
         for (int i = 1; i <= engine.getMaxClients(); i++) {
-            const auto entity = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
+            const auto entity = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
             if (entity.getPOD() == nullptr || entity.getPOD() == localPlayer.get().getPOD() || entity.getNetworkable().isDormant() || !entity.isAlive()) continue;
             *reinterpret_cast<int*>(std::uintptr_t(entity.getPOD()) + 0xA28) = 0;
             *reinterpret_cast<int*>(std::uintptr_t(entity.getPOD()) + 0xA30) = memory.globalVars->framecount;
@@ -730,41 +732,41 @@ void Misc::fixAnimationLOD(const Engine& engine, csgo::FrameStage stage) noexcep
 #endif
 }
 
-void Misc::autoPistol(UserCmd* cmd) noexcept
+void Misc::autoPistol(csgo::UserCmd* cmd) noexcept
 {
     if (miscConfig.autoPistol && localPlayer) {
-        const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
+        const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
         if (activeWeapon.getPOD() != nullptr && activeWeapon.isPistol() && activeWeapon.nextPrimaryAttack() > memory.globalVars->serverTime()) {
             if (activeWeapon.itemDefinitionIndex() == WeaponId::Revolver)
-                cmd->buttons &= ~UserCmd::IN_ATTACK2;
+                cmd->buttons &= ~csgo::UserCmd::IN_ATTACK2;
             else
-                cmd->buttons &= ~UserCmd::IN_ATTACK;
+                cmd->buttons &= ~csgo::UserCmd::IN_ATTACK;
         }
     }
 }
 
-void Misc::chokePackets(const Engine& engine, bool& sendPacket) noexcept
+void Misc::chokePackets(const csgo::Engine& engine, bool& sendPacket) noexcept
 {
     if (!miscConfig.chokedPacketsKey.isSet() || miscConfig.chokedPacketsKey.isDown())
         sendPacket = engine.getNetworkChannel()->chokedPackets >= miscConfig.chokedPackets;
 }
 
-void Misc::autoReload(UserCmd* cmd) noexcept
+void Misc::autoReload(csgo::UserCmd* cmd) noexcept
 {
     if (miscConfig.autoReload && localPlayer) {
-        const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
+        const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
         if (activeWeapon.getPOD() != nullptr && getWeaponIndex(activeWeapon.itemDefinitionIndex()) && !activeWeapon.clip())
-            cmd->buttons &= ~(UserCmd::IN_ATTACK | UserCmd::IN_ATTACK2);
+            cmd->buttons &= ~(csgo::UserCmd::IN_ATTACK | csgo::UserCmd::IN_ATTACK2);
     }
 }
 
-void Misc::revealRanks(UserCmd* cmd) noexcept
+void Misc::revealRanks(csgo::UserCmd* cmd) noexcept
 {
-    if (miscConfig.revealRanks && cmd->buttons & UserCmd::IN_SCORE)
+    if (miscConfig.revealRanks && cmd->buttons & csgo::UserCmd::IN_SCORE)
         clientInterfaces.getClient().dispatchUserMessage(50, 0, 0, nullptr);
 }
 
-void Misc::autoStrafe(UserCmd* cmd) noexcept
+void Misc::autoStrafe(csgo::UserCmd* cmd) noexcept
 {
     if (localPlayer
         && miscConfig.autoStrafe
@@ -777,19 +779,19 @@ void Misc::autoStrafe(UserCmd* cmd) noexcept
     }
 }
 
-void Misc::removeCrouchCooldown(UserCmd* cmd) noexcept
+void Misc::removeCrouchCooldown(csgo::UserCmd* cmd) noexcept
 {
     if (miscConfig.fastDuck)
-        cmd->buttons |= UserCmd::IN_BULLRUSH;
+        cmd->buttons |= csgo::UserCmd::IN_BULLRUSH;
 }
 
-void Misc::moonwalk(UserCmd* cmd) noexcept
+void Misc::moonwalk(csgo::UserCmd* cmd) noexcept
 {
     if (miscConfig.moonwalk && localPlayer && localPlayer.get().moveType() != MoveType::LADDER)
-        cmd->buttons ^= UserCmd::IN_FORWARD | UserCmd::IN_BACK | UserCmd::IN_MOVELEFT | UserCmd::IN_MOVERIGHT;
+        cmd->buttons ^= csgo::UserCmd::IN_FORWARD | csgo::UserCmd::IN_BACK | csgo::UserCmd::IN_MOVELEFT | csgo::UserCmd::IN_MOVERIGHT;
 }
 
-void Misc::playHitSound(const Engine& engine, const GameEvent& event) noexcept
+void Misc::playHitSound(const csgo::Engine& engine, const csgo::GameEvent& event) noexcept
 {
     if (!miscConfig.hitSound)
         return;
@@ -813,7 +815,7 @@ void Misc::playHitSound(const Engine& engine, const GameEvent& event) noexcept
         engine.clientCmdUnrestricted(("play " + miscConfig.customHitSound).c_str());
 }
 
-void Misc::killSound(const Engine& engine, const GameEvent& event) noexcept
+void Misc::killSound(const csgo::Engine& engine, const csgo::GameEvent& event) noexcept
 {
     if (!miscConfig.killSound)
         return;
@@ -837,7 +839,7 @@ void Misc::killSound(const Engine& engine, const GameEvent& event) noexcept
         engine.clientCmdUnrestricted(("play " + miscConfig.customKillSound).c_str());
 }
 
-void Misc::purchaseList(const Engine& engine, const GameEvent* event) noexcept
+void Misc::purchaseList(const csgo::Engine& engine, const csgo::GameEvent* event) noexcept
 {
     static std::mutex mtx;
     std::scoped_lock _{ mtx };
@@ -856,8 +858,8 @@ void Misc::purchaseList(const Engine& engine, const GameEvent* event) noexcept
     if (event) {
         switch (fnv::hashRuntime(event->getName())) {
         case fnv::hash("item_purchase"): {
-            if (const auto player = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(engine.getPlayerForUserID(event->getInt("userid")))); player.getPOD() != nullptr && localPlayer && localPlayer.get().isOtherEnemy(memory, player)) {
-                if (const auto definition = EconItemDefinition::from(retSpoofGadgets->client, ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionByName(event->getString("weapon"))); definition.getPOD() != nullptr) {
+            if (const auto player = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(engine.getPlayerForUserID(event->getInt("userid")))); player.getPOD() != nullptr && localPlayer && localPlayer.get().isOtherEnemy(memory, player)) {
+                if (const auto definition = csgo::EconItemDefinition::from(retSpoofGadgets->client, csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionByName(event->getString("weapon"))); definition.getPOD() != nullptr) {
                     auto& purchase = playerPurchases[player.handle()];
                     if (const auto weaponInfo = memory.weaponSystem.getWeaponInfo(definition.getWeaponId())) {
                         purchase.totalCost += weaponInfo->price;
@@ -884,7 +886,7 @@ void Misc::purchaseList(const Engine& engine, const GameEvent* event) noexcept
         if (!miscConfig.purchaseList.enabled)
             return;
 
-        if (static const auto mp_buytime = interfaces.getCvar().findVar(csgo::mp_buytime); (!engine.isInGame() || freezeEnd != 0.0f && memory.globalVars->realtime > freezeEnd + (!miscConfig.purchaseList.onlyDuringFreezeTime ? ConVar::from(retSpoofGadgets->client, mp_buytime).getFloat() : 0.0f) || playerPurchases.empty() || purchaseTotal.empty()) && !gui->isOpen())
+        if (static const auto mp_buytime = interfaces.getCvar().findVar(csgo::mp_buytime); (!engine.isInGame() || freezeEnd != 0.0f && memory.globalVars->realtime > freezeEnd + (!miscConfig.purchaseList.onlyDuringFreezeTime ? csgo::ConVar::from(retSpoofGadgets->client, mp_buytime).getFloat() : 0.0f) || playerPurchases.empty() || purchaseTotal.empty()) && !gui->isOpen())
             return;
 
         ImGui::SetNextWindowSize({ 200.0f, 200.0f }, ImGuiCond_Once);
@@ -945,13 +947,13 @@ void Misc::oppositeHandKnife(csgo::FrameStage stage) noexcept
     if (stage != csgo::FrameStage::RENDER_START && stage != csgo::FrameStage::RENDER_END)
         return;
 
-    static const auto cl_righthand = ConVar::from(retSpoofGadgets->client, interfaces.getCvar().findVar(csgo::cl_righthand));
+    static const auto cl_righthand = csgo::ConVar::from(retSpoofGadgets->client, interfaces.getCvar().findVar(csgo::cl_righthand));
     static bool original;
 
     if (stage == csgo::FrameStage::RENDER_START) {
         original = cl_righthand.getInt();
 
-        if (const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon()); activeWeapon.getPOD() != nullptr) {
+        if (const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon()); activeWeapon.getPOD() != nullptr) {
             if (const auto classId = activeWeapon.getNetworkable().getClientClass()->classId; classId == ClassId::Knife || classId == ClassId::KnifeGG)
                 cl_righthand.setValue(!original);
         }
@@ -984,26 +986,26 @@ static int reportbotRound;
     return std::ranges::find(std::as_const(reportedPlayers), xuid) != reportedPlayers.cend();
 }
 
-[[nodiscard]] static std::vector<std::uint64_t> getXuidsOfCandidatesToBeReported(const Engine& engine, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory)
+[[nodiscard]] static std::vector<std::uint64_t> getXuidsOfCandidatesToBeReported(const csgo::Engine& engine, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory)
 {
     std::vector<std::uint64_t> xuids;
 
     for (int i = 1; i <= engine.getMaxClients(); ++i) {
-        const auto entity = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
+        const auto entity = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
         if (entity.getPOD() == 0 || entity.getPOD() == localPlayer.get().getPOD())
             continue;
 
         if (miscConfig.reportbot.target != 2 && (localPlayer.get().isOtherEnemy(memory, entity) ? miscConfig.reportbot.target != 0 : miscConfig.reportbot.target != 1))
             continue;
 
-        if (PlayerInfo playerInfo; engine.getPlayerInfo(i, playerInfo) && !playerInfo.fakeplayer)
+        if (csgo::PlayerInfo playerInfo; engine.getPlayerInfo(i, playerInfo) && !playerInfo.fakeplayer)
             xuids.push_back(playerInfo.xuid);
     }
 
     return xuids;
 }
 
-void Misc::runReportbot(const Engine& engine) noexcept
+void Misc::runReportbot(const csgo::Engine& engine) noexcept
 {
     if (!miscConfig.reportbot.enabled)
         return;
@@ -1024,7 +1026,7 @@ void Misc::runReportbot(const Engine& engine) noexcept
             continue;
 
         if (const auto report = generateReportString(); !report.empty()) {
-            memory.submitReport(std::to_string(xuid).c_str(), report.c_str());
+            submitReport(LINUX_ARGS(nullptr,) std::to_string(xuid).c_str(), report.c_str());
             lastReportTime = memory.globalVars->realtime;
             reportedPlayers.push_back(xuid);
             return;
@@ -1062,7 +1064,7 @@ void Misc::preserveKillfeed(bool roundStart) noexcept
     if (!deathNotice)
         return;
 
-    const auto deathNoticePanel = UIPanel::from(retSpoofGadgets->client, (*(csgo::pod::UIPanel**)(*reinterpret_cast<std::uintptr_t*>(deathNotice WIN32_LINUX(-20 + 88, -32 + 128)) + sizeof(std::uintptr_t))));
+    const auto deathNoticePanel = csgo::UIPanel::from(retSpoofGadgets->client, (*(csgo::UIPanelPOD**)(*reinterpret_cast<std::uintptr_t*>(deathNotice WIN32_LINUX(-20 + 88, -32 + 128)) + sizeof(std::uintptr_t))));
 
     const auto childPanelCount = deathNoticePanel.getChildCount();
 
@@ -1071,18 +1073,18 @@ void Misc::preserveKillfeed(bool roundStart) noexcept
         if (!childPointer)
             continue;
 
-        const auto child = UIPanel::from(retSpoofGadgets->client, childPointer);
+        const auto child = csgo::UIPanel::from(retSpoofGadgets->client, childPointer);
         if (child.hasClass("DeathNotice_Killer") && (!miscConfig.preserveKillfeed.onlyHeadshots || child.hasClass("DeathNoticeHeadShot")))
             child.setAttributeFloat("SpawnTime", memory.globalVars->currenttime);
     }
 }
 
-void Misc::voteRevealer(const GameEvent& event) noexcept
+void Misc::voteRevealer(const csgo::GameEvent& event) noexcept
 {
     if (!miscConfig.revealVotes)
         return;
 
-    const auto entity = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(event.getInt("entityid")));
+    const auto entity = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(event.getInt("entityid")));
     if (entity.getPOD() == nullptr || !entity.isPlayer())
         return;
     
@@ -1090,7 +1092,7 @@ void Misc::voteRevealer(const GameEvent& event) noexcept
     const auto isLocal = localPlayer && entity.getPOD() == localPlayer.get().getPOD();
     const char color = votedYes ? '\x06' : '\x07';
 
-    memory.clientMode->hudChat->printf(0, " \x0C\u2022Osiris\u2022 %c%s\x01 voted %c%s\x01", isLocal ? '\x01' : color, isLocal ? "You" : entity.getPlayerName(interfaces, memory).c_str(), color, votedYes ? "Yes" : "No");
+    csgo::HudChat::from(retSpoofGadgets->client, memory.clientMode->hudChat).printf(0, " \x0C\u2022Osiris\u2022 %c%s\x01 voted %c%s\x01", isLocal ? '\x01' : color, isLocal ? "You" : entity.getPlayerName(interfaces, memory).c_str(), color, votedYes ? "Yes" : "No");
 }
 
 void Misc::onVoteStart(const void* data, int size) noexcept
@@ -1111,26 +1113,26 @@ void Misc::onVoteStart(const void* data, int size) noexcept
     const auto reader = ProtobufReader{ static_cast<const std::uint8_t*>(data), size };
     const auto entityIndex = reader.readInt32(2);
 
-    const auto entity = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(entityIndex));
+    const auto entity = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(entityIndex));
     if (entity.getPOD() == nullptr || !entity.isPlayer())
         return;
 
     const auto isLocal = localPlayer && entity.getPOD() == localPlayer.get().getPOD();
 
     const auto voteType = reader.readInt32(3);
-    memory.clientMode->hudChat->printf(0, " \x0C\u2022Osiris\u2022 %c%s\x01 call vote (\x06%s\x01)", isLocal ? '\x01' : '\x06', isLocal ? "You" : entity.getPlayerName(interfaces, memory).c_str(), voteName(voteType));
+    csgo::HudChat::from(retSpoofGadgets->client, memory.clientMode->hudChat).printf(0, " \x0C\u2022Osiris\u2022 %c%s\x01 call vote (\x06%s\x01)", isLocal ? '\x01' : '\x06', isLocal ? "You" : entity.getPlayerName(interfaces, memory).c_str(), voteName(voteType));
 }
 
 void Misc::onVotePass() noexcept
 {
     if (miscConfig.revealVotes)
-        memory.clientMode->hudChat->printf(0, " \x0C\u2022Osiris\u2022\x01 Vote\x06 PASSED");
+        csgo::HudChat::from(retSpoofGadgets->client, memory.clientMode->hudChat).printf(0, " \x0C\u2022Osiris\u2022\x01 Vote\x06 PASSED");
 }
 
 void Misc::onVoteFailed() noexcept
 {
     if (miscConfig.revealVotes)
-        memory.clientMode->hudChat->printf(0, " \x0C\u2022Osiris\u2022\x01 Vote\x07 FAILED");
+        csgo::HudChat::from(retSpoofGadgets->client, memory.clientMode->hudChat).printf(0, " \x0C\u2022Osiris\u2022\x01 Vote\x07 FAILED");
 }
 
 // ImGui::ShadeVertsLinearColorGradientKeepAlpha() modified to do interpolation in HSV
@@ -1162,7 +1164,7 @@ static void shadeVertsHSVColorGradientKeepAlpha(ImDrawList* draw_list, int vert_
     }
 }
 
-void Misc::drawOffscreenEnemies(const Engine& engine, ImDrawList* drawList) noexcept
+void Misc::drawOffscreenEnemies(const csgo::Engine& engine, ImDrawList* drawList) noexcept
 {
     if (!miscConfig.offscreenEnemies.enabled)
         return;
@@ -1250,8 +1252,8 @@ void Misc::autoAccept(const char* soundEntry) noexcept
         return;
 
     if (const auto idx = memory.registeredPanoramaEvents->find(memory.makePanoramaSymbol("MatchAssistedAccept")); idx != -1) {
-        if (const auto eventPtr = retSpoofGadgets->client.invokeCdecl<void*>(std::uintptr_t(memory.registeredPanoramaEvents->memory[idx].value.makeEvent), nullptr))
-            UIEngine{ retSpoofGadgets->client, interfaces.getPanoramaUIEngine().accessUIEngine() }.dispatchEvent(eventPtr);
+        if (const auto eventPtr = FunctionInvoker{ retSpoofGadgets->client, memory.registeredPanoramaEvents->memory[idx].value.makeEvent }(nullptr))
+            csgo::UIEngine::from(retSpoofGadgets->client, interfaces.getPanoramaUIEngine().accessUIEngine()).dispatchEvent(eventPtr);
     }
 
 #if IS_WIN32()
@@ -1267,10 +1269,10 @@ bool Misc::isPlayingDemoHook(ReturnAddress returnAddress, std::uintptr_t frameAd
     return miscConfig.revealMoney && returnAddress == demoOrHLTV && *reinterpret_cast<std::uintptr_t*>(frameAddress + WIN32_LINUX(8, 24)) == money;
 }
 
-const DemoPlaybackParameters* Misc::getDemoPlaybackParametersHook(ReturnAddress returnAddress, const DemoPlaybackParameters& demoPlaybackParameters) const
+const csgo::DemoPlaybackParameters* Misc::getDemoPlaybackParametersHook(ReturnAddress returnAddress, const csgo::DemoPlaybackParameters& demoPlaybackParameters) const
 {
     if (miscConfig.revealSuspect && returnAddress != demoFileEndReached) {
-        static DemoPlaybackParameters customParams;
+        static csgo::DemoPlaybackParameters customParams;
         customParams = demoPlaybackParameters;
         customParams.anonymousPlayerIdentity = false;
         return &customParams;
@@ -1279,23 +1281,23 @@ const DemoPlaybackParameters* Misc::getDemoPlaybackParametersHook(ReturnAddress 
     return &demoPlaybackParameters;
 }
 
-std::optional<std::pair<Vector, Vector>> Misc::listLeavesInBoxHook(ReturnAddress returnAddress, std::uintptr_t frameAddress) const
+std::optional<std::pair<csgo::Vector, csgo::Vector>> Misc::listLeavesInBoxHook(ReturnAddress returnAddress, std::uintptr_t frameAddress) const
 {
     if (!miscConfig.disableModelOcclusion || returnAddress != insertIntoTree)
         return {};
 
-    const auto info = *reinterpret_cast<csgo::pod::RenderableInfo**>(frameAddress + WIN32_LINUX(0x18, 0x10 + 0x948));
+    const auto info = *reinterpret_cast<csgo::RenderableInfo**>(frameAddress + WIN32_LINUX(0x18, 0x10 + 0x948));
     if (!info || !info->renderable)
         return {};
 
-    const auto ent = VirtualCallable{ retSpoofGadgets->client, std::uintptr_t(info->renderable) - sizeof(std::uintptr_t) }.call<csgo::pod::Entity*, WIN32_LINUX(7, 8)>();
-    if (!ent || !Entity::from(retSpoofGadgets->client, ent).isPlayer())
+    const auto ent = VirtualCallable{ retSpoofGadgets->client, std::uintptr_t(info->renderable) - sizeof(std::uintptr_t) }.call<csgo::EntityPOD*, WIN32_LINUX(7, 8)>();
+    if (!ent || !csgo::Entity::from(retSpoofGadgets->client, ent).isPlayer())
         return {};
 
     constexpr float maxCoord = 16384.0f;
     constexpr float minCoord = -maxCoord;
-    constexpr Vector min{ minCoord, minCoord, minCoord };
-    constexpr Vector max{ maxCoord, maxCoord, maxCoord };
+    constexpr csgo::Vector min{ minCoord, minCoord, minCoord };
+    constexpr csgo::Vector max{ maxCoord, maxCoord, maxCoord };
     return std::pair{ min, max };
 }
 
@@ -1316,7 +1318,7 @@ void Misc::updateEventListeners(const EngineInterfaces& engineInterfaces, bool f
     static bool listenerRegistered = false;
 
     if (miscConfig.purchaseList.enabled && !listenerRegistered) {
-        engineInterfaces.getGameEventManager(memory.getEventDescriptor).addListener(&listener, "item_purchase");
+        engineInterfaces.getGameEventManager(memory.getEventDescriptor).addListener(&listener, csgo::item_purchase);
         listenerRegistered = true;
     } else if ((!miscConfig.purchaseList.enabled || forceRemove) && listenerRegistered) {
         engineInterfaces.getGameEventManager(memory.getEventDescriptor).removeListener(&listener);

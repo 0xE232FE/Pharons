@@ -13,11 +13,11 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui/imgui_internal.h"
 
-#include "SDK/WeaponId.h"
+#include "CSGO/WeaponId.h"
 
 struct Color3;
 struct Color4;
-struct Vector;
+namespace csgo { struct Vector; }
 
 namespace Helpers
 {
@@ -79,8 +79,8 @@ namespace Helpers
         }
     }
 
-    bool worldToScreen(const Vector& worldPosition, ImVec2& screenPosition) noexcept;
-    bool worldToScreenPixelAligned(const Vector& worldPosition, ImVec2& screenPosition) noexcept;
+    bool worldToScreen(const csgo::Vector& worldPosition, ImVec2& screenPosition) noexcept;
+    bool worldToScreenPixelAligned(const csgo::Vector& worldPosition, ImVec2& screenPosition) noexcept;
 
     [[nodiscard]] constexpr auto isMP5LabRats(WeaponId weaponID, int paintKit) noexcept
     {
@@ -102,22 +102,22 @@ namespace Helpers
             return (GeneratorType::max)();
         }
 
-        auto operator()() const
+        auto operator()()
         {
             std::scoped_lock lock{ mutex };
             return gen();
         }
 
         template <typename Distribution>
-        auto operator()(Distribution&& distribution) const
+        auto operator()(Distribution&& distribution)
         {
             std::scoped_lock lock{ mutex };
             return distribution(gen);
         }
 
     private:
-        inline static GeneratorType gen{ std::random_device{}() };
-        inline static std::mutex mutex;
+        GeneratorType gen{ std::random_device{}() };
+        std::mutex mutex;
     };
 
     class ToUpperConverter {

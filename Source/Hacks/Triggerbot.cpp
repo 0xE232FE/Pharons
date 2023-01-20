@@ -1,22 +1,22 @@
 #include "../Config.h"
 #include "../Memory.h"
-#include "../SDK/EngineTrace.h"
-#include "../SDK/Entity.h"
-#include "../SDK/GlobalVars.h"
-#include "../SDK/LocalPlayer.h"
-#include "../SDK/UserCmd.h"
-#include "../SDK/WeaponData.h"
-#include "../SDK/WeaponId.h"
+#include <CSGO/EngineTrace.h>
+#include <CSGO/Entity.h>
+#include <CSGO/GlobalVars.h>
+#include <CSGO/LocalPlayer.h>
+#include <CSGO/UserCmd.h>
+#include <CSGO/WeaponData.h>
+#include <CSGO/WeaponId.h>
 #include "Triggerbot.h"
 
 static bool keyPressed;
 
-void Triggerbot::run(const EngineTrace& engineTrace, const OtherInterfaces& interfaces, const Memory& memory, const Config& config, UserCmd* cmd) noexcept
+void Triggerbot::run(const csgo::EngineTrace& engineTrace, const OtherInterfaces& interfaces, const Memory& memory, const Config& config, csgo::UserCmd* cmd) noexcept
 {
     if (!localPlayer || !localPlayer.get().isAlive() || localPlayer.get().nextAttack() > memory.globalVars->serverTime() || localPlayer.get().isDefusing() || localPlayer.get().waitForNoAttack())
         return;
 
-    const auto activeWeapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
+    const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
     if (activeWeapon.getPOD() == nullptr || !activeWeapon.clip() || activeWeapon.nextPrimaryAttack() > memory.globalVars->serverTime())
         return;
 
@@ -44,7 +44,7 @@ void Triggerbot::run(const EngineTrace& engineTrace, const OtherInterfaces& inte
     const auto now = memory.globalVars->realtime;
 
     if (now - lastContact < config.triggerbot[weaponIndex].burstTime) {
-        cmd->buttons |= UserCmd::IN_ATTACK;
+        cmd->buttons |= csgo::UserCmd::IN_ATTACK;
         return;
     }
     lastContact = 0.0f;
@@ -66,17 +66,17 @@ void Triggerbot::run(const EngineTrace& engineTrace, const OtherInterfaces& inte
         return;
 
     const auto startPos = localPlayer.get().getEyePosition();
-    const auto endPos = startPos + Vector::fromAngle(cmd->viewangles + localPlayer.get().getAimPunch()) * weaponData->range;
+    const auto endPos = startPos + csgo::Vector::fromAngle(cmd->viewangles + localPlayer.get().getAimPunch()) * weaponData->range;
 
     if (!cfg.ignoreSmoke && memory.lineGoesThroughSmoke(startPos, endPos, 1))
         return;
 
-    Trace trace;
+    csgo::Trace trace;
     engineTrace.traceRay({ startPos, endPos }, 0x46004009, localPlayer.get().getPOD(), trace);
 
     lastTime = now;
 
-    const auto entity = Entity::from(retSpoofGadgets->client, trace.entity);
+    const auto entity = csgo::Entity::from(retSpoofGadgets->client, trace.entity);
     if (entity.getPOD() == nullptr || !entity.isPlayer())
         return;
 
@@ -95,7 +95,7 @@ void Triggerbot::run(const EngineTrace& engineTrace, const OtherInterfaces& inte
         damage -= (entity.armor() < damage * armorRatio / 2.0f ? entity.armor() * 4.0f : damage) * (1.0f - armorRatio);
 
     if (damage >= (cfg.killshot ? entity.health() : cfg.minDamage)) {
-        cmd->buttons |= UserCmd::IN_ATTACK;
+        cmd->buttons |= csgo::UserCmd::IN_ATTACK;
         lastTime = 0.0f;
         lastContact = now;
     }

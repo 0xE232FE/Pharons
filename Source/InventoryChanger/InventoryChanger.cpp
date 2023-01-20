@@ -34,29 +34,29 @@
 
 #include <nlohmann/json.hpp>
 
-#include <SDK/PODs/ConVar.h>
-#include <SDK/Constants/ClassId.h>
-#include "../SDK/Client.h"
-#include "../SDK/ClientClass.h"
-#include "../SDK/ConVar.h"
-#include "../SDK/Cvar.h"
-#include "../SDK/EconItemView.h"
-#include "../SDK/Entity.h"
-#include "../SDK/EntityList.h"
-#include "../SDK/FileSystem.h"
-#include <SDK/Constants/ConVarNames.h>
-#include <SDK/Constants/FrameStage.h>
-#include "../SDK/GameEvent.h"
-#include "../SDK/GlobalVars.h"
-#include "../SDK/ItemSchema.h"
-#include "../SDK/LocalPlayer.h"
-#include <SDK/MemAlloc.h>
-#include "../SDK/ModelInfo.h"
-#include "../SDK/Panorama.h"
-#include "../SDK/PlayerResource.h"
-#include "../SDK/WeaponId.h"
-#include <SDK/PanoramaMarshallHelper.h>
-#include <SDK/CSPlayerInventory.h>
+#include <CSGO/PODs/ConVar.h>
+#include <CSGO/Constants/ClassId.h>
+#include <CSGO/Client.h>
+#include <CSGO/ClientClass.h>
+#include <CSGO/ConVar.h>
+#include <CSGO/Cvar.h>
+#include <CSGO/EconItemView.h>
+#include <CSGO/Entity.h>
+#include <CSGO/EntityList.h>
+#include <CSGO/FileSystem.h>
+#include <CSGO/Constants/ConVarNames.h>
+#include <CSGO/Constants/FrameStage.h>
+#include <CSGO/GameEvent.h>
+#include <CSGO/GlobalVars.h>
+#include <CSGO/ItemSchema.h>
+#include <CSGO/LocalPlayer.h>
+#include <CSGO/MemAlloc.h>
+#include <CSGO/ModelInfo.h>
+#include <CSGO/Panorama.h>
+#include <CSGO/PlayerResource.h>
+#include <CSGO/WeaponId.h>
+#include <CSGO/PanoramaMarshallHelper.h>
+#include <CSGO/CSPlayerInventory.h>
 #include "../Helpers.h"
 
 #include "GameItems/Lookup.h"
@@ -85,7 +85,7 @@
 #include <Interfaces/OtherInterfaces.h>
 
 #if IS_WIN32()
-static csgo::pod::Entity* createGloves(const ClientInterfaces& clientInterfaces) noexcept
+static csgo::EntityPOD* createGloves(const ClientInterfaces& clientInterfaces, csgo::MemAllocPOD* memAlloc) noexcept
 {
     static const auto createWearable = [&clientInterfaces] {
         std::uintptr_t createWearableFn = 0;
@@ -100,7 +100,7 @@ static csgo::pod::Entity* createGloves(const ClientInterfaces& clientInterfaces)
 
     const auto sizeOfEconWearable = *reinterpret_cast<std::uint32_t*>(std::uintptr_t(createWearable) + 39);
 
-    const auto econWearable = csgo::MemAlloc::from(retSpoofGadgets->client, memory->memAlloc).allocAligned(sizeOfEconWearable, 16);
+    const auto econWearable = csgo::MemAlloc::from(retSpoofGadgets->client, memAlloc).allocAligned(sizeOfEconWearable, 16);
     if (!econWearable)
         return nullptr;
 
@@ -109,15 +109,15 @@ static csgo::pod::Entity* createGloves(const ClientInterfaces& clientInterfaces)
     const auto econWearableConstructor = SafeAddress{ std::uintptr_t(createWearable) + 61 }.relativeToAbsolute().get();
     retSpoofGadgets->client.invokeThiscall<void>(std::uintptr_t(econWearable), econWearableConstructor);
 
-    Entity::from(retSpoofGadgets->client, static_cast<csgo::pod::Entity*>(econWearable)).initializeAsClientEntity(nullptr, false);
-    return static_cast<csgo::pod::Entity*>(econWearable);
+    csgo::Entity::from(retSpoofGadgets->client, static_cast<csgo::EntityPOD*>(econWearable)).initializeAsClientEntity(nullptr, false);
+    return static_cast<csgo::EntityPOD*>(econWearable);
 }
 
 #else
-static csgo::pod::Entity* createGlove(const ClientInterfaces& clientInterfaces, int entry, int serial) noexcept
+static csgo::EntityPOD* createGlove(const ClientInterfaces& clientInterfaces, int entry, int serial) noexcept
 {
     static const auto createWearable = [&clientInterfaces]{
-        std::add_pointer_t<csgo::pod::Entity* CDECL_CONV(int, int)> createWearableFn = nullptr;
+        std::add_pointer_t<csgo::EntityPOD* CDECL_CONV(int, int)> createWearableFn = nullptr;
         for (auto clientClass = clientInterfaces.getClient().getAllClasses(); clientClass; clientClass = clientClass->next) {
             if (clientClass->classId == ClassId::EconWearable) {
                 createWearableFn = clientClass->createFunction;
@@ -131,7 +131,7 @@ static csgo::pod::Entity* createGlove(const ClientInterfaces& clientInterfaces, 
         return nullptr;
 
     if (const auto wearable = createWearable(entry, serial))
-        return reinterpret_cast<csgo::pod::Entity*>(std::uintptr_t(wearable) - 2 * sizeof(std::uintptr_t));
+        return reinterpret_cast<csgo::EntityPOD*>(std::uintptr_t(wearable) - 2 * sizeof(std::uintptr_t));
     return nullptr;
 }
 #endif
@@ -146,7 +146,7 @@ static std::optional<std::list<inventory_changer::inventory::Item>::const_iterat
     }
 }
 
-static void applyGloves(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, const inventory_changer::backend::BackendSimulator& backend, const CSPlayerInventory& localInventory, const Entity& local) noexcept
+static void applyGloves(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, const inventory_changer::backend::BackendSimulator& backend, const csgo::CSPlayerInventory& localInventory, const csgo::Entity& local) noexcept
 {
     const auto optionalItem = getItemFromLoadout(backend.getLoadout(), local.getTeamNumber(), 41);
     if (!optionalItem.has_value())
@@ -166,7 +166,7 @@ static void applyGloves(const EngineInterfaces& engineInterfaces, const ClientIn
 
     if (!glovePtr) {
 #if IS_WIN32()
-        glovePtr = createGloves(clientInterfaces);
+        glovePtr = createGloves(clientInterfaces, memory.memAlloc);
 #else
         constexpr auto NUM_ENT_ENTRIES = 8192;
         glovePtr = createGlove(clientInterfaces, NUM_ENT_ENTRIES - 1, -1);
@@ -176,7 +176,7 @@ static void applyGloves(const EngineInterfaces& engineInterfaces, const ClientIn
     if (!glovePtr)
         return;
 
-    const auto glove = Entity::from(retSpoofGadgets->client, glovePtr);
+    const auto glove = csgo::Entity::from(retSpoofGadgets->client, glovePtr);
     wearables[0] = gloveHandle = glove.handle();
     glove.accountID() = localInventory.getAccountID();
     glove.entityQuality() = 3;
@@ -186,8 +186,8 @@ static void applyGloves(const EngineInterfaces& engineInterfaces, const ClientIn
     if (auto& definitionIndex = glove.itemDefinitionIndex(); definitionIndex != item->gameItem().getWeaponID()) {
         definitionIndex = item->gameItem().getWeaponID();
 
-        if (const auto def = ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(item->gameItem().getWeaponID()))
-            glove.setModelIndex(engineInterfaces.getModelInfo().getModelIndex(EconItemDefinition::from(retSpoofGadgets->client, def).getWorldDisplayModel()));
+        if (const auto def = csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(item->gameItem().getWeaponID()))
+            glove.setModelIndex(engineInterfaces.getModelInfo().getModelIndex(csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getWorldDisplayModel()));
 
         dataUpdated = true;
     }
@@ -212,7 +212,7 @@ static void applyGloves(const EngineInterfaces& engineInterfaces, const ClientIn
     }
 }
 
-static void applyKnife(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, const inventory_changer::backend::BackendSimulator& backend, const CSPlayerInventory& localInventory, const Entity& local) noexcept
+static void applyKnife(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, const inventory_changer::backend::BackendSimulator& backend, const csgo::CSPlayerInventory& localInventory, const csgo::Entity& local) noexcept
 {
     const auto localXuid = local.getSteamId(engineInterfaces.getEngine());
 
@@ -229,7 +229,7 @@ static void applyKnife(const EngineInterfaces& engineInterfaces, const ClientInt
         if (weaponHandle == -1)
             break;
 
-        const auto weapon = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(weaponHandle));
+        const auto weapon = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(weaponHandle));
         if (weapon.getPOD() == nullptr)
             continue;
 
@@ -248,43 +248,43 @@ static void applyKnife(const EngineInterfaces& engineInterfaces, const ClientInt
         if (definitionIndex != item->gameItem().getWeaponID()) {
             definitionIndex = item->gameItem().getWeaponID();
 
-            if (const auto def = ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(item->gameItem().getWeaponID())) {
-                weapon.setModelIndex(engineInterfaces.getModelInfo().getModelIndex(EconItemDefinition::from(retSpoofGadgets->client, def).getPlayerDisplayModel()));
+            if (const auto def = csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(item->gameItem().getWeaponID())) {
+                weapon.setModelIndex(engineInterfaces.getModelInfo().getModelIndex(csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getPlayerDisplayModel()));
                 weapon.getNetworkable().preDataUpdate(0);
             }
         }
     }
 
-    const auto viewModel = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(local.viewModel()));
+    const auto viewModel = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(local.viewModel()));
     if (viewModel.getPOD() == nullptr)
         return;
 
-    const auto viewModelWeapon = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(viewModel.weapon()));
+    const auto viewModelWeapon = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(viewModel.weapon()));
     if (viewModelWeapon.getPOD() == nullptr)
         return;
 
-    const auto def = ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(viewModelWeapon.itemDefinitionIndex());
+    const auto def = csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(viewModelWeapon.itemDefinitionIndex());
     if (!def)
         return;
 
-    viewModel.modelIndex() = engineInterfaces.getModelInfo().getModelIndex(EconItemDefinition::from(retSpoofGadgets->client, def).getPlayerDisplayModel());
+    viewModel.modelIndex() = engineInterfaces.getModelInfo().getModelIndex(csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getPlayerDisplayModel());
 
-    const auto worldModel = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(viewModelWeapon.weaponWorldModel()));
+    const auto worldModel = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(viewModelWeapon.weaponWorldModel()));
     if (worldModel.getPOD() == nullptr)
         return;
 
-    worldModel.modelIndex() = engineInterfaces.getModelInfo().getModelIndex(EconItemDefinition::from(retSpoofGadgets->client, def).getWorldDisplayModel());
+    worldModel.modelIndex() = engineInterfaces.getModelInfo().getModelIndex(csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getWorldDisplayModel());
 }
 
-static void applyWeapons(const inventory_changer::InventoryChanger& inventoryChanger, const Engine& engine, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, const CSPlayerInventory& localInventory, const Entity& local) noexcept
+static void applyWeapons(const inventory_changer::InventoryChanger& inventoryChanger, const csgo::Engine& engine, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, const csgo::CSPlayerInventory& localInventory, const csgo::Entity& local) noexcept
 {
     const auto localTeam = local.getTeamNumber();
     const auto localXuid = local.getSteamId(engine);
-    const auto itemSchema = ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema());
+    const auto itemSchema = csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema());
 
     const auto highestEntityIndex = clientInterfaces.getEntityList().getHighestEntityIndex();
     for (int i = memory.globalVars->maxClients + 1; i <= highestEntityIndex; ++i) {
-        const auto entity = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
+        const auto entity = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
         if (entity.getPOD() == nullptr || !entity.isWeapon())
             continue;
 
@@ -300,7 +300,7 @@ static void applyWeapons(const inventory_changer::InventoryChanger& inventoryCha
         if (!def)
             continue;
 
-        const auto loadoutSlot = EconItemDefinition::from(retSpoofGadgets->client, def).getLoadoutSlot(localTeam);
+        const auto loadoutSlot = csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getLoadoutSlot(localTeam);
         const auto optionalItem = getItemFromLoadout(inventoryChanger.getBackend().getLoadout(), localTeam, loadoutSlot);
         if (!optionalItem.has_value())
             continue;
@@ -321,11 +321,11 @@ static void applyWeapons(const inventory_changer::InventoryChanger& inventoryCha
 
 static void onPostDataUpdateStart(const inventory_changer::InventoryChanger& inventoryChanger, const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, int localHandle) noexcept
 {
-    const auto local = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(localHandle));
+    const auto local = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(localHandle));
     if (local.getPOD() == nullptr)
         return;
 
-    const auto localInventory = CSPlayerInventory::from(retSpoofGadgets->client, memory.inventoryManager.getLocalInventory());
+    const auto localInventory = csgo::CSPlayerInventory::from(retSpoofGadgets->client, memory.inventoryManager.getLocalInventory());
     if (localInventory.getPOD() == nullptr)
         return;
 
@@ -364,7 +364,7 @@ static void applyMusicKit(const Memory& memory, const inventory_changer::backend
     pr->musicID()[localPlayer.get().getNetworkable().index()] = backend.getGameItemLookup().getStorage().getMusicKit(item->gameItem()).id;
 }
 
-static void applyPlayerAgent(const inventory_changer::InventoryChanger& inventoryChanger, const ModelInfo& modelInfo, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory) noexcept
+static void applyPlayerAgent(const inventory_changer::InventoryChanger& inventoryChanger, const csgo::ModelInfo& modelInfo, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory) noexcept
 {
     if (!localPlayer)
         return;
@@ -377,11 +377,11 @@ static void applyPlayerAgent(const inventory_changer::InventoryChanger& inventor
     if (!item->gameItem().isAgent())
         return;
 
-    const auto def = ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(item->gameItem().getWeaponID());
+    const auto def = csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(item->gameItem().getWeaponID());
     if (!def)
         return;
 
-    const auto model = EconItemDefinition::from(retSpoofGadgets->client, def).getPlayerDisplayModel();
+    const auto model = csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getPlayerDisplayModel();
     if (!model)
         return;
 
@@ -395,7 +395,7 @@ static void applyPlayerAgent(const inventory_changer::InventoryChanger& inventor
     const auto idx = modelInfo.getModelIndex(model);
     localPlayer.get().setModelIndex(idx);
 
-    if (const auto ragdoll = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(localPlayer.get().ragdoll())); ragdoll.getPOD() != nullptr)
+    if (const auto ragdoll = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntityFromHandle(localPlayer.get().ragdoll())); ragdoll.getPOD() != nullptr)
         ragdoll.setModelIndex(idx);
 }
 
@@ -429,13 +429,13 @@ static std::vector<EquipRequest> equipRequests;
 
 static void simulateItemUpdate(const Memory& memory, const EconItemViewFunctions& econItemViewFunctions, std::uint64_t itemID)
 {
-    const auto localInventory = CSPlayerInventory::from(retSpoofGadgets->client, memory.inventoryManager.getLocalInventory());
+    const auto localInventory = csgo::CSPlayerInventory::from(retSpoofGadgets->client, memory.inventoryManager.getLocalInventory());
     if (localInventory.getPOD() == nullptr)
         return;
 
-    if (const auto view = EconItemView::from(retSpoofGadgets->client, memory.findOrCreateEconItemViewForItemID(itemID), econItemViewFunctions); view.getPOD() != nullptr) {
+    if (const auto view = csgo::EconItemView::from(retSpoofGadgets->client, memory.findOrCreateEconItemViewForItemID(itemID), econItemViewFunctions); view.getPOD() != nullptr) {
         if (const auto soc = view.getSOCData())
-            localInventory.soUpdated(localInventory.getSOID(), (csgo::pod::SharedObject*)soc, 4);
+            localInventory.soUpdated(localInventory.getSOID(), (csgo::SharedObjectPOD*)soc, 4);
     }
 }
 
@@ -453,7 +453,7 @@ static void processEquipRequests(const Memory& memory, const EconItemViewFunctio
     }
 }
 
-[[nodiscard]] static bool isLocalPlayerMVP(const Engine& engine, const GameEvent& event)
+[[nodiscard]] static bool isLocalPlayerMVP(const csgo::Engine& engine, const csgo::GameEvent& event)
 {
     return localPlayer && localPlayer.get().getUserId(engine) == event.getInt("userid");
 }
@@ -469,10 +469,10 @@ void inventory_changer::InventoryChanger::menuBarItem() noexcept
     }
 }
 
-void inventory_changer::InventoryChanger::tabItem(const OtherInterfaces& interfaces, const Memory& memory) noexcept
+void inventory_changer::InventoryChanger::tabItem(const Memory& memory) noexcept
 {
     if (ImGui::BeginTabItem("Inventory Changer")) {
-        drawGUI(interfaces, memory, true);
+        drawGUI(memory, true);
         ImGui::EndTabItem();
     }
 }
@@ -727,13 +727,13 @@ private:
     const WeaponNames& weaponNames;
 };
 
-void InventoryChanger::scheduleHudUpdate(const OtherInterfaces& interfaces) noexcept
+void InventoryChanger::scheduleHudUpdate() noexcept
 {
-    interfaces.getCvar().findVar(csgo::cl_fullupdate)->changeCallback();
+    otherInterfaces.getCvar().findVar(csgo::cl_fullupdate)->changeCallback();
     hudUpdateRequired = true;
 }
 
-void InventoryChanger::drawGUI(const OtherInterfaces& interfaces, const Memory& memory, bool contentOnly)
+void InventoryChanger::drawGUI(const Memory& memory, bool contentOnly)
 {
     if (!contentOnly) {
         if (!windowOpen)
@@ -755,7 +755,7 @@ void InventoryChanger::drawGUI(const OtherInterfaces& interfaces, const Memory& 
     if (!isInAddMode) {
         ImGui::SameLine();
         if (ImGui::Button("Force Update"))
-            scheduleHudUpdate(interfaces);
+            scheduleHudUpdate();
     }
 
     constexpr auto rarityColor = [](EconRarity rarity) noexcept {
@@ -796,7 +796,7 @@ void InventoryChanger::drawGUI(const OtherInterfaces& interfaces, const Memory& 
         if (filterChanged) {
             const std::wstring filterWide{ Helpers::ToUpperConverter{}.toUpper(Helpers::toWideString(filter)) };
 
-            gameItemList.filter([&passesFilter, &filterWide, &weaponNames = inventory_changer::WeaponNames::instance(interfaces, memory), &gameItemStorage = getGameItemLookup().getStorage()](const inventory_changer::game_items::Item& item) {
+            gameItemList.filter([&passesFilter, &filterWide, &weaponNames = inventory_changer::WeaponNames::instance(otherInterfaces, memory), &gameItemStorage = getGameItemLookup().getStorage()](const inventory_changer::game_items::Item& item) {
                 return filterWide.empty() || passesFilter(filterWide, weaponNames.getWeaponNameUpper(item.getWeaponID()), getItemName(gameItemStorage, item).forSearch);
             });
         }
@@ -805,21 +805,20 @@ void InventoryChanger::drawGUI(const OtherInterfaces& interfaces, const Memory& 
             static std::vector<int> toAddCount(gameItemList.totalItemCount(), 1);
 
             if (static bool sorted = false; !sorted) {
-                gameItemList.sort(inventory_changer::NameComparator{ getGameItemLookup().getStorage(), inventory_changer::WeaponNames::instance(interfaces, memory) });
+                gameItemList.sort(inventory_changer::NameComparator{ getGameItemLookup().getStorage(), inventory_changer::WeaponNames::instance(otherInterfaces, memory) });
                 sorted = true;
             }
 
-            Helpers::RandomGenerator randomGenerator;
             for (const auto& [i, gameItem] : gameItemList.getItems()) {
                 if (addingAll) {
-                    backend.getInventoryHandler().addItem(inventory::Item{ gameItem, item_generator::createDefaultItemProperties(randomGenerator, getGameItemLookup().getStorage(), gameItem) }, true);
+                    backend.getInventoryHandler().addItem(inventory::Item{ gameItem, backend.getItemGenerator().createDefaultItemProperties(gameItem) }, true);
                 }
 
                 ImGui::PushID(i);
 
-                if (ImGui::SkinSelectable(*this, interfaces, memory, gameItem, { 37.0f, 28.0f }, { 200.0f, 150.0f }, rarityColor(gameItem.getRarity()), &toAddCount[i])) {
+                if (ImGui::SkinSelectable(*this, otherInterfaces, memory, gameItem, { 37.0f, 28.0f }, { 200.0f, 150.0f }, rarityColor(gameItem.getRarity()), &toAddCount[i])) {
                     for (int j = 0; j < toAddCount[i]; ++j)
-                        backend.getInventoryHandler().addItem(inventory::Item{ gameItem, item_generator::createDefaultItemProperties(randomGenerator, getGameItemLookup().getStorage(), gameItem) }, true);
+                        backend.getInventoryHandler().addItem(inventory::Item{ gameItem, backend.getItemGenerator().createDefaultItemProperties(gameItem) }, true);
                     toAddCount[i] = 1;
                 }
                 ImGui::PopID();
@@ -838,7 +837,7 @@ void InventoryChanger::drawGUI(const OtherInterfaces& interfaces, const Memory& 
 
                 ImGui::PushID(i);
                 bool shouldDelete = false;
-                ImGui::SkinItem(*this, interfaces, memory, it->gameItem(), { 37.0f, 28.0f }, { 200.0f, 150.0f }, rarityColor(it->gameItem().getRarity()), shouldDelete);
+                ImGui::SkinItem(*this, otherInterfaces, memory, it->gameItem(), { 37.0f, 28.0f }, { 200.0f, 150.0f }, rarityColor(it->gameItem().getRarity()), shouldDelete);
                 if (shouldDelete) {
                     it = std::make_reverse_iterator(backend.getItemRemovalHandler()(std::next(it).base()));
                 } else {
@@ -969,7 +968,7 @@ void inventory_changer::InventoryChanger::clearUnusedItemIconTextures() noexcept
     }
 }
 
-static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
+static int remapKnifeAnim(WeaponId weaponID, const int sequence, Helpers::RandomGenerator& randomGenerator) noexcept
 {
     enum Sequence
     {
@@ -1007,9 +1006,9 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
     case WeaponId::Butterfly:
         switch (sequence) {
         case SEQUENCE_DEFAULT_DRAW:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ SEQUENCE_BUTTERFLY_DRAW, SEQUENCE_BUTTERFLY_DRAW2 });
+            return randomGenerator(std::uniform_int_distribution<>{ SEQUENCE_BUTTERFLY_DRAW, SEQUENCE_BUTTERFLY_DRAW2 });
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ SEQUENCE_BUTTERFLY_LOOKAT01, SEQUENCE_BUTTERFLY_LOOKAT03 });
+            return randomGenerator(std::uniform_int_distribution<>{ SEQUENCE_BUTTERFLY_LOOKAT01, SEQUENCE_BUTTERFLY_LOOKAT03 });
         default:
             return sequence + 1;
         }
@@ -1021,9 +1020,9 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
         case SEQUENCE_DEFAULT_HEAVY_BACKSTAB:
             return sequence;
         case SEQUENCE_DEFAULT_HEAVY_MISS1:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ SEQUENCE_FALCHION_HEAVY_MISS1, SEQUENCE_FALCHION_HEAVY_MISS1_NOFLIP });
+            return randomGenerator(std::uniform_int_distribution<>{ SEQUENCE_FALCHION_HEAVY_MISS1, SEQUENCE_FALCHION_HEAVY_MISS1_NOFLIP });
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ SEQUENCE_FALCHION_LOOKAT01, SEQUENCE_FALCHION_LOOKAT02 });
+            return randomGenerator(std::uniform_int_distribution<>{ SEQUENCE_FALCHION_LOOKAT01, SEQUENCE_FALCHION_LOOKAT02 });
         default:
             return sequence - 1;
         }
@@ -1033,9 +1032,9 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
             return SEQUENCE_DAGGERS_IDLE1;
         case SEQUENCE_DEFAULT_LIGHT_MISS1:
         case SEQUENCE_DEFAULT_LIGHT_MISS2:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ SEQUENCE_DAGGERS_LIGHT_MISS1, SEQUENCE_DAGGERS_LIGHT_MISS5 });
+            return randomGenerator(std::uniform_int_distribution<>{ SEQUENCE_DAGGERS_LIGHT_MISS1, SEQUENCE_DAGGERS_LIGHT_MISS5 });
         case SEQUENCE_DEFAULT_HEAVY_MISS1:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ SEQUENCE_DAGGERS_HEAVY_MISS2, SEQUENCE_DAGGERS_HEAVY_MISS1 });
+            return randomGenerator(std::uniform_int_distribution<>{ SEQUENCE_DAGGERS_HEAVY_MISS2, SEQUENCE_DAGGERS_HEAVY_MISS1 });
         case SEQUENCE_DEFAULT_HEAVY_HIT1:
         case SEQUENCE_DEFAULT_HEAVY_BACKSTAB:
         case SEQUENCE_DEFAULT_LOOKAT01:
@@ -1063,21 +1062,21 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
     case WeaponId::SurvivalKnife:
         switch (sequence) {
         case SEQUENCE_DEFAULT_DRAW:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ SEQUENCE_BUTTERFLY_DRAW, SEQUENCE_BUTTERFLY_DRAW2 });
+            return randomGenerator(std::uniform_int_distribution<>{ SEQUENCE_BUTTERFLY_DRAW, SEQUENCE_BUTTERFLY_DRAW2 });
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ SEQUENCE_BUTTERFLY_LOOKAT01, Sequence(14) });
+            return randomGenerator(std::uniform_int_distribution<>{ SEQUENCE_BUTTERFLY_LOOKAT01, Sequence(14) });
         default:
             return sequence + 1;
         }
     case WeaponId::Stiletto:
         switch (sequence) {
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ 12, 13 });
+            return randomGenerator(std::uniform_int_distribution<>{ 12, 13 });
         }
     case WeaponId::Talon:
         switch (sequence) {
         case SEQUENCE_DEFAULT_LOOKAT01:
-            return Helpers::RandomGenerator{}(std::uniform_int_distribution<>{ 14, 15 });
+            return randomGenerator(std::uniform_int_distribution<>{ 14, 15 });
         }
     default:
         return sequence;
@@ -1087,7 +1086,7 @@ static int remapKnifeAnim(WeaponId weaponID, const int sequence) noexcept
 namespace inventory_changer
 {
 
-void InventoryChanger::onSoUpdated(const SharedObject& object) noexcept
+void InventoryChanger::onSoUpdated(const csgo::SharedObject& object) noexcept
 {
     if (object.getTypeID() == 43 /* = k_EEconTypeDefaultEquippedDefinitionInstanceClient */) {
         WeaponId& weaponID = *reinterpret_cast<WeaponId*>(std::uintptr_t(object.getPOD()) + WIN32_LINUX(0x10, 0x1C));
@@ -1098,7 +1097,7 @@ void InventoryChanger::onSoUpdated(const SharedObject& object) noexcept
     }
 }
 
-void InventoryChanger::run(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, csgo::FrameStage stage) noexcept
+void InventoryChanger::run(const Memory& memory, csgo::FrameStage stage) noexcept
 {
     static int localPlayerHandle = -1;
 
@@ -1106,7 +1105,7 @@ void InventoryChanger::run(const EngineInterfaces& engineInterfaces, const Clien
         localPlayerHandle = localPlayer.get().handle();
 
     if (stage == csgo::FrameStage::NET_UPDATE_POSTDATAUPDATE_START) {
-        onPostDataUpdateStart(*this, engineInterfaces, clientInterfaces, interfaces, memory, localPlayerHandle);
+        onPostDataUpdateStart(*this, engineInterfaces, clientInterfaces, otherInterfaces, memory, localPlayerHandle);
         if (hudUpdateRequired && localPlayer && !localPlayer.get().getNetworkable().isDormant())
             updateHud(memory);
     }
@@ -1114,25 +1113,24 @@ void InventoryChanger::run(const EngineInterfaces& engineInterfaces, const Clien
     if (stage != csgo::FrameStage::RENDER_START)
         return;
 
-    const auto localInventory = CSPlayerInventory::from(retSpoofGadgets->client, memory.inventoryManager.getLocalInventory());
+    const auto localInventory = csgo::CSPlayerInventory::from(retSpoofGadgets->client, memory.inventoryManager.getLocalInventory());
     if (localInventory.getPOD() == nullptr)
         return;
 
     if (localPlayer)
-        applyGloves(engineInterfaces, clientInterfaces, interfaces, memory, backend, localInventory, localPlayer.get());
+        applyGloves(engineInterfaces, clientInterfaces, otherInterfaces, memory, backend, localInventory, localPlayer.get());
 
     applyMusicKit(memory, backend);
-    applyPlayerAgent(*this, engineInterfaces.getModelInfo(), clientInterfaces, interfaces, memory);
+    applyPlayerAgent(*this, engineInterfaces.getModelInfo(), clientInterfaces, otherInterfaces, memory);
     applyMedal(memory, backend.getLoadout());
 
-    processEquipRequests(memory, econItemViewFunctions);
-    static game_integration::Inventory gameInventory{ interfaces, memory, econItemFunctions, econItemViewFunctions };
+    processEquipRequests(memory, gameInventory.getEconItemViewFunctions());
     backend.run(gameInventory, std::chrono::milliseconds{ 300 });
 }
 
-InventoryChanger createInventoryChanger(const OtherInterfaces& interfaces, const Memory& memory)
+InventoryChanger createInventoryChanger(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory, const helpers::PatternFinder& clientPatternFinder, Helpers::RandomGenerator& randomGenerator)
 {
-    auto itemSchema = ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema());
+    auto itemSchema = csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema());
     game_integration::Items items{ itemSchema, interfaces.getLocalize() };
     auto storage = game_integration::createGameItemStorage(interfaces, items);
     storage.compress();
@@ -1144,13 +1142,7 @@ InventoryChanger createInventoryChanger(const OtherInterfaces& interfaces, const
     crateLoot.compress();
     auto crateLootLookup = game_items::CrateLootLookup{ std::move(crateLoot) };
 
-#if IS_WIN32()
-    const windows_platform::DynamicLibrary clientDLL{ windows_platform::DynamicLibraryWrapper{}, csgo::CLIENT_DLL };
-#elif IS_LINUX()
-    const linux_platform::SharedObject clientDLL{ linux_platform::DynamicLibraryWrapper{}, csgo::CLIENT_DLL };
-#endif
-
-    return InventoryChanger{ std::move(gameItemLookup), std::move(crateLootLookup), helpers::PatternFinder{ getCodeSection(clientDLL.getView()) } };
+    return InventoryChanger{ engineInterfaces, clientInterfaces, interfaces, memory, std::move(gameItemLookup), std::move(crateLootLookup), clientPatternFinder, randomGenerator };
 }
 
 void InventoryChanger::getArgAsNumberHook(int number, ReturnAddress returnAddress)
@@ -1159,9 +1151,9 @@ void InventoryChanger::getArgAsNumberHook(int number, ReturnAddress returnAddres
         requestBuilderParams.stickerSlot = static_cast<std::uint8_t>(number);
 }
 
-void InventoryChanger::onRoundMVP(const Engine& engine, const GameEvent& event)
+void InventoryChanger::onRoundMVP(const csgo::GameEvent& event)
 {
-    if (!isLocalPlayerMVP(engine, event))
+    if (!isLocalPlayerMVP(engineInterfaces.getEngine(), event))
         return;
 
     const auto optionalItem = backend.getLoadout().getItemInSlotNoTeam(54);
@@ -1179,15 +1171,15 @@ void InventoryChanger::onRoundMVP(const Engine& engine, const GameEvent& event)
     }
 }
 
-void InventoryChanger::updateStatTrak(const Engine& engine, const GameEvent& event)
+void InventoryChanger::updateStatTrak(const csgo::GameEvent& event)
 {
     if (!localPlayer)
         return;
 
-    if (const auto localUserId = localPlayer.get().getUserId(engine); event.getInt("attacker") != localUserId || event.getInt("userid") == localUserId)
+    if (const auto localUserId = localPlayer.get().getUserId(engineInterfaces.getEngine()); event.getInt("attacker") != localUserId || event.getInt("userid") == localUserId)
         return;
 
-    const auto weapon = Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
+    const auto weapon = csgo::Entity::from(retSpoofGadgets->client, localPlayer.get().getActiveWeapon());
     if (weapon.getPOD() == nullptr)
         return;
 
@@ -1204,12 +1196,12 @@ void InventoryChanger::updateStatTrak(const Engine& engine, const GameEvent& eve
         backend.getItemModificationHandler().updateStatTrak(item, skin->statTrak + 1);
 }
 
-void InventoryChanger::overrideHudIcon(const Engine& engine, const Memory& memory, const GameEvent& event)
+void InventoryChanger::overrideHudIcon(const Memory& memory, const csgo::GameEvent& event)
 {
     if (!localPlayer)
         return;
 
-    if (event.getInt("attacker") != localPlayer.get().getUserId(engine))
+    if (event.getInt("attacker") != localPlayer.get().getUserId(engineInterfaces.getEngine()))
         return;
 
     if (const auto weapon = std::string_view{ event.getString("weapon") }; weapon != "knife" && weapon != "knife_t")
@@ -1221,8 +1213,8 @@ void InventoryChanger::overrideHudIcon(const Engine& engine, const Memory& memor
 
     const auto& item = *optionalItem;
 
-    if (const auto def = ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(item->gameItem().getWeaponID())) {
-        if (const auto defName = EconItemDefinition::from(retSpoofGadgets->client, def).getDefinitionName(); defName && std::string_view{ defName }.starts_with("weapon_"))
+    if (const auto def = csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(item->gameItem().getWeaponID())) {
+        if (const auto defName = csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getDefinitionName(); defName && std::string_view{ defName }.starts_with("weapon_"))
             event.setString("weapon", defName + 7);
     }
 }
@@ -1283,7 +1275,7 @@ void InventoryChanger::getArgAsStringHook(const Memory& memory, const char* stri
 
         const auto groupId = (std::uint16_t)hooks->panoramaMarshallHelper.callOriginal<double, 5>(params, 1);
         const auto pickInGroupIndex = (std::uint8_t)hooks->panoramaMarshallHelper.callOriginal<double, 5>(params, 2);
-        PanoramaMarshallHelper::from(retSpoofGadgets->client, memory.panoramaMarshallHelper).setResult(params, static_cast<int>(backend.getPickEm().getPickedTeam({ tournament, groupId, pickInGroupIndex })));
+        csgo::PanoramaMarshallHelper::from(retSpoofGadgets->client, memory.panoramaMarshallHelper).setResult(params, static_cast<int>(backend.getPickEm().getPickedTeam({ tournament, groupId, pickInGroupIndex })));
     } else if (returnAddress == returnAddresses.setInventorySortAndFiltersGetArgAsString) {
         panoramaCodeInXrayScanner = (std::strcmp(string, "xraymachine") == 0);
     } else if (returnAddress == returnAddresses.performItemCasketTransactionGetArgAsString) {
@@ -1378,11 +1370,11 @@ void InventoryChanger::onUserTextMsg(const Memory& memory, const void*& data, in
         if (!itemSchema)
             return;
 
-        const auto def = ItemSchema::from(retSpoofGadgets->client, itemSchema).getItemDefinitionInterface(item->gameItem().getWeaponID());
+        const auto def = csgo::ItemSchema::from(retSpoofGadgets->client, itemSchema).getItemDefinitionInterface(item->gameItem().getWeaponID());
         if (!def)
             return;
 
-        userTextMsgBuffer = buildTextUserMessage(HUD_PRINTCENTER, strings[0], EconItemDefinition::from(retSpoofGadgets->client, def).getItemBaseName());
+        userTextMsgBuffer = buildTextUserMessage(HUD_PRINTCENTER, strings[0], csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getItemBaseName());
         data = userTextMsgBuffer.data();
         size = static_cast<int>(userTextMsgBuffer.size());
     } else if (reader.readInt32(1) == HUD_PRINTTALK) {
@@ -1400,11 +1392,11 @@ void InventoryChanger::onUserTextMsg(const Memory& memory, const void*& data, in
         if (!itemSchema)
             return;
 
-        const auto def = ItemSchema::from(retSpoofGadgets->client, itemSchema).getItemDefinitionInterface(item->gameItem().getWeaponID());
+        const auto def = csgo::ItemSchema::from(retSpoofGadgets->client, itemSchema).getItemDefinitionInterface(item->gameItem().getWeaponID());
         if (!def)
             return;
 
-        userTextMsgBuffer = buildTextUserMessage(HUD_PRINTTALK, strings[0], strings[1], EconItemDefinition::from(retSpoofGadgets->client, def).getItemBaseName());
+        userTextMsgBuffer = buildTextUserMessage(HUD_PRINTTALK, strings[0], strings[1], csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getItemBaseName());
         data = userTextMsgBuffer.data();
         size = static_cast<int>(userTextMsgBuffer.size());
     }
@@ -1431,21 +1423,21 @@ void InventoryChanger::acknowledgeItem(const Memory& memory, std::uint64_t itemI
     if (!backend.itemFromID(ItemId{ itemID }).has_value())
         return;
 
-    const auto localInventory = CSPlayerInventory::from(retSpoofGadgets->client, memory.inventoryManager.getLocalInventory());
+    const auto localInventory = csgo::CSPlayerInventory::from(retSpoofGadgets->client, memory.inventoryManager.getLocalInventory());
     if (localInventory.getPOD() == nullptr)
         return;
 
-    if (const auto view = EconItemView::from(retSpoofGadgets->client, memory.findOrCreateEconItemViewForItemID(itemID), econItemViewFunctions); view.getPOD() != nullptr) {
+    if (const auto view = csgo::EconItemView::from(retSpoofGadgets->client, memory.findOrCreateEconItemViewForItemID(itemID), gameInventory.getEconItemViewFunctions()); view.getPOD() != nullptr) {
         if (const auto soc = view.getSOCData()) {
             if (const auto baseTypeCache = getItemBaseTypeCache(localInventory, memory.createBaseTypeCache)) {
                 soc->inventory = baseTypeCache->getHighestIDs().second + 1;
-                localInventory.soUpdated(localInventory.getSOID(), (csgo::pod::SharedObject*)soc, 4);
+                localInventory.soUpdated(localInventory.getSOID(), (csgo::SharedObjectPOD*)soc, 4);
             }
         }
     }
 }
 
-void InventoryChanger::fixKnifeAnimation(const Entity& viewModelWeapon, long& sequence)
+void InventoryChanger::fixKnifeAnimation(const csgo::Entity& viewModelWeapon, long& sequence, Helpers::RandomGenerator& randomGenerator)
 {
     if (!localPlayer)
         return;
@@ -1456,14 +1448,13 @@ void InventoryChanger::fixKnifeAnimation(const Entity& viewModelWeapon, long& se
     if (const auto optionalItem = getItemFromLoadout(backend.getLoadout(), localPlayer.get().getTeamNumber(), 0); !optionalItem.has_value())
         return;
 
-    sequence = remapKnifeAnim(viewModelWeapon.itemDefinitionIndex(), sequence);
+    sequence = remapKnifeAnim(viewModelWeapon.itemDefinitionIndex(), sequence, randomGenerator);
 }
 
-void InventoryChanger::reset(const OtherInterfaces& interfaces, const Memory& memory)
+void InventoryChanger::reset(const Memory& memory)
 {
     clearInventory(backend);
     backend.getPickEmHandler().clearPicks();
-    static inventory_changer::game_integration::Inventory gameInventory{ interfaces, memory, econItemFunctions, econItemViewFunctions };
     backend.run(gameInventory, std::chrono::milliseconds{ 0 });
 }
 

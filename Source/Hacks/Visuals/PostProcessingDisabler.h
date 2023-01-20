@@ -1,8 +1,8 @@
 #pragma once
 
 #include <Helpers/PatternFinder.h>
-#include <Platform/IsPlatform.h>
-#include <SDK/Constants/FrameStage.h>
+#include <Platform/Macros/IsPlatform.h>
+#include <CSGO/Constants/FrameStage.h>
 
 class PostProcessingDisabler {
 public:

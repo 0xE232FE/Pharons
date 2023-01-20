@@ -6,7 +6,7 @@
 #include <system_error>
 #include <tuple>
 
-#include <Platform/IsPlatform.h>
+#include <Platform/Macros/IsPlatform.h>
 
 #if IS_WIN32()
 #include <Windows.h>
@@ -597,7 +597,7 @@ void Config::reset(Misc& misc, inventory_changer::InventoryChanger& inventoryCha
     backtrack.configure(configurator);
     glow.resetConfig();
     visuals.resetConfig();
-    inventoryChanger.reset(interfaces, memory);
+    inventoryChanger.reset(memory);
     Sound::resetConfig();
     misc.resetConfig();
 }

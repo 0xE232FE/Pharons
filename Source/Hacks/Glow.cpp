@@ -14,29 +14,29 @@
 #include "Glow.h"
 #include "../Helpers.h"
 #include "../Memory.h"
-#include <SDK/Constants/ClassId.h>
-#include "../SDK/ClientClass.h"
-#include "../SDK/Engine.h"
-#include "../SDK/Entity.h"
-#include "../SDK/EntityList.h"
-#include "../SDK/GlobalVars.h"
-#include "../SDK/GlowObjectManager.h"
-#include "../SDK/LocalPlayer.h"
-#include "../SDK/Utils.h"
-#include "../SDK/UtlVector.h"
-#include "../SDK/Vector.h"
+#include <CSGO/Constants/ClassId.h>
+#include <CSGO/ClientClass.h>
+#include <CSGO/Engine.h>
+#include <CSGO/Entity.h>
+#include <CSGO/EntityList.h>
+#include <CSGO/GlobalVars.h>
+#include <CSGO/GlowObjectManager.h>
+#include <CSGO/LocalPlayer.h>
+#include <CSGO/Utils.h>
+#include <CSGO/UtlVector.h>
+#include <CSGO/Vector.h>
 #include "../imguiCustom.h"
 
 #include <Interfaces/ClientInterfaces.h>
 
-void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const OtherInterfaces& interfaces, const Memory& memory) noexcept
+void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfaces& clientInterfaces, const Memory& memory) noexcept
 {
     if (!localPlayer)
         return;
 
     auto& glow = glowConfig;
 
-    Glow::clearCustomObjects(memory);
+    Glow::clearCustomObjects();
 
     if (glowToggleKey.isSet()) {
         if (!glowToggleKey.isToggled() && !glowHoldKey.isDown())
@@ -47,7 +47,7 @@ void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfac
 
     const auto highestEntityIndex = clientInterfaces.getEntityList().getHighestEntityIndex();
     for (int i = engineInterfaces.getEngine().getMaxClients() + 1; i <= highestEntityIndex; ++i) {
-        const auto entity = Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
+        const auto entity = csgo::Entity::from(retSpoofGadgets->client, clientInterfaces.getEntityList().getEntity(i));
         if (entity.getPOD() == nullptr || entity.getNetworkable().isDormant())
             continue;
 
@@ -63,8 +63,8 @@ void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfac
         case ClassId::SnowballProjectile:
         case ClassId::Hostage:
         case ClassId::CSRagdoll:
-            if (!memory.glowObjectManager->hasGlowEffect(entity.getPOD())) {
-                if (auto index{ memory.glowObjectManager->registerGlowObject(entity.getPOD()) }; index != -1)
+            if (!glowObjectManager->hasGlowEffect(entity.getPOD())) {
+                if (auto index{ glowObjectManager->registerGlowObject(entity.getPOD() WIN32_ARGS(, glowObjectAntiCheatCheck)) }; index != -1)
                     customGlowEntities.emplace_back(i, index);
             }
             break;
@@ -73,15 +73,15 @@ void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfac
         }
     }
 
-    for (int i = 0; i < memory.glowObjectManager->glowObjectDefinitions.size; i++) {
-        GlowObjectDefinition& glowobject = memory.glowObjectManager->glowObjectDefinitions[i];
+    for (int i = 0; i < glowObjectManager->glowObjectDefinitions.size; i++) {
+        csgo::GlowObjectDefinition& glowobject = glowObjectManager->glowObjectDefinitions[i];
 
-        const auto entity = Entity::from(retSpoofGadgets->client, glowobject.entity);
+        const auto entity = csgo::Entity::from(retSpoofGadgets->client, glowobject.entity);
 
         if (glowobject.isUnused() || entity.getPOD() == nullptr || entity.getNetworkable().isDormant())
             continue;
 
-        auto applyGlow = [&glowobject, &memory](const GlowItem& glow, int health = 0) noexcept
+        auto applyGlow = [&glowobject, &memory, this](const GlowItem& glow, int health = 0) noexcept
         {
             if (glow.enabled) {
                 glowobject.renderWhenOccluded = true;
@@ -96,10 +96,13 @@ void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfac
                 } else {
                     glowobject.glowColor = { glow.color[0], glow.color[1], glow.color[2] };
                 }
+#if IS_WIN32()
+                glowObjectAntiCheatCheck(&glowobject.entity);
+#endif
             }
         };
 
-        auto applyPlayerGlow = [this, applyGlow, &memory, &engineInterfaces](const std::string& name, const Entity& entity) noexcept {
+        auto applyPlayerGlow = [this, applyGlow, &memory, &engineInterfaces](const std::string& name, const csgo::Entity& entity) noexcept {
             const auto& cfg = playerGlowConfig[name];
             if (cfg.all.enabled) 
                 applyGlow(cfg.all, entity.health());
@@ -113,7 +116,7 @@ void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfac
         case ClassId::CSPlayer:
             if (!entity.isAlive())
                 break;
-            if (const auto activeWeapon = Entity::from(retSpoofGadgets->client, entity.getActiveWeapon()); activeWeapon.getPOD() != nullptr && activeWeapon.getNetworkable().getClientClass()->classId == ClassId::C4 && activeWeapon.c4StartedArming())
+            if (const auto activeWeapon = csgo::Entity::from(retSpoofGadgets->client, entity.getActiveWeapon()); activeWeapon.getPOD() != nullptr && activeWeapon.getNetworkable().getClientClass()->classId == ClassId::C4 && activeWeapon.c4StartedArming())
                 applyPlayerGlow("Planting", entity);
             else if (entity.isDefusing())
                 applyPlayerGlow("Defusing", entity);
@@ -144,16 +147,21 @@ void Glow::render(const EngineInterfaces& engineInterfaces, const ClientInterfac
         default:
            if (entity.isWeapon()) {
                 applyGlow(glow["Weapons"]);
-                if (!glow["Weapons"].enabled) glowobject.renderWhenOccluded = false;
+                if (!glow["Weapons"].enabled) {
+                    glowobject.renderWhenOccluded = false;
+#if IS_WIN32()
+                    glowObjectAntiCheatCheck(&glowobject.entity);
+#endif
+                }
             }
         }
     }
 }
 
-void Glow::clearCustomObjects(const Memory& memory) noexcept
+void Glow::clearCustomObjects() noexcept
 {
     for (const auto& [entityIndex, glowObjectIndex] : customGlowEntities)
-        memory.glowObjectManager->unregisterGlowObject(glowObjectIndex);
+        glowObjectManager->unregisterGlowObject(glowObjectIndex WIN32_ARGS(, glowObjectAntiCheatCheck));
 
     customGlowEntities.clear();
 }

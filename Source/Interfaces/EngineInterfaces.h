@@ -1,12 +1,12 @@
 #pragma once
 
 #include "EngineInterfacesPODs.h"
-#include <Platform/RetSpoofInvoker.h>
+#include <RetSpoof/RetSpoofInvoker.h>
 
-#include <SDK/Engine.h>
-#include <SDK/EngineTrace.h>
-#include <SDK/GameEvent.h>
-#include <SDK/ModelInfo.h>
+#include <CSGO/Engine.h>
+#include <CSGO/EngineTrace.h>
+#include <CSGO/GameEvent.h>
+#include <CSGO/ModelInfo.h>
 
 class EngineInterfaces {
 public:
@@ -17,22 +17,22 @@ public:
 
     [[nodiscard]] auto getEngine() const noexcept
     {
-        return Engine::from(retSpoofInvoker, pods.engine);
+        return csgo::Engine::from(retSpoofInvoker, pods.engine);
     }
 
-    [[nodiscard]] auto getGameEventManager(std::uintptr_t getEventDescriptorFn) const noexcept
+    [[nodiscard]] auto getGameEventManager(csgo::GetEventDescriptor getEventDescriptorFn) const noexcept
     {
-        return GameEventManager::from(retSpoofInvoker, pods.gameEventManager, getEventDescriptorFn);
+        return csgo::GameEventManager::from(retSpoofInvoker, pods.gameEventManager, getEventDescriptorFn);
     }
 
     [[nodiscard]] auto getModelInfo() const noexcept
     {
-        return ModelInfo::from(retSpoofInvoker, pods.modelInfo);
+        return csgo::ModelInfo::from(retSpoofInvoker, pods.modelInfo);
     }
 
     [[nodiscard]] auto engineTrace() const noexcept
     {
-        return EngineTrace::from(retSpoofInvoker, pods.engineTrace);
+        return csgo::EngineTrace::from(retSpoofInvoker, pods.engineTrace);
     }
 
     [[nodiscard]] const EngineInterfacesPODs& getPODs() const noexcept
@@ -42,5 +42,5 @@ public:
 
 private:
     RetSpoofInvoker retSpoofInvoker;
-    const EngineInterfacesPODs& pods;
+    EngineInterfacesPODs pods;
 };

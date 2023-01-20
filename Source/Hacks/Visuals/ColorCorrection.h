@@ -3,8 +3,7 @@
 #include <cstdint>
 
 #include <Config/ResetConfigurator.h>
-#include <Platform/PlatformSpecific.h>
-#include <SDK/ClientMode.h>
+#include <CSGO/ClientMode.h>
 
 struct ColorCorrection {
     bool enabled;
@@ -22,7 +21,7 @@ struct ColorCorrection {
         configure(configurator);
     }
 
-    void run(ClientMode* clientMode) const noexcept
+    void run(csgo::ClientMode* clientMode) const noexcept
     {
         if (!enabled)
             return;

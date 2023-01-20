@@ -2,19 +2,19 @@
 
 #include "../Memory.h"
 
-#include "../SDK/Entity.h"
-#include "../SDK/GameMovement.h"
-#include "../SDK/GlobalVars.h"
-#include "../SDK/LocalPlayer.h"
-#include "../SDK/MoveHelper.h"
-#include "../SDK/Prediction.h"
+#include <CSGO/Entity.h>
+#include <CSGO/GameMovement.h>
+#include <CSGO/GlobalVars.h>
+#include <CSGO/LocalPlayer.h>
+#include <CSGO/MoveHelper.h>
+#include <CSGO/Prediction.h>
 
 #include "EnginePrediction.h"
 #include <Interfaces/ClientInterfaces.h>
 
 static int localPlayerFlags;
 
-void EnginePrediction::run(const ClientInterfaces& clientInterfaces, const Memory& memory, UserCmd* cmd) noexcept
+void EnginePrediction::run(const ClientInterfaces& clientInterfaces, const Memory& memory, csgo::UserCmd* cmd) noexcept
 {
     if (!localPlayer)
         return;

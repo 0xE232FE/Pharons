@@ -2,11 +2,11 @@
 
 #include "ClientInterfacesPODs.h"
 
-#include <Platform/RetSpoofInvoker.h>
-#include <SDK/Client.h>
-#include <SDK/EntityList.h>
-#include <SDK/GameMovement.h>
-#include <SDK/Prediction.h>
+#include <RetSpoof/RetSpoofInvoker.h>
+#include <CSGO/Client.h>
+#include <CSGO/EntityList.h>
+#include <CSGO/GameMovement.h>
+#include <CSGO/Prediction.h>
 
 class ClientInterfaces {
 public:
@@ -17,25 +17,25 @@ public:
 
     [[nodiscard]] auto getClient() const noexcept
     {
-        return Client::from(retSpoofInvoker, pods.client);
+        return csgo::Client::from(retSpoofInvoker, pods.client);
     }
 
     [[nodiscard]] auto getEntityList() const noexcept
     {
-        return EntityList::from(retSpoofInvoker, pods.entityList);
+        return csgo::EntityList::from(retSpoofInvoker, pods.entityList);
     }
 
     [[nodiscard]] auto getGameMovement() const noexcept
     {
-        return GameMovement::from(retSpoofInvoker, pods.gameMovement);
+        return csgo::GameMovement::from(retSpoofInvoker, pods.gameMovement);
     }
 
     [[nodiscard]] auto getPrediction() const noexcept
     {
-        return Prediction::from(retSpoofInvoker, pods.prediction);
+        return csgo::Prediction::from(retSpoofInvoker, pods.prediction);
     }
 
 private:
     RetSpoofInvoker retSpoofInvoker;
-    const ClientInterfacesPODs& pods;
+    ClientInterfacesPODs pods;
 };

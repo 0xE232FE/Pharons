@@ -12,22 +12,22 @@
 #include "Hacks/Visuals.h"
 #include "Netvars.h"
 
-#include "SDK/Constants/ClassId.h"
-#include "SDK/Client.h"
-#include "SDK/ClientClass.h"
-#include "SDK/Entity.h"
-#include "SDK/EntityList.h"
-#include "SDK/LocalPlayer.h"
-#include "SDK/Recv.h"
+#include "CSGO/Constants/ClassId.h"
+#include "CSGO/Client.h"
+#include "CSGO/ClientClass.h"
+#include "CSGO/Entity.h"
+#include "CSGO/EntityList.h"
+#include "CSGO/LocalPlayer.h"
+#include "CSGO/Recv.h"
 
 #include "GlobalContext.h"
 
-void CDECL_CONV spottedHook(recvProxyData& data, void* outStruct, void* arg3) noexcept;
-void CDECL_CONV viewModelSequence(recvProxyData& data, void* outStruct, void* arg3) noexcept;
+void CDECL_CONV spottedHook(csgo::recvProxyData* data, void* outStruct, void* arg3) noexcept;
+void CDECL_CONV viewModelSequence(csgo::recvProxyData* data, void* outStruct, void* arg3) noexcept;
 
 static std::vector<std::pair<std::uint32_t, std::uint32_t>> offsets;
 
-static void walkTable(const char* networkName, RecvTable* recvTable, const std::size_t offset = 0) noexcept
+static void walkTable(const char* networkName, csgo::RecvTable* recvTable, const std::size_t offset = 0) noexcept
 {
     for (int i = 0; i < recvTable->propCount; ++i) {
         auto& prop = recvTable->props[i];
@@ -63,7 +63,7 @@ static void walkTable(const char* networkName, RecvTable* recvTable, const std::
     }
 }
 
-void Netvars::init(const Client& client) noexcept
+void Netvars::init(const csgo::Client& client) noexcept
 {
     for (auto clientClass = client.getAllClasses(); clientClass; clientClass = clientClass->next)
         walkTable(clientClass->networkName, clientClass->recvTable);

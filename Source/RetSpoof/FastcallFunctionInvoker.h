@@ -1,15 +1,21 @@
 #pragma once
 
+#include <algorithm>
 #include <tuple>
 #include <utility>
 
-#include <Platform/RetSpoofInvoker.h>
+#include "RetSpoofInvoker.h"
 
 template <typename ReturnType, typename... Args>
 class FastcallFunctionInvoker {
 public:
     explicit FastcallFunctionInvoker(RetSpoofInvoker invoker, std::uintptr_t functionAddress)
         : invoker{ invoker }, functionAddress{ functionAddress }
+    {
+    }
+
+    explicit FastcallFunctionInvoker(RetSpoofInvoker invoker, ReturnType(FASTCALL_CONV* function)(Args...))
+        : invoker{ invoker }, functionAddress{ std::uintptr_t(function) }
     {
     }
 

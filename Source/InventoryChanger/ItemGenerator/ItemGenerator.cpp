@@ -10,7 +10,7 @@
 #include "../../Memory.h"
 #include "ItemGenerator.h"
 
-#include <SDK/ItemSchema.h>
+#include <CSGO/ItemSchema.h>
 #include "TournamentMatches.h"
 #include <InventoryChanger/GameItems/Lookup.h>
 #include <InventoryChanger/GameItems/CrateLootLookup.h>
@@ -808,16 +808,16 @@ constexpr auto crateRareSpecialItems = std::to_array<CrateRareSpecialItems>({
     return {};
 }
 
-[[nodiscard]] static EconRarity getRandomRarity(inventory_changer::EconRarities rarities)
+[[nodiscard]] static EconRarity getRandomRarity(inventory_changer::EconRarities rarities, Helpers::RandomGenerator& randomGenerator)
 {
     if (const auto rate = std::ranges::find(dropRates, rarities, &DropRate::rarities); rate != dropRates.end()) {
-        const auto rolledNumber = Helpers::RandomGenerator{}(std::uniform_int_distribution<DropRate::T>{(std::numeric_limits<DropRate::T>::min)(), (std::numeric_limits<DropRate::T>::max)()});
+        const auto rolledNumber = randomGenerator(std::uniform_int_distribution<DropRate::T>{(std::numeric_limits<DropRate::T>::min)(), (std::numeric_limits<DropRate::T>::max)()});
         return rate->mapToRarity(rolledNumber);
     }
     return EconRarity::Default;
 }
 
-namespace inventory_changer::item_generator
+namespace inventory_changer
 {
 
 [[nodiscard]] const game_items::Item& getRandomItemFromContainer(Helpers::RandomGenerator& randomGenerator, const game_items::Lookup& lookup, const game_items::CrateLootLookup& crateLootLookup, WeaponId weaponID, const game_items::CrateLoot::LootList& lootList) noexcept
@@ -828,7 +828,7 @@ namespace inventory_changer::item_generator
     if (!rareSpecialItems.empty())
         rarities.set(EconRarity::Gold);
 
-    if (const auto rarity = getRandomRarity(rarities); rarity != EconRarity::Default) {
+    if (const auto rarity = getRandomRarity(rarities, randomGenerator); rarity != EconRarity::Default) {
         if (rarity == EconRarity::Gold) {
             const auto& randomRareSpecialItem = rareSpecialItems[randomGenerator(std::uniform_int_distribution<std::size_t>{0u, rareSpecialItems.size() - 1u})];
             if (const auto item = lookup.findItem(randomRareSpecialItem.weaponID, randomRareSpecialItem.paintKit))
@@ -858,32 +858,32 @@ namespace inventory_changer::item_generator
     return system_clock::to_time_t(sys_days(31d / December / year) + 23h + 59min + 59s);
 }
 
-namespace inventory_changer::item_generator
+namespace inventory_changer
 {
 
 [[nodiscard]] inline std::uint8_t getNumberOfSupportedStickerSlots(const Memory& memory, WeaponId weaponID) noexcept
 {
-    if (const auto def = ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(weaponID))
-        return static_cast<std::uint8_t>(std::clamp(EconItemDefinition::from(retSpoofGadgets->client, def).getNumberOfSupportedStickerSlots(), 0, 5));
+    if (const auto def = csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()).getItemDefinitionInterface(weaponID))
+        return static_cast<std::uint8_t>(std::clamp(csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getNumberOfSupportedStickerSlots(), 0, 5));
     return 0;
 }
 
 struct StickerSlotCountGetter {
 public:
-    explicit StickerSlotCountGetter(ItemSchema itemSchema) : itemSchema{ itemSchema } {}
+    explicit StickerSlotCountGetter(csgo::ItemSchema itemSchema) : itemSchema{ itemSchema } {}
 
     [[nodiscard]] std::uint8_t operator()(WeaponId weaponId) const
     {
         if (const auto def = itemSchema.getItemDefinitionInterface(weaponId))
-            return static_cast<std::uint8_t>(std::clamp(EconItemDefinition::from(retSpoofGadgets->client, def).getNumberOfSupportedStickerSlots(), 0, 5));
+            return static_cast<std::uint8_t>(std::clamp(csgo::EconItemDefinition::from(retSpoofGadgets->client, def).getNumberOfSupportedStickerSlots(), 0, 5));
         return 0;
     }
 
 private:
-    ItemSchema itemSchema;
+    csgo::ItemSchema itemSchema;
 };
 
-std::optional<inventory::Item> generateItemFromContainer(const Memory& memory, Helpers::RandomGenerator& randomGenerator, const game_items::Lookup& gameItemLookup, const game_items::CrateLootLookup& crateLootLookup, const inventory::Item& caseItem, const inventory::Item* crateKey) noexcept
+std::optional<inventory::Item> ItemGenerator::generateItemFromContainer(const inventory::Item& caseItem, const inventory::Item* crateKey) const noexcept
 {
     assert(caseItem.gameItem().isCrate());
 
@@ -893,13 +893,13 @@ std::optional<inventory::Item> generateItemFromContainer(const Memory& memory, H
         return std::nullopt;
 
     const auto& unlockedItem = getRandomItemFromContainer(randomGenerator, gameItemLookup, crateLootLookup, caseItem.gameItem().getWeaponID(), *lootList);
-    DropGenerator dropGenerator{ gameItemLookup, AttributeGenerator{ randomGenerator }, StickerSlotCountGetter{ ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()) } };
+    item_generator::DropGenerator dropGenerator{ gameItemLookup, item_generator::AttributeGenerator{ randomGenerator }, StickerSlotCountGetter{ csgo::ItemSchema::from(retSpoofGadgets->client, memory.itemSystem().getItemSchema()) } };
     return inventory::Item{ unlockedItem, { dropGenerator.createCommonProperties(caseItem, crateKey), dropGenerator.createVariantProperties(unlockedItem, caseItem, lootList->willProduceStatTrak) } };
 }
 
-inventory::Item::Properties createDefaultItemProperties(Helpers::RandomGenerator& randomGenerator, const game_items::Storage& gameItemStorage, const game_items::Item& item) noexcept
+inventory::Item::Properties ItemGenerator::createDefaultItemProperties(const game_items::Item& item) const noexcept
 {
-    DefaultGenerator defaultGenerator{ gameItemStorage, AttributeGenerator{ randomGenerator } };
+    item_generator::DefaultGenerator defaultGenerator{ gameItemLookup.getStorage(), item_generator::AttributeGenerator{ randomGenerator } };
     return { defaultGenerator.createCommonProperties(item), defaultGenerator.createVariantProperties(item) };
 }
 
