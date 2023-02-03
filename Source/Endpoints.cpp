@@ -10,6 +10,20 @@
 
 #include <Platform/Macros/CallStack.h>
 
+#include "Hooks/BspQueryHooks.h"
+#include "Hooks/ClientHooks.h"
+#include "Hooks/ClientModeHooks.h"
+#include "Hooks/CSPlayerInventoryHooks.h"
+#include "Hooks/EngineHooks.h"
+#include "Hooks/EngineSoundHooks.h"
+#include "Hooks/InventoryManagerHooks.h"
+#include "Hooks/KeyValuesSystemHooks.h"
+#include "Hooks/ModelRenderHooks.h"
+#include "Hooks/PanoramaMarshallHelperHooks.h"
+#include "Hooks/SurfaceHooks.h"
+#include "Hooks/SvCheatsHooks.h"
+#include "Hooks/ViewRenderHooks.h"
+
 static std::optional<GlobalContext> globalContext;
 
 void initializeGlobalContext()
@@ -88,9 +102,9 @@ void STDCALL_CONV drawModelExecute(LINUX_ARGS(void* thisptr, ) void* ctx, void* 
     globalContext->drawModelExecuteHook(ctx, state, info, customBoneToWorld);
 }
 
-int FASTCALL_CONV svCheatsGetInt(void* _this) noexcept
+int FASTCALL_CONV svCheatsGetInt(csgo::ConVarPOD* thisptr) noexcept
 {
-    return globalContext->svCheatsGetIntHook(_this, RETURN_ADDRESS());
+    return globalContext->svCheatsGetIntHook(thisptr, RETURN_ADDRESS());
 }
 
 void STDCALL_CONV frameStageNotify(LINUX_ARGS(void* thisptr, ) csgo::FrameStage stage) noexcept
@@ -113,10 +127,12 @@ bool STDCALL_CONV shouldDrawViewModel(LINUX_ARGS(void* thisptr)) noexcept
     return globalContext->shouldDrawViewModelHook();
 }
 
+#if IS_WIN32()
 void STDCALL_CONV lockCursor() noexcept
 {
     globalContext->lockCursorHook();
 }
+#endif
 
 void STDCALL_CONV setDrawColor(LINUX_ARGS(void* thisptr, ) int r, int g, int b, int a) noexcept
 {

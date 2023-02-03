@@ -66,7 +66,7 @@ GlobalContext::GlobalContext()
 
 bool GlobalContext::createMoveHook(float inputSampleTime, csgo::UserCmd* cmd)
 {
-    auto result = hooks->clientMode.callOriginal<bool, WIN32_LINUX(24, 25)>(inputSampleTime, cmd);
+    auto result = hooks->clientModeHooks.getOriginalCreateMove()(memory->clientMode, inputSampleTime, cmd);
 
     if (!cmd->commandNumber)
         return result;
@@ -149,7 +149,7 @@ void GlobalContext::doPostScreenEffectsHook(void* param)
         features->visuals.remove3dSky();
         features->glow.render(getEngineInterfaces(), ClientInterfaces{ retSpoofGadgets->client, *clientInterfaces }, *memory);
     }
-    hooks->clientMode.callOriginal<void, WIN32_LINUX(44, 45)>(param);
+    hooks->clientModeHooks.getOriginalDoPostScreenEffects()(memory->clientMode, param);
 }
 
 float GlobalContext::getViewModelFovHook()
@@ -160,26 +160,26 @@ float GlobalContext::getViewModelFovHook()
             additionalFov = 0.0f;
     }
 
-    return hooks->clientMode.callOriginal<float, WIN32_LINUX(35, 36)>() + additionalFov;
+    return hooks->clientModeHooks.getOriginalGetViewModelFov()(memory->clientMode) + additionalFov;
 }
 
 void GlobalContext::drawModelExecuteHook(void* ctx, void* state, const csgo::ModelRenderInfo& info, csgo::matrix3x4* customBoneToWorld)
 {
     if (getOtherInterfaces().getStudioRender().isForcedMaterialOverride())
-        return hooks->modelRender.callOriginal<void, 21>(ctx, state, &info, customBoneToWorld);
+        return hooks->modelRenderHooks.getOriginalDrawModelExecute()(engineInterfacesPODs->modelRender, ctx, state, &info, customBoneToWorld);
 
     if (features->visuals.removeHands(info.model->name) || features->visuals.removeSleeves(info.model->name) || features->visuals.removeWeapons(info.model->name))
         return;
 
-    if (!features->chams.render(features->backtrack, getEngineInterfaces().getEngine(), ClientInterfaces{ retSpoofGadgets->client, *clientInterfaces }, getOtherInterfaces(), *memory, *config, ctx, state, info, customBoneToWorld))
-        hooks->modelRender.callOriginal<void, 21>(ctx, state, &info, customBoneToWorld);
+    if (!features->chams.render(features->backtrack, *config, ctx, state, info, customBoneToWorld))
+        hooks->modelRenderHooks.getOriginalDrawModelExecute()(engineInterfacesPODs->modelRender, ctx, state, &info, customBoneToWorld);
 
     getOtherInterfaces().getStudioRender().forcedMaterialOverride(nullptr);
 }
 
-int GlobalContext::svCheatsGetIntHook(void* _this, ReturnAddress returnAddress)
+int GlobalContext::svCheatsGetIntHook(csgo::ConVarPOD* thisptr, ReturnAddress returnAddress)
 {
-    const auto original = hooks->svCheats.getOriginal<int, WIN32_LINUX(13, 16)>()(_this);
+    const auto original = hooks->svCheatsHooks.getOriginalSvCheatsGetInt()(thisptr);
     if (features->visuals.svCheatsGetBoolHook(returnAddress))
         return 1;
     return original;
@@ -214,7 +214,7 @@ void GlobalContext::frameStageNotifyHook(csgo::FrameStage stage)
     }
     features->inventoryChanger.run(*memory, stage);
 
-    hooks->client.callOriginal<void, 37>(stage);
+    hooks->clientHooks.getOriginalFrameStageNotify()(clientInterfaces->client, stage);
 }
 
 int GlobalContext::emitSoundHook(void* filter, int entityIndex, int channel, const char* soundEntry, unsigned int soundEntryHash, const char* sample, float volume, int seed, int soundLevel, int flags, int pitch, const csgo::Vector& origin, const csgo::Vector& direction, void* utlVecOrigins, bool updatePositions, float soundtime, int speakerentity, void* soundParams)
@@ -223,7 +223,7 @@ int GlobalContext::emitSoundHook(void* filter, int entityIndex, int channel, con
     features->misc.autoAccept(soundEntry);
 
     volume = std::clamp(volume, 0.0f, 1.0f);
-    return hooks->sound.callOriginal<int, WIN32_LINUX(5, 6)>(filter, entityIndex, channel, soundEntry, soundEntryHash, sample, volume, seed, soundLevel, flags, pitch, &origin, &direction, utlVecOrigins, updatePositions, soundtime, speakerentity, soundParams);
+    return hooks->engineSoundHooks.getOriginalEmitSound()(engineInterfacesPODs->sound, filter, entityIndex, channel, soundEntry, soundEntryHash, sample, volume, seed, soundLevel, flags, pitch, &origin, &direction, utlVecOrigins, updatePositions, soundtime, speakerentity, soundParams);
 }
 
 bool GlobalContext::shouldDrawFogHook(ReturnAddress returnAddress)
@@ -231,7 +231,7 @@ bool GlobalContext::shouldDrawFogHook(ReturnAddress returnAddress)
 #if IS_WIN32()
     if constexpr (std::is_same_v<HookType, MinHook>) {
         if (returnAddress != memory->shouldDrawFogReturnAddress)
-            return hooks->clientMode.callOriginal<bool, 17>();
+            return hooks->clientModeHooks.getOriginalShouldDrawFog()(memory->clientMode);
     }
 #endif
 
@@ -242,20 +242,22 @@ bool GlobalContext::shouldDrawViewModelHook()
 {
     if (features->visuals.isZoomOn() && localPlayer && localPlayer.get().fov() < 45 && localPlayer.get().fovStart() < 45)
         return false;
-    return hooks->clientMode.callOriginal<bool, WIN32_LINUX(27, 28)>();
+    return hooks->clientModeHooks.getOriginalShouldDrawViewModel()(memory->clientMode);
 }
 
+#if IS_WIN32()
 void GlobalContext::lockCursorHook()
 {
     if (gui->isOpen())
         return getOtherInterfaces().getSurface().unlockCursor();
-    return hooks->surface.callOriginal<void, 67>();
+    return hooks->surfaceHooks.getOriginalLockCursor()(getOtherInterfaces().getSurface().getPOD());
 }
+#endif
 
 void GlobalContext::setDrawColorHook(int r, int g, int b, int a, ReturnAddress returnAddress)
 {
     features->visuals.setDrawColorHook(returnAddress, a);
-    hooks->surface.callOriginal<void, WIN32_LINUX(15, 14)>(r, g, b, a);
+    hooks->surfaceHooks.getOriginalSetDrawColor()(getOtherInterfaces().getSurface().getPOD(), r, g, b, a);
 }
 
 void GlobalContext::overrideViewHook(csgo::ViewSetup* setup)
@@ -263,7 +265,7 @@ void GlobalContext::overrideViewHook(csgo::ViewSetup* setup)
     if (localPlayer && !localPlayer.get().isScoped())
         setup->fov += features->visuals.fov();
     setup->farZ += features->visuals.farZ() * 10;
-    hooks->clientMode.callOriginal<void, WIN32_LINUX(18, 19)>(setup);
+    hooks->clientModeHooks.getOriginalOverrideView()(memory->clientMode, setup);
 }
 
 int GlobalContext::dispatchSoundHook(csgo::SoundInfo& soundInfo)
@@ -279,12 +281,12 @@ void GlobalContext::render2dEffectsPreHudHook(void* viewSetup)
 {
     features->visuals.applyScreenEffects();
     features->visuals.hitEffect();
-    hooks->viewRender.callOriginal<void, WIN32_LINUX(39, 40)>(viewSetup);
+    hooks->viewRenderHooks.getOriginalRender2dEffectsPreHud()(memory->viewRender, viewSetup);
 }
 
 const csgo::DemoPlaybackParameters* GlobalContext::getDemoPlaybackParametersHook(ReturnAddress returnAddress)
 {
-    const auto params = hooks->engine.callOriginal<const csgo::DemoPlaybackParameters*, WIN32_LINUX(218, 219)>();
+    const auto params = hooks->engineHooks.getOriginalGetDemoPlaybackParameters()(engineInterfacesPODs->engine);
 
     if (params)
         return features->misc.getDemoPlaybackParametersHook(returnAddress, *params);
@@ -298,12 +300,12 @@ bool GlobalContext::dispatchUserMessageHook(csgo::UserMessageType type, int pass
     if (type == csgo::UserMessageType::Text)
         features->inventoryChanger.onUserTextMsg(*memory, data, size);
 
-    return hooks->client.callOriginal<bool, 38>(type, passthroughFlags, size, data);
+    return hooks->clientHooks.getOriginalDispatchUserMessage()(clientInterfaces->client, type, passthroughFlags, size, data);
 }
 
 bool GlobalContext::isPlayingDemoHook(ReturnAddress returnAddress, std::uintptr_t frameAddress)
 {
-    const auto result = hooks->engine.callOriginal<bool, 82>();
+    const auto result = hooks->engineHooks.getOriginalIsPlayingDemo()(engineInterfacesPODs->engine);
 
     if (features->misc.isPlayingDemoHook(returnAddress, frameAddress))
         return true;
@@ -313,7 +315,7 @@ bool GlobalContext::isPlayingDemoHook(ReturnAddress returnAddress, std::uintptr_
 
 void GlobalContext::updateColorCorrectionWeightsHook()
 {
-    hooks->clientMode.callOriginal<void, WIN32_LINUX(58, 61)>();
+    hooks->clientModeHooks.getOriginalUpdateColorCorrectionWeights()(memory->clientMode);
     features->visuals.updateColorCorrectionWeightsHook();
 }
 
@@ -321,25 +323,25 @@ float GlobalContext::getScreenAspectRatioHook(int width, int height)
 {
     if (features->misc.aspectRatio() != 0.0f)
         return features->misc.aspectRatio();
-    return hooks->engine.callOriginal<float, 101>(width, height);
+    return hooks->engineHooks.getOriginalGetScreenAspectRatio()(engineInterfacesPODs->engine, width, height);
 }
 
-void GlobalContext::renderSmokeOverlayHook(bool update)
+void GlobalContext::renderSmokeOverlayHook(bool preViewModel)
 {
     if (!features->visuals.renderSmokeOverlayHook())
-        hooks->viewRender.callOriginal<void, WIN32_LINUX(41, 42)>(update);  
+        hooks->viewRenderHooks.getOriginalRenderSmokeOverlay()(memory->viewRender, preViewModel);
 }
 
 double GlobalContext::getArgAsNumberHook(void* params, int index, ReturnAddress returnAddress)
 {
-    const auto result = hooks->panoramaMarshallHelper.callOriginal<double, 5>(params, index);
+    const auto result = hooks->panoramaMarshallHelperHooks.getOriginalGetArgAsNumber()(memory->panoramaMarshallHelper, params, index);
     features->inventoryChanger.getArgAsNumberHook(static_cast<int>(result), returnAddress);
     return result;
 }
 
 const char* GlobalContext::getArgAsStringHook(void* params, int index, ReturnAddress returnAddress)
 {
-    const auto result = hooks->panoramaMarshallHelper.callOriginal<const char*, 7>(params, index);
+    const auto result = hooks->panoramaMarshallHelperHooks.getOriginalGetArgAsString()(memory->panoramaMarshallHelper, params, index);
 
     if (result)
         features->inventoryChanger.getArgAsStringHook(*memory, result, returnAddress, params);
@@ -350,33 +352,33 @@ const char* GlobalContext::getArgAsStringHook(void* params, int index, ReturnAdd
 void GlobalContext::setResultIntHook(void* params, int result, ReturnAddress returnAddress)
 {
     result = features->inventoryChanger.setResultIntHook(returnAddress, params, result);
-    hooks->panoramaMarshallHelper.callOriginal<void, WIN32_LINUX(14, 11)>(params, result);
+    hooks->panoramaMarshallHelperHooks.getOriginalSetResultInt()(memory->panoramaMarshallHelper, params, result);
 }
 
 unsigned GlobalContext::getNumArgsHook(void* params, ReturnAddress returnAddress)
 {
-    const auto result = hooks->panoramaMarshallHelper.callOriginal<unsigned, 1>(params);
-    features->inventoryChanger.getNumArgsHook(result, returnAddress, params);
+    const auto result = hooks->panoramaMarshallHelperHooks.getOriginalGetNumArgs()(memory->panoramaMarshallHelper, params);
+    features->inventoryChanger.getNumArgsHook(memory->panoramaMarshallHelper, result, returnAddress, params);
     return result;
 }
 
 void GlobalContext::updateInventoryEquippedStateHook(std::uintptr_t inventory, csgo::ItemId itemID, csgo::Team team, int slot, bool swap)
 {
     features->inventoryChanger.onItemEquip(team, slot, itemID);
-    hooks->inventoryManager.callOriginal<void, WIN32_LINUX(29, 30)>(inventory, itemID, team, slot, swap);
+    hooks->inventoryManagerHooks.getOriginalUpdateInventoryEquippedState()(memory->inventoryManager.getPOD(), inventory, itemID, team, slot, swap);
 }
 
 void GlobalContext::soUpdatedHook(csgo::SOID owner, csgo::SharedObjectPOD* object, int event)
 {
     features->inventoryChanger.onSoUpdated(csgo::SharedObject::from(retSpoofGadgets->client, object));
-    hooks->inventory.callOriginal<void, 1>(owner, object, event);
+    hooks->playerInventoryHooks.getOriginalSoUpdated()(memory->inventoryManager.getLocalInventory(), owner, object, event);
 }
 
 int GlobalContext::listLeavesInBoxHook(const csgo::Vector& mins, const csgo::Vector& maxs, unsigned short* list, int listMax, ReturnAddress returnAddress, std::uintptr_t frameAddress)
 {
     if (const auto newVectors = features->misc.listLeavesInBoxHook(returnAddress, frameAddress))
-        return hooks->bspQuery.callOriginal<int, 6>(&newVectors->first, &newVectors->second, list, listMax);
-    return hooks->bspQuery.callOriginal<int, 6>(&mins, &maxs, list, listMax);
+        return hooks->bspQueryHooks.getOriginalListLeavesInBox()(getEngineInterfaces().getEngine().getBSPTreeQuery(), &newVectors->first, &newVectors->second, list, listMax);
+    return hooks->bspQueryHooks.getOriginalListLeavesInBox()(getEngineInterfaces().getEngine().getBSPTreeQuery(), &mins, &maxs, list, listMax);
 }
 
 #if IS_WIN32()
@@ -386,7 +388,7 @@ void* GlobalContext::allocKeyValuesMemoryHook(int size, ReturnAddress returnAddr
 {
     if (returnAddress == memory->keyValuesAllocEngine || returnAddress == memory->keyValuesAllocClient)
         return nullptr;
-    return hooks->keyValuesSystem.callOriginal<void*, 2>(size);
+    return hooks->keyValuesSystemHooks.getOriginalAllocKeyValuesMemory()(memory->keyValuesSystem, size);
 }
 
 LRESULT GlobalContext::wndProcHook(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
