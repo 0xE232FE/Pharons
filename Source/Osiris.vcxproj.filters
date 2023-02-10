@@ -314,9 +314,6 @@
     <ClCompile Include="GlobalContext.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Helpers\PatternFinder.cpp">
-      <Filter>Helpers</Filter>
-    </ClCompile>
     <ClCompile Include="Endpoints.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -349,6 +346,9 @@
     </ClCompile>
     <ClCompile Include="RetSpoof\RetSpoofGadgets.cpp">
       <Filter>RetSpoof</Filter>
+    </ClCompile>
+    <ClCompile Include="Helpers\PatternNotFoundHandler.cpp">
+      <Filter>Helpers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -690,9 +690,6 @@
     </ClInclude>
     <ClInclude Include="Platform\Windows\DynamicLibrarySection.h">
       <Filter>Platform\Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Helpers\PatternFinder.h">
-      <Filter>Helpers</Filter>
     </ClInclude>
     <ClInclude Include="Interfaces\InterfaceFinder.h">
       <Filter>Interfaces</Filter>
@@ -1122,6 +1119,9 @@
     </ClInclude>
     <ClInclude Include="Hooks\KeyValuesSystemHooks.h">
       <Filter>Hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="Helpers\PatternNotFoundHandler.h">
+      <Filter>Helpers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -9,6 +9,7 @@
 #include <CSGO/Functions.h>
 #include <CSGO/PODs/ConVar.h>
 #include <MemorySearch/BytePatternLiteral.h>
+#include <MemorySearch/PatternFinder.h>
 #include <RetSpoof/FunctionInvoker.h>
 
 class SkyboxChanger {
@@ -50,11 +51,11 @@ private:
     FunctionInvoker<csgo::R_LoadNamedSkys> loadSky;
 };
 
-[[nodiscard]] inline SkyboxChanger createSkyboxChanger(csgo::Cvar cvar, const helpers::PatternFinder& enginePatternFinder)
+[[nodiscard]] inline SkyboxChanger createSkyboxChanger(csgo::Cvar cvar, const PatternFinder& enginePatternFinder)
 {
 #if IS_WIN32()
     return SkyboxChanger{ cvar, FunctionInvoker<csgo::R_LoadNamedSkys>{ retSpoofGadgets->engine, enginePatternFinder("E8 ? ? ? ? 84 C0 74 2D A1"_pat).add(1).relativeToAbsolute().get() } };
 #elif IS_LINUX()
-    return SkyboxChanger{ cvar, FunctionInvoker<csgo::R_LoadNamedSkys>{ retSpoofGadgets->engine, enginePatternFinder("E8 ? ? ? ? 84 C0 74 AB"_pat).add(1).relativeToAbsolute().get() } };
+    return SkyboxChanger{ cvar, FunctionInvoker<csgo::R_LoadNamedSkys>{ retSpoofGadgets->engine, enginePatternFinder("55 4C 8D 05 ? ? ? ? 48 89 E5 41 57"_pat).get() } };
 #endif
 }
