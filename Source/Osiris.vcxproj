@@ -268,6 +268,7 @@
     <ClInclude Include="CSGO\Sound.h" />
     <ClInclude Include="CSGO\SoundEmitter.h" />
     <ClInclude Include="CSGO\SoundInfo.h" />
+    <ClInclude Include="CSGO\SplitScreen.h" />
     <ClInclude Include="CSGO\Steam.h" />
     <ClInclude Include="CSGO\StudioRender.h" />
     <ClInclude Include="CSGO\Surface.h" />
@@ -276,6 +277,7 @@
     <ClInclude Include="CSGO\Utils.h" />
     <ClInclude Include="CSGO\UtlMap.h" />
     <ClInclude Include="CSGO\UtlMemory.h" />
+    <ClInclude Include="CSGO\UtlRbTree.h" />
     <ClInclude Include="CSGO\UtlString.h" />
     <ClInclude Include="CSGO\UtlVector.h" />
     <ClInclude Include="CSGO\VarMapping.h" />
@@ -311,6 +313,7 @@
     <ClInclude Include="Hooks\BspQueryHooks.h" />
     <ClInclude Include="Hooks\ClientHooks.h" />
     <ClInclude Include="Hooks\ClientModeHooks.h" />
+    <ClInclude Include="Hooks\ClientStateHooks.h" />
     <ClInclude Include="Hooks\CSPlayerInventoryHooks.h" />
     <ClInclude Include="Hooks\EngineHooks.h" />
     <ClInclude Include="Hooks\EngineSoundHooks.h" />
@@ -324,6 +327,7 @@
     <ClInclude Include="Hooks\ViewRenderHooks.h" />
     <ClInclude Include="Hooks\VmtHook.h" />
     <ClInclude Include="Hooks\VmtSwap.h" />
+    <ClInclude Include="HookType.h" />
     <ClInclude Include="imguiCustom.h" />
     <ClInclude Include="InputUtil.h" />
     <ClInclude Include="Interfaces\ClientInterfaces.h" />
@@ -397,7 +401,9 @@
     <ClInclude Include="MemorySearch\PatternFinderSIMD.h" />
     <ClInclude Include="Netvars.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="Platform\DynamicLibrary.h" />
     <ClInclude Include="Platform\DynamicLibraryView.h" />
+    <ClInclude Include="Platform\DynamicLibraryWrapper.h" />
     <ClInclude Include="Platform\Macros\CallingConventions.h" />
     <ClInclude Include="Platform\Macros\CallStack.h" />
     <ClInclude Include="Platform\Macros\IsPlatform.h" />
