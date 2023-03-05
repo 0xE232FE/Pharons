@@ -131,6 +131,7 @@
     <ClCompile Include="Hacks\Triggerbot.cpp" />
     <ClCompile Include="Hacks\Visuals.cpp" />
     <ClCompile Include="Helpers.cpp" />
+    <ClCompile Include="Helpers\KeyValuesFactory.cpp" />
     <ClCompile Include="Helpers\PatternNotFoundHandler.cpp" />
     <ClCompile Include="Hooks\MinHook.cpp" />
     <ClCompile Include="Hooks\VmtHook.cpp" />
@@ -138,6 +139,8 @@
     <ClCompile Include="imguiCustom.cpp" />
     <ClCompile Include="InputUtil.cpp" />
     <ClCompile Include="InventoryChanger\Backend\Request\RequestHandler.cpp" />
+    <ClCompile Include="InventoryChanger\EconItemFunctions.cpp" />
+    <ClCompile Include="InventoryChanger\EconItemViewFunctions.cpp" />
     <ClCompile Include="InventoryChanger\GameIntegration\CrateLoot.cpp" />
     <ClCompile Include="InventoryChanger\GameIntegration\Inventory.cpp" />
     <ClCompile Include="InventoryChanger\GameIntegration\Items.cpp" />
@@ -237,6 +240,7 @@
     <ClInclude Include="CSGO\GlowObjectManager.h" />
     <ClInclude Include="CSGO\Helpers\EconItemFunctions.h" />
     <ClInclude Include="CSGO\Helpers\EconItemViewFunctions.h" />
+    <ClInclude Include="CSGO\Helpers\KeyValuesFunctions.h" />
     <ClInclude Include="CSGO\Input.h" />
     <ClInclude Include="CSGO\InputSystem.h" />
     <ClInclude Include="CSGO\ItemSchema.h" />
@@ -296,6 +300,9 @@
     <ClInclude Include="Hacks\Aimbot.h" />
     <ClInclude Include="Hacks\Backtrack.h" />
     <ClInclude Include="Hacks\Chams.h" />
+    <ClInclude Include="Hacks\Chams\ChamsMaterial.h" />
+    <ClInclude Include="Hacks\Chams\ChamsMaterialFactory.h" />
+    <ClInclude Include="Hacks\Chams\ChamsMaterialKeyValuesFactory.h" />
     <ClInclude Include="Hacks\EnginePrediction.h" />
     <ClInclude Include="Hacks\Features.h" />
     <ClInclude Include="Hacks\Glow.h" />
@@ -309,6 +316,7 @@
     <ClInclude Include="Hacks\Visuals\ScopeOverlayRemover.h" />
     <ClInclude Include="Hacks\Visuals\SkyboxChanger.h" />
     <ClInclude Include="Helpers.h" />
+    <ClInclude Include="Helpers\KeyValuesFactory.h" />
     <ClInclude Include="Helpers\PatternNotFoundHandler.h" />
     <ClInclude Include="Hooks\BspQueryHooks.h" />
     <ClInclude Include="Hooks\ClientHooks.h" />
@@ -514,7 +522,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>shell32.lib;ole32.lib</AdditionalDependencies>
+      <AdditionalDependencies>shell32.lib;ole32.lib;ntdll.lib;</AdditionalDependencies>
       <EntryPointSymbol>DllEntryPoint</EntryPointSymbol>
     </Link>
     <PostBuildEvent>
@@ -558,7 +566,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <AdditionalDependencies>shell32.lib;ole32.lib</AdditionalDependencies>
+      <AdditionalDependencies>shell32.lib;ole32.lib;ntdll.lib;</AdditionalDependencies>
       <EntryPointSymbol>DllEntryPoint</EntryPointSymbol>
     </Link>
     <PostBuildEvent>
