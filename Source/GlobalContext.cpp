@@ -69,23 +69,6 @@ GlobalContext::GlobalContext()
 }
 
 #if IS_WIN32()
-LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-LRESULT GlobalContext::wndProcHook(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    if (state == GlobalContext::State::Initialized) {
-        ImGui_ImplWin32_WndProcHandler(window, msg, wParam, lParam);
-        getOtherInterfaces().getInputSystem().enableInput(!gui->isOpen());
-    } else if (state == GlobalContext::State::NotInitialized) {
-        state = GlobalContext::State::Initializing;
-        ImGui::CreateContext();
-        ImGui_ImplWin32_Init(window);
-        initialize();
-        state = GlobalContext::State::Initialized;
-    }
-
-    return CallWindowProcW(hooks->originalWndProc, window, msg, wParam, lParam);
-}
 
 HRESULT GlobalContext::presentHook(IDirect3DDevice9* device, const RECT* src, const RECT* dest, HWND windowOverride, const RGNDATA* dirtyRegion)
 {
@@ -272,7 +255,7 @@ void GlobalContext::initialize()
     const PatternFinder clientPatternFinder{ getCodeSection(clientSo.getView()), patternNotFoundHandler };
     const PatternFinder enginePatternFinder{ getCodeSection(engineSo.getView()), patternNotFoundHandler };
 
-    memory.emplace(clientPatternFinder, enginePatternFinder, clientInterfaces->client, *retSpoofGadgets);
+    memory.emplace(clientPatternFinder, enginePatternFinder, std::get<csgo::ClientPOD*>(*clientInterfaces), *retSpoofGadgets);
 
     Netvars::init(ClientInterfaces{ retSpoofGadgets->client, *clientInterfaces }.getClient());
     gameEventListener.emplace(getEngineInterfaces().getGameEventManager(memory->getEventDescriptor));
@@ -282,5 +265,5 @@ void GlobalContext::initialize()
     config.emplace(*features, getOtherInterfaces(), *memory);
     
     gui.emplace();
-    hooks->install(clientInterfaces->client, getEngineInterfaces(), getOtherInterfaces(), *memory);
+    hooks->install(std::get<csgo::ClientPOD*>(*clientInterfaces), getEngineInterfaces(), getOtherInterfaces(), *memory);
 }

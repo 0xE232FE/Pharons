@@ -1168,6 +1168,24 @@
     <ClInclude Include="Hacks\Chams\ChamsMaterialFactory.h">
       <Filter>Hacks\Chams</Filter>
     </ClInclude>
+    <ClInclude Include="Hacks\Chams\ChamsMaterials.h">
+      <Filter>Hacks\Chams</Filter>
+    </ClInclude>
+    <ClInclude Include="Hacks\Chams\ChamsLayer.h">
+      <Filter>Hacks\Chams</Filter>
+    </ClInclude>
+    <ClInclude Include="Hacks\Visuals\BulletTracers.h">
+      <Filter>Hacks\Visuals</Filter>
+    </ClInclude>
+    <ClInclude Include="Helpers\Bits.h">
+      <Filter>Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\WindowProcedureHook.h">
+      <Filter>Hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Windows\PortableExecutable.h">
+      <Filter>Platform\Windows</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\Shaders\default_vs.hlsl">

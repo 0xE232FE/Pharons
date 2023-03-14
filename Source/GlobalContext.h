@@ -31,7 +31,7 @@ namespace csgo
 
     struct ConVarPOD;
     struct DemoPlaybackParameters;
-    class matrix3x4;
+    struct matrix3x4;
     struct ModelRenderInfo;
     struct recvProxyData;
     struct SoundInfo;
@@ -44,7 +44,6 @@ public:
     GlobalContext();
 
 #if IS_WIN32()
-    LRESULT wndProcHook(HWND window, UINT msg, WPARAM wParam, LPARAM lParam);
     HRESULT presentHook(IDirect3DDevice9* device, const RECT* src, const RECT* dest, HWND windowOverride, const RGNDATA* dirtyRegion);
     HRESULT resetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params);
 
@@ -88,6 +87,5 @@ public:
     std::optional<Helpers::RandomGenerator> randomGenerator;
     std::optional<const Memory> memory;
 
-private:
     void initialize();
 };

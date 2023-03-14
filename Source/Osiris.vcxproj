@@ -300,9 +300,11 @@
     <ClInclude Include="Hacks\Aimbot.h" />
     <ClInclude Include="Hacks\Backtrack.h" />
     <ClInclude Include="Hacks\Chams.h" />
+    <ClInclude Include="Hacks\Chams\ChamsLayer.h" />
     <ClInclude Include="Hacks\Chams\ChamsMaterial.h" />
     <ClInclude Include="Hacks\Chams\ChamsMaterialFactory.h" />
     <ClInclude Include="Hacks\Chams\ChamsMaterialKeyValuesFactory.h" />
+    <ClInclude Include="Hacks\Chams\ChamsMaterials.h" />
     <ClInclude Include="Hacks\EnginePrediction.h" />
     <ClInclude Include="Hacks\Features.h" />
     <ClInclude Include="Hacks\Glow.h" />
@@ -311,11 +313,13 @@
     <ClInclude Include="Hacks\StreamProofESP.h" />
     <ClInclude Include="Hacks\Triggerbot.h" />
     <ClInclude Include="Hacks\Visuals.h" />
+    <ClInclude Include="Hacks\Visuals\BulletTracers.h" />
     <ClInclude Include="Hacks\Visuals\ColorCorrection.h" />
     <ClInclude Include="Hacks\Visuals\PostProcessingDisabler.h" />
     <ClInclude Include="Hacks\Visuals\ScopeOverlayRemover.h" />
     <ClInclude Include="Hacks\Visuals\SkyboxChanger.h" />
     <ClInclude Include="Helpers.h" />
+    <ClInclude Include="Helpers\Bits.h" />
     <ClInclude Include="Helpers\KeyValuesFactory.h" />
     <ClInclude Include="Helpers\PatternNotFoundHandler.h" />
     <ClInclude Include="Hooks\BspQueryHooks.h" />
@@ -335,6 +339,7 @@
     <ClInclude Include="Hooks\ViewRenderHooks.h" />
     <ClInclude Include="Hooks\VmtHook.h" />
     <ClInclude Include="Hooks\VmtSwap.h" />
+    <ClInclude Include="Hooks\WindowProcedureHook.h" />
     <ClInclude Include="HookType.h" />
     <ClInclude Include="imguiCustom.h" />
     <ClInclude Include="InputUtil.h" />
@@ -420,6 +425,7 @@
     <ClInclude Include="Platform\Windows\DynamicLibrarySection.h" />
     <ClInclude Include="Platform\Windows\DynamicLibraryView.h" />
     <ClInclude Include="Platform\Windows\DynamicLibraryWrapper.h" />
+    <ClInclude Include="Platform\Windows\PortableExecutable.h" />
     <ClInclude Include="ProtobufReader.h" />
     <ClInclude Include="Resources\avatar_ct.h" />
     <ClInclude Include="Resources\avatar_tt.h" />
