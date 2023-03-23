@@ -682,7 +682,7 @@
     <ClInclude Include="GlobalContext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Platform\Windows\DynamicLibraryWrapper.h">
+    <ClInclude Include="Platform\Windows\PlatformApi.h">
       <Filter>Platform\Windows</Filter>
     </ClInclude>
     <ClInclude Include="Platform\Windows\DynamicLibraryView.h">
@@ -940,9 +940,6 @@
     <ClInclude Include="CSGO\NetworkChannel.h">
       <Filter>CSGO</Filter>
     </ClInclude>
-    <ClInclude Include="CSGO\Pad.h">
-      <Filter>CSGO</Filter>
-    </ClInclude>
     <ClInclude Include="CSGO\Panorama.h">
       <Filter>CSGO</Filter>
     </ClInclude>
@@ -1138,9 +1135,6 @@
     <ClInclude Include="Platform\DynamicLibrary.h">
       <Filter>Platform</Filter>
     </ClInclude>
-    <ClInclude Include="Platform\DynamicLibraryWrapper.h">
-      <Filter>Platform</Filter>
-    </ClInclude>
     <ClInclude Include="HookType.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1185,6 +1179,18 @@
     </ClInclude>
     <ClInclude Include="Platform\Windows\PortableExecutable.h">
       <Filter>Platform\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Windows\Win.h">
+      <Filter>Platform\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Windows\PebLdr.h">
+      <Filter>Platform\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\PlatformApi.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Pad.h">
+      <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
