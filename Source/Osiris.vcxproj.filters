@@ -685,12 +685,6 @@
     <ClInclude Include="Platform\Windows\PlatformApi.h">
       <Filter>Platform\Windows</Filter>
     </ClInclude>
-    <ClInclude Include="Platform\Windows\DynamicLibraryView.h">
-      <Filter>Platform\Windows</Filter>
-    </ClInclude>
-    <ClInclude Include="Platform\DynamicLibraryView.h">
-      <Filter>Platform</Filter>
-    </ClInclude>
     <ClInclude Include="Platform\Windows\DynamicLibrary.h">
       <Filter>Platform\Windows</Filter>
     </ClInclude>
@@ -699,9 +693,6 @@
     </ClInclude>
     <ClInclude Include="Utils\TypeHint.h">
       <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="Platform\Windows\DynamicLibrarySection.h">
-      <Filter>Platform\Windows</Filter>
     </ClInclude>
     <ClInclude Include="Interfaces\InterfaceFinder.h">
       <Filter>Interfaces</Filter>

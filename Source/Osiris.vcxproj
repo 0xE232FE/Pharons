@@ -414,15 +414,12 @@
     <ClInclude Include="Netvars.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Platform\DynamicLibrary.h" />
-    <ClInclude Include="Platform\DynamicLibraryView.h" />
     <ClInclude Include="Platform\Macros\CallingConventions.h" />
     <ClInclude Include="Platform\Macros\CallStack.h" />
     <ClInclude Include="Platform\Macros\IsPlatform.h" />
     <ClInclude Include="Platform\Macros\PlatformSpecific.h" />
     <ClInclude Include="Platform\PlatformApi.h" />
     <ClInclude Include="Platform\Windows\DynamicLibrary.h" />
-    <ClInclude Include="Platform\Windows\DynamicLibrarySection.h" />
-    <ClInclude Include="Platform\Windows\DynamicLibraryView.h" />
     <ClInclude Include="Platform\Windows\PebLdr.h" />
     <ClInclude Include="Platform\Windows\PlatformApi.h" />
     <ClInclude Include="Platform\Windows\PortableExecutable.h" />
