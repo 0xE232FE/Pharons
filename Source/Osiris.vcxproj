@@ -198,6 +198,9 @@
     <ClInclude Include="..\Dependencies\MinHook\trampoline.h" />
     <ClInclude Include="..\Dependencies\nlohmann\json.hpp" />
     <ClInclude Include="AntiDetection.h" />
+    <ClInclude Include="BytePatterns\ClientPatternFinder.h" />
+    <ClInclude Include="BytePatterns\LinuxClientPatternFinder.h" />
+    <ClInclude Include="BytePatterns\WindowsClientPatternFinder.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="ConfigStructs.h" />
     <ClInclude Include="Config\Configurable.h" />
@@ -448,6 +451,7 @@
     <ClInclude Include="Utils\ReturnAddress.h" />
     <ClInclude Include="Utils\SafeAddress.h" />
     <ClInclude Include="Utils\SpanSlice.h" />
+    <ClInclude Include="Utils\StringBuilder.h" />
     <ClInclude Include="Utils\TypeHint.h" />
   </ItemGroup>
   <ItemGroup>
